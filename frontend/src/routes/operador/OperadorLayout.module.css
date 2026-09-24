@@ -1,0 +1,48 @@
+.shell {
+  min-height: 100vh;
+  background: var(--el-bg);
+}
+
+.header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--el-surface);
+  border-bottom: 1px solid var(--el-line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--el-red);
+}
+
+.userName {
+  font-size: 13px;
+  color: var(--el-muted);
+}
+
+.logoutButton {
+  background: none;
+  border: none;
+  color: var(--el-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.logoutButton:hover {
+  color: var(--el-red);
+  background: var(--el-red-tint);
+}
+
+.content {
+  padding: 16px;
+}

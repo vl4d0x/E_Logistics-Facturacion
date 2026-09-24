@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: elogistics
+      POSTGRES_PASSWORD: elogistics
+      POSTGRES_DB: elogistics
+    ports:
+      - "5432:5432"
+    volumes:
+      - elogistics_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elogistics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  elogistics_pg_data:
