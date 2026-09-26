@@ -10,13 +10,19 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 import sqlmodel
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "0001"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-_rol_usuario = sa.Enum("admin", "operador", name="rolusuario")
+# create_type=False: sin esto, op.create_table() intenta crear el tipo OTRA VEZ por su
+# cuenta (con checkfirst=False) además de la creación explícita de abajo -> DuplicateObject.
+# Con create_type=False, create_table/drop_table nunca lo tocan; el CREATE/DROP explícito
+# (con checkfirst=True) es la única fuente, y de paso es idempotente si el tipo ya existe
+# huérfano en la DB (ej. por un deploy previo que falló a medias).
+_rol_usuario = postgresql.ENUM("admin", "operador", name="rolusuario", create_type=False)
 
 
 def upgrade() -> None:
