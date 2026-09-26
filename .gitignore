@@ -27,3 +27,4 @@ dist-ssr/
 
 # --- Railway / logs ---
 *.log
+.logs/
