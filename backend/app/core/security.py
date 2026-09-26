@@ -3,23 +3,30 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
 settings = get_settings()
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 TokenType = Literal["access", "refresh"]
 
+# bcrypt (la librería, no passlib) directo: passlib 1.7.4 (su último release) es
+# incompatible con bcrypt>=4.1 (`AttributeError: module 'bcrypt' has no attribute
+# '__about__'`, atrapado en silencio pero ensucia cada login en los logs).
+_MAX_PASSWORD_BYTES = 72  # bcrypt trunca en silencio pasado esto; lo hacemos explícito.
+
 
 def hash_password(plain_password: str) -> str:
-    return _pwd_context.hash(plain_password)
+    encoded = plain_password.encode("utf-8")
+    if len(encoded) > _MAX_PASSWORD_BYTES:
+        raise ValueError(f"La contraseña no puede exceder {_MAX_PASSWORD_BYTES} bytes")
+    return bcrypt.hashpw(encoded, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    return _pwd_context.verify(plain_password, password_hash)
+    return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def _create_token(subject: UUID, token_type: TokenType, expires_delta: timedelta) -> str:
