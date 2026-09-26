@@ -4,7 +4,7 @@ Fails fast at startup if a required variable is missing — see `01-architecture
 """
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,21 @@ class Settings(BaseSettings):
     # --- Core / DB ---
     database_url: str = Field(alias="DATABASE_URL")
     env: str = Field(default="development", alias="ENV")
+
+    @field_validator("database_url")
+    @classmethod
+    def _force_psycopg_driver(cls, v: str) -> str:
+        """Normaliza el scheme a `postgresql+psycopg://` (driver psycopg v3).
+
+        Railway (y otros hosts, ej. Heroku con `postgres://`) inyectan la URL sin
+        especificar driver; SQLAlchemy por default cae a psycopg2, que no instalamos
+        (usamos psycopg v3, ver pyproject.toml). Sin esto, alembic/la app truenan con
+        `ModuleNotFoundError: No module named 'psycopg2'` en cuanto la URL viene "pelada".
+        """
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix) :]
+        return v
 
     # --- Auth / JWT ---
     jwt_secret: str = Field(alias="JWT_SECRET")
