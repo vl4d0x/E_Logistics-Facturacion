@@ -79,14 +79,22 @@ UUID como PK, código en inglés / dominio y UI en español, `/api/v1` como pref
 ## 🔴 Info pendiente de Vlad
 
 Estos bloques bloquean partes específicas (no todo el proyecto) hasta tener los datos reales.
-Configúralos como variables de entorno (`backend/.env`), **nunca** los pegues en el chat con un
-agente ni los commitees:
+Configúralos como variables de entorno (`backend/.env` local / Variables del servicio en Railway),
+**nunca** los pegues en el chat con un agente ni los commitees.
 
-- `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — usuario admin inicial (H0.2).
-- `FACTURAMA_USER` / `FACTURAMA_PASSWORD` — credenciales del sandbox (H0.5, Fase 4).
-- `EMISOR_RFC` / `EMISOR_NOMBRE` / `EMISOR_LUGAR_EXPEDICION` — datos fiscales del emisor (Fase 4).
-- Datos reales de catálogos (unidades, operadores, clientes, mercancías) — Fase 1.
-- R2 (`R2_*`) y Resend (`RESEND_API_KEY`, `EMAIL_FROM`) — Fase 5.
+**Ya resueltos** (Fase 0, sept 2026):
+- ~~`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`~~ — admin creado y probado end-to-end en Railway.
+- ~~`FACTURAMA_USER` / `FACTURAMA_PASSWORD`~~ — cuenta sandbox real, autenticación verificada.
+- ~~`EMISOR_RFC` / `EMISOR_NOMBRE` / `EMISOR_LUGAR_EXPEDICION`~~ — confirmados y cargados también en
+  el perfil fiscal de Facturama (`TaxEntity` + `BranchOffice` + `Serie`, ver `backend/NOTES.md`).
+
+**Pendientes**:
+- **CSD** (Certificado de Sello Digital, `.cer`+`.key`+contraseña) — sin esto el spike no puede
+  timbrar de verdad (llega hasta "certificado vacío"). Se sube **directo en el panel de
+  dev.facturama.mx**, nunca por chat ni al repo. Ver `backend/NOTES.md`.
+- Datos reales de catálogos (unidades, operadores, clientes, mercancías) — Fase 1, el siguiente paso.
+- `FormaPago` por defecto y si algún cliente usa PUE en vez de PPD (`04-facturacion-cfdi §7`).
+- R2 (`R2_*`) y Resend (`RESEND_API_KEY`, `EMAIL_FROM`, plantilla de correo) — Fase 5.
 - Un CFDI real (XML+PDF) de Elogistics como fixture de test — Fase 4.
 
 Ver el detalle exacto de cada uno en el spec de su fase correspondiente.

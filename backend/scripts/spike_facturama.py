@@ -97,7 +97,9 @@ def build_payload() -> dict:
                             "Pais": "MEX",
                             "CodigoPostal": "52000",
                             "Estado": "MEX",
-                            "Municipio": "106",  # clave SAT ficticia (Toluca) — verificar catálogo real en Fase 4
+                            # Municipio/Localidad de GET /Catalogs/PostalCodes?keyword=52000
+                            # (catálogo real de Facturama, no inventado — ver NOTES.md).
+                            "Municipio": "051",
                         },
                     },
                     {
@@ -111,7 +113,10 @@ def build_payload() -> dict:
                             "Pais": "MEX",
                             "CodigoPostal": "52140",
                             "Estado": "MEX",
-                            "Municipio": "054",  # clave SAT ficticia (Metepec) — verificar catálogo real en Fase 4
+                            # Municipio/Localidad de GET /Catalogs/PostalCodes?keyword=52140
+                            # (catálogo real de Facturama, no inventado — ver NOTES.md).
+                            "Municipio": "054",
+                            "Localidad": "08",
                         },
                     },
                 ],
