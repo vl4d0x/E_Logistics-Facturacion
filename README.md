@@ -25,6 +25,11 @@ frontend/   React + Vite + TS + Mantine + TanStack Query + PWA (admin y operador
 docker-compose.yml   Postgres local
 ```
 
+> `backend/pyproject.toml` es la fuente de verdad de dependencias (dev local: `pip install -e
+> ".[dev]"`). `backend/requirements.txt` es un espejo solo para Railway/Railpack, que instala
+> vía `pip install -r requirements.txt` y no lee `pyproject.toml` para esto — si agregas una
+> dependencia de producción, actualiza ambos archivos.
+
 ## Desarrollo local
 
 ### Backend

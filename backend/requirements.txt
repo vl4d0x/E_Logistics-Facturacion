@@ -1,0 +1,18 @@
+# Espejo de [project.dependencies] en pyproject.toml — Railway/Railpack (pip) necesita
+# requirements.txt para instalar; no basta con pyproject.toml solo.
+# Si agregas una dependencia de producción, agrégala en AMBOS archivos.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+sqlmodel>=0.0.22
+alembic>=1.13
+psycopg[binary]>=3.2
+pydantic-settings>=2.6
+email-validator>=2.2
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.2,<5.0
+python-jose[cryptography]>=3.3
+python-multipart>=0.0.12
+httpx>=0.27
+boto3>=1.35
+openpyxl>=3.1
+resend>=2.4
