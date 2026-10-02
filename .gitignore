@@ -28,3 +28,6 @@ dist-ssr/
 # --- Railway / logs ---
 *.log
 .logs/
+
+# --- Datos reales / privados (no van al repo) ---
+.misc/
