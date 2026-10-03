@@ -1,15 +1,32 @@
 // `fase-1-catalogos.md` H1.2 — CRUD de operadores + su acceso a la app.
-import { Alert, Badge, Button, Divider, Drawer, Group, Stack, Table, Text, TextInput } from "@mantine/core";
+import { Alert, Badge, Button, Drawer, Group, Modal, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useState } from "react";
 import { Card } from "../../components/Card";
-import { type ActivoFiltro, operadoresApi } from "./api";
+import { type ActivoFiltro, operadoresApi, useAccesoOperador } from "./api";
 import { AccesoOperadorSection } from "./components/AccesoOperadorSection";
 import { CatalogToolbar } from "./components/CatalogToolbar";
 import { RowActionsMenu } from "./components/RowActionsMenu";
 import { SmartDeleteDialog } from "./components/SmartDeleteDialog";
 import type { Operador, OperadorPayload } from "./types";
+
+function AccesoCell({ operadorId, onGestionar }: { operadorId: string; onGestionar: () => void }) {
+  const { data: acceso, isLoading } = useAccesoOperador(operadorId);
+
+  if (isLoading) return <Skeleton height={24} width={130} />;
+
+  return (
+    <Group gap={6} wrap="nowrap">
+      <Badge color={acceso ? (acceso.activo ? "green" : "gray") : "yellow"} variant="light">
+        {acceso ? (acceso.activo ? "Acceso activo" : "Desactivado") : "Sin acceso"}
+      </Badge>
+      <Button variant="subtle" size="compact-xs" onClick={onGestionar}>
+        {acceso ? "Gestionar" : "Dar acceso"}
+      </Button>
+    </Group>
+  );
+}
 
 function OperadorForm({
   operador,
@@ -55,39 +72,30 @@ function OperadorForm({
   }
 
   return (
-    <Stack gap="lg">
-      <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="md">
-          <TextInput label="Nombre completo" required {...form.getInputProps("nombre")} />
-          <Group grow>
-            <TextInput
-              label="RFC"
-              required
-              {...form.getInputProps("rfc")}
-              onChange={(e) => form.setFieldValue("rfc", e.currentTarget.value.toUpperCase())}
-            />
-            <TextInput label="Número de licencia" required {...form.getInputProps("num_licencia")} />
-          </Group>
-          <TextInput label="Teléfono" {...form.getInputProps("telefono")} />
+    <form onSubmit={form.onSubmit(handleSubmit)}>
+      <Stack gap="md">
+        <TextInput label="Nombre completo" required {...form.getInputProps("nombre")} />
+        <Group grow>
+          <TextInput
+            label="RFC"
+            required
+            {...form.getInputProps("rfc")}
+            onChange={(e) => form.setFieldValue("rfc", e.currentTarget.value.toUpperCase())}
+          />
+          <TextInput label="Número de licencia" required {...form.getInputProps("num_licencia")} />
+        </Group>
+        <TextInput label="Teléfono" {...form.getInputProps("telefono")} />
 
-          <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button type="submit" loading={saving}>
-              Guardar
-            </Button>
-          </Group>
-        </Stack>
-      </form>
-
-      {operador && (
-        <>
-          <Divider label="Acceso a la app" labelPosition="left" />
-          <AccesoOperadorSection operadorId={operador.id} />
-        </>
-      )}
-    </Stack>
+        <Group justify="flex-end" mt="md">
+          <Button variant="default" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={saving}>
+            Guardar
+          </Button>
+        </Group>
+      </Stack>
+    </form>
   );
 }
 
@@ -97,6 +105,7 @@ export function OperadoresPage() {
   const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [editando, setEditando] = useState<Operador | null>(null);
   const [eliminando, setEliminando] = useState<Operador | null>(null);
+  const [gestionandoAcceso, setGestionandoAcceso] = useState<Operador | null>(null);
 
   const { data, isLoading, isError } = operadoresApi.useList(activo, q);
   const uso = operadoresApi.useUso(eliminando?.id ?? null);
@@ -131,6 +140,7 @@ export function OperadoresPage() {
             <Table.Th>RFC</Table.Th>
             <Table.Th>Licencia</Table.Th>
             <Table.Th>Teléfono</Table.Th>
+            <Table.Th>Acceso a la app</Table.Th>
             <Table.Th>Estado</Table.Th>
             <Table.Th />
           </Table.Tr>
@@ -142,6 +152,9 @@ export function OperadoresPage() {
               <Table.Td>{operador.rfc}</Table.Td>
               <Table.Td>{operador.num_licencia}</Table.Td>
               <Table.Td>{operador.telefono ?? "—"}</Table.Td>
+              <Table.Td>
+                <AccesoCell operadorId={operador.id} onGestionar={() => setGestionandoAcceso(operador)} />
+              </Table.Td>
               <Table.Td>
                 <Badge color={operador.activo ? "green" : "gray"} variant="light">
                   {operador.activo ? "Activo" : "Archivado"}
@@ -182,6 +195,14 @@ export function OperadoresPage() {
           onSaved={() => setDrawerAbierto(false)}
         />
       </Drawer>
+
+      <Modal
+        opened={gestionandoAcceso !== null}
+        onClose={() => setGestionandoAcceso(null)}
+        title={gestionandoAcceso ? `Acceso a la app — ${gestionandoAcceso.nombre}` : ""}
+      >
+        {gestionandoAcceso && <AccesoOperadorSection operadorId={gestionandoAcceso.id} />}
+      </Modal>
 
       <SmartDeleteDialog
         opened={eliminando !== null}
