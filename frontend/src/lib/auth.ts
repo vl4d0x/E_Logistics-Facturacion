@@ -36,7 +36,15 @@ export function subscribeSession(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-export function getSession(): StoredSession | null {
+// `useAuth` lee `getCurrentUser` vía `useSyncExternalStore`, que exige que el
+// snapshot sea referencialmente estable mientras nada cambió — si no, React entra
+// en loop infinito de renders ("Maximum update depth exceeded", solo visible en un
+// navegador real, no en los tests con jsdom) y la pantalla de admin queda en blanco
+// apenas hay sesión. Por eso se cachea en memoria en vez de volver a `JSON.parse`
+// el localStorage en cada llamada.
+let cachedSession: StoredSession | null | undefined;
+
+function readSession(): StoredSession | null {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
@@ -46,19 +54,31 @@ export function getSession(): StoredSession | null {
   }
 }
 
+export function getSession(): StoredSession | null {
+  if (cachedSession === undefined) {
+    cachedSession = readSession();
+  }
+  return cachedSession;
+}
+
 export function setSession(session: StoredSession): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  cachedSession = session;
   notify();
 }
 
 export function setAccessToken(accessToken: string): void {
   const current = getSession();
   if (!current) return;
-  setSession({ ...current, access_token: accessToken });
+  const updated = { ...current, access_token: accessToken };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  cachedSession = updated;
+  notify();
 }
 
 export function clearSession(): void {
   localStorage.removeItem(STORAGE_KEY);
+  cachedSession = null;
   notify();
 }
 
