@@ -160,7 +160,7 @@ export function ServiciosPage() {
                       {s.acuses_completos}/{s.acuses_requeridos} acuses
                     </Badge>
                   </Table.Td>
-                  <Table.Td ta="right">{s.subtotal ? `$${s.subtotal}` : "—"}</Table.Td>
+                  <Table.Td ta="right">{s.subtotal ? `$${Number(s.subtotal).toFixed(2)}` : "—"}</Table.Td>
                   <Table.Td>
                     <Group gap={4}>
                       <Badge variant="light">{ESTADO_LABEL[s.estado]}</Badge>
@@ -181,6 +181,19 @@ export function ServiciosPage() {
                         </Badge>
                       )}
                     </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    {s.estado_facturacion === "pendiente" && (s.estado === "terminado" || s.timbrado_anticipado) && (
+                      <Button
+                        size="xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/admin/servicios/${s.id}/facturar`);
+                        }}
+                      >
+                        Facturar
+                      </Button>
+                    )}
                   </Table.Td>
                 </Table.Tr>
               ))}

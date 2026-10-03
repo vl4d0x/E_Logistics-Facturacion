@@ -3,6 +3,7 @@
 // (modo "nuevo servicio") como para uno ya persistido (modo edición).
 import { ActionIcon, Badge, Group, NumberInput, SegmentedControl, Stack, Textarea } from "@mantine/core";
 import { IconLock, IconTrash } from "@tabler/icons-react";
+import { numberInputValue } from "../../../lib/numberInput";
 import type { TipoViaje } from "../types";
 import { LugarSelect } from "./LugarSelect";
 
@@ -95,7 +96,7 @@ export function ViajeRowEditor({
           label="Distancia (km)"
           decimalScale={2}
           value={viaje.distancia_km ?? undefined}
-          onChange={(v) => onChange({ distancia_km: typeof v === "number" ? v : null })}
+          onChange={(v) => onChange({ distancia_km: numberInputValue(v) })}
         />
       </Group>
       <Textarea

@@ -135,18 +135,18 @@ export function OperatorReportCard({ servicio }: { servicio: ServicioDetalle }) 
                     <Image src={c.ticket_url} w={32} h={32} radius={4} fit="cover" alt="Ticket" />
                   )}
                   <Text size="sm">
-                    {c.litros} L · ${c.precio_litro}/L
+                    {Number(c.litros)} L · ${Number(c.precio_litro).toFixed(2)}/L
                   </Text>
                 </Group>
                 <Text size="sm" fw={600}>
-                  ${c.importe}
+                  ${Number(c.importe).toFixed(2)}
                 </Text>
               </Group>
             ))}
             {combustible_total && (
               <Group justify="flex-end">
                 <Text size="sm" fw={700}>
-                  Total: {combustible_total.litros} L · ${combustible_total.importe}
+                  Total: {Number(combustible_total.litros)} L · ${Number(combustible_total.importe).toFixed(2)}
                 </Text>
               </Group>
             )}

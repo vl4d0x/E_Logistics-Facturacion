@@ -4,6 +4,7 @@ import { IconArrowLeft, IconCheck } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { numberInputValue } from "../../lib/numberInput";
 import { useCerrarServicio, useIniciarServicio, useServicioOperador } from "./api";
 import { ChecklistToggle } from "./components/ChecklistToggle";
 import { FuelGauge } from "./components/FuelGauge";
@@ -79,7 +80,7 @@ function PasoInspeccion({
         label="Odómetro (opcional)"
         suffix=" km"
         value={odometro ?? undefined}
-        onChange={(v) => setOdometro(typeof v === "number" ? v : null)}
+        onChange={(v) => setOdometro(numberInputValue(v))}
       />
       <Textarea
         label="Observaciones (opcional)"
@@ -203,7 +204,7 @@ function PasoCierre({ servicio }: { servicio: NonNullable<ReturnType<typeof useS
               suffix=" km"
               aria-label={`Km reportados del viaje ${v.orden}`}
               value={kms[v.id] ?? undefined}
-              onChange={(val) => setKms((prev) => ({ ...prev, [v.id]: typeof val === "number" ? val : null }))}
+              onChange={(val) => setKms((prev) => ({ ...prev, [v.id]: numberInputValue(val) }))}
             />
           </Group>
         ))}
@@ -217,7 +218,7 @@ function PasoCierre({ servicio }: { servicio: NonNullable<ReturnType<typeof useS
         label="Odómetro al llegar (opcional)"
         suffix=" km"
         value={odometro ?? undefined}
-        onChange={(v) => setOdometro(typeof v === "number" ? v : null)}
+        onChange={(v) => setOdometro(numberInputValue(v))}
         description={
           odometro != null && odometroInicio != null
             ? `Recorrido según odómetro: ${odometro - odometroInicio} km`
