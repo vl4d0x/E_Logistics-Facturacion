@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Column, Index, String, text
+from sqlalchemy import JSON, Column, Index, Numeric, String, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field
 
@@ -53,11 +53,13 @@ class Factura(TimestampMixin, table=True):
     metodo_pago: str = Field(nullable=False)
     forma_pago: str = Field(default="99", nullable=False)
     uso_cfdi: str = Field(nullable=False)
-    subtotal: Decimal = Field(nullable=False)
-    iva_trasladado: Decimal = Field(nullable=False)
-    iva_retenido: Decimal = Field(default=Decimal(0), nullable=False)
-    total: Decimal = Field(nullable=False)
-    saldo_insoluto: Decimal = Field(nullable=False)
+    # `NUMERIC(12,2)` explícito (`02-data-model §intro`, "Dinero") -- sin esto, el
+    # driver redondea a una escala por defecto (ej. "1848.0000000000") al releer.
+    subtotal: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    iva_trasladado: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    iva_retenido: Decimal = Field(default=Decimal(0), sa_column=Column(Numeric(12, 2), nullable=False))
+    total: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    saldo_insoluto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     estado_cobro: EstadoCobro = Field(default=EstadoCobro.pendiente, nullable=False)
     payload: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     facturama_id: str | None = Field(default=None)

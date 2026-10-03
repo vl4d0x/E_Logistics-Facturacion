@@ -101,6 +101,15 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
     else:
         checks.append(_ok("subtotal_presente", "subtotal"))
 
+    # --- Folio del cliente en el concepto (exclusivo de clientes que lo exigen) ---
+    if cliente.requiere_folio_concepto:
+        if not servicio.folio_cliente:
+            checks.append(
+                _error("folio_cliente_presente", f"Captura el folio de {cliente.nombre_comercial}", "concepto")
+            )
+        else:
+            checks.append(_ok("folio_cliente_presente", "concepto"))
+
     # --- Acuse por entrega (solo modo normal) ---
     if not anticipado:
         entregas = [v for v in viajes if v.destino_lugar_id is not None]

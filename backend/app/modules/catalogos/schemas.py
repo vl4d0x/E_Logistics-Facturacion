@@ -107,6 +107,7 @@ class ClienteBase(BaseModel):
     modo_acuse: ModoAcuse
     emails_facturacion: list[EmailStr] = []
     dias_credito: int = 30
+    requiere_folio_concepto: bool = False
 
     @field_validator("rfc")
     @classmethod
@@ -130,6 +131,7 @@ class ClienteUpdate(BaseModel):
     modo_acuse: ModoAcuse | None = None
     emails_facturacion: list[EmailStr] | None = None
     dias_credito: int | None = None
+    requiere_folio_concepto: bool | None = None
 
     @field_validator("rfc")
     @classmethod

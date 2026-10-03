@@ -58,6 +58,9 @@ class Servicio(TimestampMixin, table=True):
     timbrado_anticipado: bool = Field(default=False, nullable=False)
     subtotal: Decimal | None = Field(default=None)
     descripcion_concepto: str | None = Field(default=None)
+    # Folio propio del cliente (ej. su remisión) para el concepto de la factura --
+    # solo lo exigen clientes con `cliente.requiere_folio_concepto` (ej. Chemital).
+    folio_cliente: str | None = Field(default=None)
     metodo_pago: str | None = Field(default=None)
     uso_cfdi: str | None = Field(default=None)
     notas: str | None = Field(default=None)

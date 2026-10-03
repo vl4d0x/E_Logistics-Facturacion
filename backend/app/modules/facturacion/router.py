@@ -42,11 +42,11 @@ def editar_facturacion(
     return service.actualizar_facturacion(session, servicio_id, body)
 
 
-@router.post("/servicios/{servicio_id}/facturar", status_code=204)
+@router.post("/servicios/{servicio_id}/facturar")
 def facturar_servicio(
     servicio_id: uuid.UUID,
     body: FacturarIn,
     session: Session = Depends(get_session),
     user: Usuario = Depends(require_role(RolUsuario.admin)),
-) -> None:
-    service.facturar(session, servicio_id, body, user)
+) -> dict:
+    return service.facturar(session, servicio_id, body, user)

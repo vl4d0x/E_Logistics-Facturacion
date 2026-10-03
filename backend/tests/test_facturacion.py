@@ -1,7 +1,12 @@
-"""Tests de `04-facturacion-cfdi §3,§5` — impuestos y validación pre-timbrado."""
+"""Tests de `04-facturacion-cfdi §3,§5,§6` — impuestos, validación y timbrado."""
+import types
+from unittest.mock import MagicMock
+
 from fastapi.testclient import TestClient
 
+from app.integrations.facturama import FacturamaError
 from app.modules.auth.models import Usuario
+from app.modules.facturacion import service as facturacion_service
 
 API = "/api/v1"
 
@@ -296,3 +301,112 @@ def test_facturar_total_no_coincide_409(client: TestClient, admin_user: Usuario)
     )
     assert r.status_code == 409
     assert r.json()["error"]["details"][0]["issue"] == "total_no_coincide"
+
+
+def _settings_con_facturama_configurado():
+    return types.SimpleNamespace(
+        facturama_user="user",
+        facturama_password="pass",
+        facturama_serie="ELG",
+        emisor_rfc="ZACE880207MC7",
+        emisor_nombre="ENRIQUE JAVIER ZAMORA CALLEJA",
+        emisor_regimen_fiscal="612",
+        emisor_lugar_expedicion="52176",
+    )
+
+
+def test_facturar_exito_crea_factura_timbrada(client: TestClient, admin_user: Usuario, monkeypatch):
+    headers = _auth_headers(client, admin_user.email)
+    servicio = _crear_y_terminar_servicio(client, headers)
+
+    mock_client = MagicMock()
+    mock_client.resolve_postal_code.return_value = {"MunicipalityCode": "051", "LocationCode": ""}
+    mock_client.create_cfdi.return_value = {
+        "Id": "abc123",
+        "Serie": "ELG",
+        "Folio": 1,
+        "Complement": {"TaxStamp": {"Uuid": "1d90e747-05f4-4acc-ab93-876f0f32458f"}},
+    }
+    monkeypatch.setattr(facturacion_service, "get_settings", _settings_con_facturama_configurado)
+    monkeypatch.setattr(facturacion_service, "FacturamaClient", lambda: mock_client)
+
+    r = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "1848.00"}, headers=headers
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()["factura"]
+    assert body["uuid_fiscal"] == "1d90e747-05f4-4acc-ab93-876f0f32458f"
+    assert body["estado"] == "timbrada"
+    assert body["total"] == "1848.00"
+
+    detalle = client.get(f"{API}/servicios/{servicio['id']}", headers=headers).json()
+    assert detalle["estado_facturacion"] == "facturado"
+
+    # doble clic: ya hay factura vigente -> 409, no se vuelve a timbrar
+    r2 = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "1848.00"}, headers=headers
+    )
+    assert r2.status_code == 409
+
+
+def test_facturar_error_del_pac_queda_reintentable(client: TestClient, admin_user: Usuario, monkeypatch):
+    headers = _auth_headers(client, admin_user.email)
+    servicio = _crear_y_terminar_servicio(client, headers)
+
+    mock_client = MagicMock()
+    mock_client.resolve_postal_code.return_value = {"MunicipalityCode": "051", "LocationCode": ""}
+    mock_client.create_cfdi.side_effect = FacturamaError("No fue posible sellar el cfdi: CSD vacío")
+    monkeypatch.setattr(facturacion_service, "get_settings", _settings_con_facturama_configurado)
+    monkeypatch.setattr(facturacion_service, "FacturamaClient", lambda: mock_client)
+
+    r = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "1848.00"}, headers=headers
+    )
+    assert r.status_code == 502
+    assert r.json()["error"]["code"] == "facturama_error"
+    assert "CSD" in r.json()["error"]["message"]
+
+    detalle = client.get(f"{API}/servicios/{servicio['id']}", headers=headers).json()
+    assert detalle["estado_facturacion"] == "pendiente"  # no se marca facturado si falla
+
+    # reintentar reutiliza la misma fila de factura "error", no crea una nueva
+    mock_client.create_cfdi.side_effect = None
+    mock_client.create_cfdi.return_value = {
+        "Id": "xyz789",
+        "Serie": "ELG",
+        "Folio": 2,
+        "Complement": {"TaxStamp": {"Uuid": "2e90e747-05f4-4acc-ab93-876f0f32458f"}},
+    }
+    r2 = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "1848.00"}, headers=headers
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["factura"]["uuid_fiscal"] == "2e90e747-05f4-4acc-ab93-876f0f32458f"
+
+
+def test_folio_cliente_requerido_bloquea_timbrado(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers, poliza=True)
+    client.patch(
+        f"{API}/catalogos/clientes/{cat['cliente']['id']}",
+        json={"requiere_folio_concepto": True},
+        headers=headers,
+    )
+    servicio = client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers).json()
+    viaje_recoleccion, viaje_entrega = servicio["viajes"][0]["id"], servicio["viajes"][1]["id"]
+    client.post(
+        f"{API}/viajes/{viaje_entrega}/terminar", json={"referencia_acuse": "FOLIO-2257"}, headers=headers
+    )
+    client.post(f"{API}/viajes/{viaje_recoleccion}/terminar", json={}, headers=headers)
+    client.post(f"{API}/servicios/{servicio['id']}/marcar-terminado", headers=headers)
+
+    sin_folio = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
+    assert sin_folio["ok"] is False
+    assert any(c["regla"] == "folio_cliente_presente" for c in sin_folio["checks"] if c["nivel"] == "error")
+
+    client.patch(f"{API}/servicios/{servicio['id']}/facturacion", json={"folio_cliente": "5318"}, headers=headers)
+    con_folio = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
+    assert all(c["nivel"] != "error" for c in con_folio["checks"] if c["regla"] == "folio_cliente_presente")
+
+    detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
+    assert "FOLIO: 5318" in detalle["concepto"]["descripcion"]

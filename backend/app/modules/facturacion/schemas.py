@@ -59,6 +59,8 @@ class ConceptoOut(BaseModel):
     clave_unidad: str = "SX"
     descripcion: str
     descripcion_autogenerada: bool
+    requiere_folio: bool = False
+    folio_cliente: str | None = None
 
 
 class UbicacionOut(BaseModel):
@@ -86,6 +88,7 @@ class AutotransporteOut(BaseModel):
     placa: str
     config_vehicular: str
     peso_bruto_vehicular: float
+    anio_modelo: int | None
     perm_sct: str
     num_permiso_sct: str
     aseguradora: str | None
@@ -142,6 +145,7 @@ class FacturacionDetalleOut(BaseModel):
 class FacturacionUpdateIn(BaseModel):
     subtotal: Decimal | None = None
     descripcion_concepto: str | None = None
+    folio_cliente: str | None = None
     uso_cfdi: str | None = None
     metodo_pago: str | None = None
 
