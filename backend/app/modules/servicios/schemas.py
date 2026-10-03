@@ -68,6 +68,17 @@ class LugarResumen(BaseModel):
     id: uuid.UUID
     nombre: str
     codigo_postal: str
+    # Dirección completa (opcional): solo se llena para `GET /operador/servicios`
+    # (`03 §7`: "lugares completos (nombre, dirección, referencia)") — el admin no la
+    # necesita en el resumen, pero no estorba tenerla disponible.
+    calle: str | None = None
+    num_exterior: str | None = None
+    colonia: str | None = None
+    municipio: str | None = None
+    estado: str | None = None
+    referencia: str | None = None
+    rfc_remitente_destinatario: str | None = None
+    nombre_remitente_destinatario: str | None = None
 
 
 class AcuseOut(BaseModel):
@@ -166,6 +177,15 @@ class ServicioDetalleOut(BaseModel):
     factura_vigente: dict | None = None
     datos_fiscales_bloqueados: bool
     acciones_permitidas: list[str]
+    # Fase 3 — `OperatorReportCard` (`05 §5`, H3.7). `None`/`[]` hasta que el operador
+    # registre la inspección/cierre; el router los llena vía `operacion.service`.
+    inspeccion: dict | None = None
+    cierre: dict | None = None
+    cargas: list[dict] = []
+    combustible_total: dict | None = None
+    # Solo poblado en `GET /operador/servicios` (`03 §7`): catálogo del cliente sin
+    # claves SAT, para que el operador elija por nombre.
+    mercancias_cliente: list[dict] | None = None
 
 
 class ServicioListItemOut(BaseModel):

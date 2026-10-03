@@ -11,6 +11,7 @@ from app.core.errors import AppError
 from app.core.storage import nueva_key, subir_archivo
 from app.modules.auth.models import RolUsuario, Usuario
 from app.modules.catalogos.schemas import Page
+from app.modules.operacion.schemas import CargaUpdate
 from app.modules.servicios import service
 from app.modules.servicios.schemas import (
     AcuseOut,
@@ -80,8 +81,11 @@ def conteos_servicios(
 def obtener_servicio(
     servicio_id: uuid.UUID, session: Session = Depends(get_session)
 ) -> ServicioDetalleOut:
+    from app.modules.operacion.service import enriquecer_detalle_con_operacion
+
     servicio = service.get_servicio(session, servicio_id)
-    return service.build_servicio_detalle(session, servicio)
+    detalle = service.build_servicio_detalle(session, servicio)
+    return enriquecer_detalle_con_operacion(session, servicio.id, detalle)
 
 
 @router.patch("/servicios/{servicio_id}", response_model=ServicioDetalleOut)
@@ -213,3 +217,18 @@ def distancia_sugerida(
 ) -> DistanciaSugeridaOut:
     distancia, fuente = service.distancia_sugerida(session, origen_lugar_id, destino_lugar_id)
     return DistanciaSugeridaOut(distancia_km=distancia, fuente=fuente)
+
+
+# --- Cargas de combustible — corrección del admin (Fase 3, `03 §6`) ----------
+@router.patch("/cargas/{carga_id}")
+def editar_carga(carga_id: uuid.UUID, body: CargaUpdate, session: Session = Depends(get_session)):
+    from app.modules.operacion.service import actualizar_carga
+
+    return actualizar_carga(session, carga_id, body.model_dump(exclude_unset=True))
+
+
+@router.delete("/cargas/{carga_id}", status_code=204)
+def eliminar_carga(carga_id: uuid.UUID, session: Session = Depends(get_session)) -> None:
+    from app.modules.operacion.service import eliminar_carga as _eliminar_carga
+
+    _eliminar_carga(session, carga_id)

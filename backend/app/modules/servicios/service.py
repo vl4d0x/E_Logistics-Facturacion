@@ -82,14 +82,14 @@ def _factura_vigente(session: Session, servicio: Servicio) -> dict | None:
     return None
 
 
-def _datos_fiscales_bloqueados(session: Session, servicio: Servicio) -> bool:
+def datos_fiscales_bloqueados(session: Session, servicio: Servicio) -> bool:
     return _factura_vigente(session, servicio) is not None
 
 
 def _check_editable(session: Session, servicio: Servicio, solo_notas: bool = False) -> None:
     if servicio.estado == EstadoServicio.cancelado:
         raise AppError("conflict", "El servicio está cancelado; es de solo lectura", 409)
-    if not solo_notas and _datos_fiscales_bloqueados(session, servicio):
+    if not solo_notas and datos_fiscales_bloqueados(session, servicio):
         raise AppError(
             "conflict",
             "El servicio ya está facturado. Cancela la factura para modificar sus datos fiscales.",
@@ -102,7 +102,7 @@ def _acciones_permitidas(session: Session, servicio: Servicio) -> list[str]:
     if servicio.estado == EstadoServicio.cancelado:
         return []
     acciones = ["editar", "duplicar"]
-    bloqueado = _datos_fiscales_bloqueados(session, servicio)
+    bloqueado = datos_fiscales_bloqueados(session, servicio)
     if not bloqueado:
         acciones.append("cancelar")
     todos_terminados = (
@@ -251,7 +251,19 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
             if lugar_id is None or lugar_id not in lugares:
                 return None
             l = lugares[lugar_id]
-            return {"id": l.id, "nombre": l.nombre, "codigo_postal": l.codigo_postal}
+            return {
+                "id": l.id,
+                "nombre": l.nombre,
+                "codigo_postal": l.codigo_postal,
+                "calle": l.calle,
+                "num_exterior": l.num_exterior,
+                "colonia": l.colonia,
+                "municipio": l.municipio,
+                "estado": l.estado,
+                "referencia": l.referencia,
+                "rfc_remitente_destinatario": l.rfc_remitente_destinatario,
+                "nombre_remitente_destinatario": l.nombre_remitente_destinatario,
+            }
 
         viajes_out.append(
             {
@@ -301,7 +313,7 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
         notas=servicio.notas,
         viajes=viajes_out,
         factura_vigente=_factura_vigente(session, servicio),
-        datos_fiscales_bloqueados=_datos_fiscales_bloqueados(session, servicio),
+        datos_fiscales_bloqueados=datos_fiscales_bloqueados(session, servicio),
         acciones_permitidas=_acciones_permitidas(session, servicio),
     )
 
@@ -515,7 +527,7 @@ def cancelar_servicio(
     session: Session, servicio_id: uuid.UUID, data: CancelarServicioIn
 ) -> Servicio:
     servicio = get_servicio(session, servicio_id)
-    if _datos_fiscales_bloqueados(session, servicio):
+    if datos_fiscales_bloqueados(session, servicio):
         raise AppError("conflict", "No se puede cancelar un servicio facturado", 409)
     servicio.estado = EstadoServicio.cancelado
     servicio.cancelado_motivo = data.motivo
@@ -682,7 +694,7 @@ def terminar_viaje(
 def reabrir_viaje(session: Session, viaje_id: uuid.UUID) -> Viaje:
     viaje = get_viaje(session, viaje_id)
     servicio = get_servicio(session, viaje.servicio_id)
-    if servicio.estado == EstadoServicio.terminado and _datos_fiscales_bloqueados(
+    if servicio.estado == EstadoServicio.terminado and datos_fiscales_bloqueados(
         session, servicio
     ):
         raise AppError("conflict", "El servicio ya está facturado", 409)
