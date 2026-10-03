@@ -6,6 +6,9 @@ import { CatalogosLayout } from "../features/catalogos/CatalogosLayout";
 import { LugaresPage } from "../features/catalogos/LugaresPage";
 import { OperadoresPage } from "../features/catalogos/OperadoresPage";
 import { UnidadesPage } from "../features/catalogos/UnidadesPage";
+import { ServicioDetailPage } from "../features/servicios/ServicioDetailPage";
+import { ServicioFormPage } from "../features/servicios/ServicioFormPage";
+import { ServiciosPage } from "../features/servicios/ServiciosPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { useAuth } from "../lib/useAuth";
 import type { Rol } from "../lib/auth";
@@ -45,6 +48,9 @@ export function AppRouter() {
           }
         >
           <Route index element={<DashboardPage />} />
+          <Route path="servicios" element={<ServiciosPage />} />
+          <Route path="servicios/nuevo" element={<ServicioFormPage />} />
+          <Route path="servicios/:id" element={<ServicioDetailPage />} />
           <Route path="catalogos" element={<CatalogosLayout />}>
             <Route index element={<Navigate to="unidades" replace />} />
             <Route path="unidades" element={<UnidadesPage />} />
