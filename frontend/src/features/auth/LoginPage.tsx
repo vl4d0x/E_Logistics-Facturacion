@@ -29,7 +29,9 @@ export function LoginPage() {
   const form = useForm<LoginFormValues>({
     initialValues: { email: "", password: "" },
     validate: {
-      email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : "Correo inválido"),
+      // No exige formato de correo: un operador puede entrar con un identificador sin
+      // "@" (`01-architecture §5`, `fase-1-catalogos` H1.2).
+      email: (value) => (value.trim().length > 0 ? null : "Requerido"),
       password: (value) => (value.length > 0 ? null : "Requerido"),
     },
   });
@@ -69,7 +71,7 @@ export function LoginPage() {
                 </Alert>
               )}
               <TextInput
-                label="Correo"
+                label="Usuario o correo"
                 placeholder="tu@correo.mx"
                 required
                 {...form.getInputProps("email")}

@@ -78,23 +78,19 @@ UUID como PK, código en inglés / dominio y UI en español, `/api/v1` como pref
 
 ## 🔴 Info pendiente de Vlad
 
-Estos bloques bloquean partes específicas (no todo el proyecto) hasta tener los datos reales.
-Configúralos como variables de entorno (`backend/.env` local / Variables del servicio en Railway),
-**nunca** los pegues en el chat con un agente ni los commitees.
+Los **secretos** (credenciales, API keys) van como variables de entorno (`backend/.env` local /
+Variables del servicio en Railway) — **nunca** en el chat con un agente ni en el repo.
 
-**Ya resueltos** (Fase 0, sept 2026):
-- ~~`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`~~ — admin creado y probado end-to-end en Railway.
-- ~~`FACTURAMA_USER` / `FACTURAMA_PASSWORD`~~ — cuenta sandbox real, autenticación verificada.
-- ~~`EMISOR_RFC` / `EMISOR_NOMBRE` / `EMISOR_LUGAR_EXPEDICION`~~ — confirmados y cargados también en
-  el perfil fiscal de Facturama (`TaxEntity` + `BranchOffice` + `Serie`, ver `backend/NOTES.md`).
+Los **datos reales de negocio** (catálogos, tarifas, decisiones de producto) que todavía faltan
+viven en una lista viva y privada: **`.misc/PENDIENTES-VLAD.md`** (gitignored — no está en este
+repo clonado, solo en la máquina de Vlad). Cualquier agente que trabaje aquí debe:
+1. Revisar ese archivo antes de preguntarle algo a Vlad (puede que ya esté anotado).
+2. Agregar ahí lo nuevo que descubra que falta, en vez de solo preguntarlo en el chat.
+3. Actualizarlo (✅ + mover el valor real al archivo estructurado de la fase) en cuanto Vlad
+   conteste, para que no se pierda cuando la conversación se resuma o cierre.
 
-**Pendientes**:
-- **CSD** (Certificado de Sello Digital, `.cer`+`.key`+contraseña) — sin esto el spike no puede
-  timbrar de verdad (llega hasta "certificado vacío"). Se sube **directo en el panel de
-  dev.facturama.mx**, nunca por chat ni al repo. Ver `backend/NOTES.md`.
-- Datos reales de catálogos (unidades, operadores, clientes, mercancías) — Fase 1, el siguiente paso.
-- `FormaPago` por defecto y si algún cliente usa PUE en vez de PPD (`04-facturacion-cfdi §7`).
-- R2 (`R2_*`) y Resend (`RESEND_API_KEY`, `EMAIL_FROM`, plantilla de correo) — Fase 5.
-- Un CFDI real (XML+PDF) de Elogistics como fixture de test — Fase 4.
+Ya resueltos (Fase 0, sept 2026): admin seed, credenciales sandbox de Facturama, datos del
+emisor (RFC/nombre/lugar de expedición) — ver `backend/NOTES.md` para el detalle de Facturama.
 
-Ver el detalle exacto de cada uno en el spec de su fase correspondiente.
+Ver el detalle exacto de cada pendiente en el spec de su fase correspondiente y en
+`specs/00-overview.md §12`.

@@ -33,15 +33,34 @@ describe("LoginPage", () => {
     expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
   });
 
-  it("shows a validation error for an invalid email", async () => {
+  it("requires the login identifier", async () => {
     const user = userEvent.setup();
     renderLoginPage();
 
-    await user.type(screen.getByLabelText(/correo/i), "not-an-email");
+    // Un espacio satisface el `required` nativo del input pero no el validador de
+    // mantine (`value.trim()`), que es lo que de verdad queremos probar aquí.
+    await user.type(screen.getByLabelText(/correo/i), " ");
     await user.type(screen.getByLabelText(/contraseña/i), "secret123");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
 
-    expect(await screen.findByText("Correo inválido")).toBeInTheDocument();
+    expect(await screen.findByText("Requerido")).toBeInTheDocument();
+  });
+
+  it("accepts a login identifier without email format (operador sin correo, 01-architecture §5)", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ error: { message: "x" } }), { status: 401 }));
+
+    const user = userEvent.setup();
+    renderLoginPage();
+
+    await user.type(screen.getByLabelText(/correo/i), "enrique");
+    await user.type(screen.getByLabelText(/contraseña/i), "secret123");
+    await user.click(screen.getByRole("button", { name: /entrar/i }));
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toMatchObject({ email: "enrique" });
   });
 
   it("shows the API error message on failed login", async () => {

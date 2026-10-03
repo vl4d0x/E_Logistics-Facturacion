@@ -1,13 +1,15 @@
 """DTOs de entrada/salida — ver `03-api-contract §3`."""
 import uuid
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from app.modules.auth.models import RolUsuario
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # No es EmailStr a propósito: los operadores pueden tener un identificador de
+    # login sin formato de correo (`01-architecture §5`, `fase-1-catalogos` H1.2).
+    email: str
     password: str
 
 
