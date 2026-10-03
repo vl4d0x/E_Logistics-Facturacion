@@ -16,7 +16,9 @@ import { AdminLayout } from "../routes/admin/AdminLayout";
 import { DashboardPage } from "../routes/admin/DashboardPage";
 import { UsuariosPage } from "../routes/admin/configuracion/UsuariosPage";
 import { OperadorLayout } from "../routes/operador/OperadorLayout";
-import { MisViajesPage } from "../routes/operador/MisViajesPage";
+import { MisServiciosPage } from "../features/operacion/MisServiciosPage";
+import { ServicioOperadorPage } from "../features/operacion/ServicioOperadorPage";
+import { TerminarViajeOperadorPage } from "../features/operacion/TerminarViajeOperadorPage";
 
 function RequireRole({ role, children }: { role: Rol; children: ReactNode }) {
   const { user } = useAuth();
@@ -70,7 +72,9 @@ export function AppRouter() {
             </RequireRole>
           }
         >
-          <Route index element={<MisViajesPage />} />
+          <Route index element={<MisServiciosPage />} />
+          <Route path="servicios/:id" element={<ServicioOperadorPage />} />
+          <Route path="viajes/:id/terminar" element={<TerminarViajeOperadorPage />} />
         </Route>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="*" element={<HomeRedirect />} />
