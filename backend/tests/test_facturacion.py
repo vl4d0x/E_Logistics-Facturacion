@@ -199,3 +199,100 @@ def test_validar_requiere_admin(client: TestClient, admin_user: Usuario, operado
     headers_operador = _auth_headers(client, operador_user.email)
     r = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers_operador)
     assert r.status_code == 403
+
+
+def _crear_y_terminar_servicio(client: TestClient, headers: dict) -> dict:
+    cat = _setup_catalogos(client, headers, poliza=True)
+    servicio = client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers).json()
+    viaje_recoleccion, viaje_entrega = servicio["viajes"][0]["id"], servicio["viajes"][1]["id"]
+    client.post(
+        f"{API}/viajes/{viaje_entrega}/terminar", json={"referencia_acuse": "FOLIO-2257"}, headers=headers
+    )
+    client.post(f"{API}/viajes/{viaje_recoleccion}/terminar", json={}, headers=headers)
+    client.post(f"{API}/servicios/{servicio['id']}/marcar-terminado", headers=headers)
+    return servicio
+
+
+def test_obtener_facturacion_precargada(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    servicio = _crear_y_terminar_servicio(client, headers)
+
+    r = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["modo"] == "normal"
+    assert body["receptor"]["rfc"] == "CME091007LG1"
+    assert body["receptor"]["forma_pago"] == "99"
+    assert body["concepto"]["descripcion_autogenerada"] is True
+    assert "FLETE UNIDAD Saveiro Blanca" in body["concepto"]["descripcion"]
+    assert len(body["ubicaciones"]) == 2
+    assert body["ubicaciones"][0]["tipo"] == "Origen"
+    assert body["ubicaciones"][0]["id_ubicacion"] == "OR000001"
+    assert body["ubicaciones"][1]["tipo"] == "Destino"
+    assert body["ubicaciones"][1]["id_ubicacion"] == "DE000001"
+    assert body["autotransporte"]["placa"] == "KR9417A"
+    assert body["figura"]["rfc"] == "ZACE880207MC7"
+    assert body["montos"]["total"] == "1848.00"
+    assert body["validacion"]["ok"] is True
+    assert body["facturama_configurado"] is False  # sin credenciales en los tests
+
+
+def test_editar_facturacion_persiste_en_servicio(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    servicio = _crear_y_terminar_servicio(client, headers)
+
+    r = client.patch(
+        f"{API}/servicios/{servicio['id']}/facturacion",
+        json={"subtotal": "2000.00", "descripcion_concepto": "Texto editado a mano", "uso_cfdi": "G01"},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["montos"]["subtotal"] == "2000.00"
+    assert body["concepto"]["descripcion"] == "Texto editado a mano"
+    assert body["concepto"]["descripcion_autogenerada"] is False
+    assert body["receptor"]["uso_cfdi"] == "G01"
+
+    # "Regenerar" (mandar null) vuelve a la descripción autogenerada
+    r2 = client.patch(
+        f"{API}/servicios/{servicio['id']}/facturacion",
+        json={"descripcion_concepto": None},
+        headers=headers,
+    )
+    assert r2.json()["concepto"]["descripcion_autogenerada"] is True
+
+
+def test_facturar_sin_credenciales_responde_facturama_no_configurado(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    servicio = _crear_y_terminar_servicio(client, headers)
+
+    r = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "1848.00"}, headers=headers
+    )
+    assert r.status_code == 503
+    assert r.json()["error"]["code"] == "facturama_no_configurado"
+
+
+def test_facturar_con_errores_de_validacion_409(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers, poliza=False)
+    servicio = client.post(
+        f"{API}/servicios", json=_servicio_payload(cat, subtotal=None), headers=headers
+    ).json()
+
+    r = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "0.00"}, headers=headers
+    )
+    assert r.status_code == 409
+    assert r.json()["error"]["code"] == "conflict"
+
+
+def test_facturar_total_no_coincide_409(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    servicio = _crear_y_terminar_servicio(client, headers)
+
+    r = client.post(
+        f"{API}/servicios/{servicio['id']}/facturar", json={"total_esperado": "1.00"}, headers=headers
+    )
+    assert r.status_code == 409
+    assert r.json()["error"]["details"][0]["issue"] == "total_no_coincide"

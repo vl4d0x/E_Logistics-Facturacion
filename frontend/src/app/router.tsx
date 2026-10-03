@@ -7,6 +7,7 @@ import { LugaresPage } from "../features/catalogos/LugaresPage";
 import { OperadoresPage } from "../features/catalogos/OperadoresPage";
 import { UnidadesPage } from "../features/catalogos/UnidadesPage";
 import { ServicioDetailPage } from "../features/servicios/ServicioDetailPage";
+import { FacturarPage } from "../features/facturacion/FacturarPage";
 import { ServicioFormPage } from "../features/servicios/ServicioFormPage";
 import { ServiciosPage } from "../features/servicios/ServiciosPage";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -53,6 +54,7 @@ export function AppRouter() {
           <Route path="servicios" element={<ServiciosPage />} />
           <Route path="servicios/nuevo" element={<ServicioFormPage />} />
           <Route path="servicios/:id" element={<ServicioDetailPage />} />
+          <Route path="servicios/:id/facturar" element={<FacturarPage />} />
           <Route path="catalogos" element={<CatalogosLayout />}>
             <Route index element={<Navigate to="unidades" replace />} />
             <Route path="unidades" element={<UnidadesPage />} />
