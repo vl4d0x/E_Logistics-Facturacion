@@ -13,6 +13,7 @@ import {
   Table,
   Text,
   Textarea,
+  TextInput,
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -51,6 +52,7 @@ export function FacturarPage() {
 
   const [subtotal, setSubtotal] = useState<number | null>(null);
   const [descripcion, setDescripcion] = useState("");
+  const [folioCliente, setFolioCliente] = useState("");
   const [confirmarAbierto, setConfirmarAbierto] = useState(false);
   const [checksAbierto, setChecksAbierto] = useState(false);
   const [cargadoPara, setCargadoPara] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export function FacturarPage() {
           : null,
     );
     setDescripcion(detalle.concepto.descripcion);
+    setFolioCliente(detalle.concepto.folio_cliente ?? "");
   }
 
   if (isLoading || !detalle) return <Skeleton height={400} />;
@@ -81,6 +84,17 @@ export function FacturarPage() {
   function guardarDescripcion(valor: string | null) {
     setDescripcion(valor ?? detalle!.concepto.descripcion);
     actualizar.mutate({ descripcion_concepto: valor });
+  }
+
+  function guardarFolioCliente() {
+    actualizar.mutate(
+      { folio_cliente: folioCliente || null },
+      {
+        onSuccess: (data) => {
+          if (data.concepto.descripcion_autogenerada) setDescripcion(data.concepto.descripcion);
+        },
+      },
+    );
   }
 
   function confirmarTimbrado() {
@@ -190,8 +204,23 @@ export function FacturarPage() {
             <CollapsibleSection
               title="Concepto"
               summary={detalle.concepto.descripcion.split("\n")[0]}
+              forceOpen={campoConError(["concepto"])}
             >
               <Stack gap="xs">
+                {detalle.concepto.requiere_folio && (
+                  <TextInput
+                    label={`Folio de ${detalle.receptor.razon_social}`}
+                    description="Este cliente exige su propio folio dentro del concepto de la factura"
+                    value={folioCliente}
+                    onChange={(e) => setFolioCliente(e.currentTarget.value)}
+                    onBlur={guardarFolioCliente}
+                    error={
+                      errores.some((c) => c.regla === "folio_cliente_presente")
+                        ? "Falta el folio"
+                        : undefined
+                    }
+                  />
+                )}
                 <Textarea
                   autosize
                   minRows={4}

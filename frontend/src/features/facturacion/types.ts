@@ -18,6 +18,8 @@ export interface Concepto {
   clave_unidad: string;
   descripcion: string;
   descripcion_autogenerada: boolean;
+  requiere_folio: boolean;
+  folio_cliente: string | null;
 }
 
 export interface Ubicacion {
@@ -131,6 +133,7 @@ export interface FacturacionDetalle {
 export interface FacturacionUpdate {
   subtotal?: number | null;
   descripcion_concepto?: string | null;
+  folio_cliente?: string | null;
   uso_cfdi?: string;
   metodo_pago?: string;
 }

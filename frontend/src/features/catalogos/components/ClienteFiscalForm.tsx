@@ -1,5 +1,5 @@
 // `fase-1-catalogos.md` H1.3 — datos fiscales y de acuse del cliente.
-import { Button, Group, NumberInput, Pill, PillsInput, Select, Stack, Text, TextInput } from "@mantine/core";
+import { Button, Group, NumberInput, Pill, PillsInput, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
 import { useForm, type UseFormReturnType } from "@mantine/form";
 import { useState } from "react";
 import { clientesApi } from "../api";
@@ -42,6 +42,7 @@ export function ClienteFiscalForm({
           modo_acuse: cliente.modo_acuse,
           emails_facturacion: cliente.emails_facturacion,
           dias_credito: cliente.dias_credito,
+          requiere_folio_concepto: cliente.requiere_folio_concepto,
         }
       : {
           razon_social: "",
@@ -55,6 +56,7 @@ export function ClienteFiscalForm({
           modo_acuse: "escaneo",
           emails_facturacion: [],
           dias_credito: 30,
+          requiere_folio_concepto: false,
         },
     validate: {
       razon_social: (v) => (v.trim() ? null : "Requerido"),
@@ -156,6 +158,12 @@ export function ClienteFiscalForm({
           description="Para calcular antigüedad de saldos en cobranza"
           min={0}
           {...form.getInputProps("dias_credito")}
+        />
+        <Switch
+          label="Exige su propio folio en el concepto de la factura"
+          description="Ej. Chemital: pide su número de remisión dentro del concepto"
+          checked={form.values.requiere_folio_concepto}
+          onChange={(e) => form.setFieldValue("requiere_folio_concepto", e.currentTarget.checked)}
         />
 
         <Group justify="flex-end" mt="md">
