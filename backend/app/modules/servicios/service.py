@@ -8,6 +8,7 @@ from app.core.errors import AppError
 from app.core.models import utcnow
 from app.modules.auth.models import Usuario
 from app.modules.catalogos.models import Cliente, Lugar, MercanciaFrecuente, Operador, Unidad
+from app.modules.facturacion.models import EstadoFactura, Factura
 from app.modules.servicios.models import (
     Acuse,
     EstadoFacturacion,
@@ -77,9 +78,23 @@ def _next_numero(session: Session) -> int:
 
 
 def _factura_vigente(session: Session, servicio: Servicio) -> dict | None:
-    # La tabla `factura` llega en Fase 4; mientras tanto nunca hay factura vigente,
-    # así que los datos fiscales nunca están bloqueados todavía.
-    return None
+    factura = session.exec(
+        select(Factura).where(
+            Factura.servicio_id == servicio.id,
+            Factura.estado.in_([EstadoFactura.timbrada, EstadoFactura.cancelacion_pendiente]),
+        )
+    ).first()
+    if factura is None:
+        return None
+    return {
+        "id": factura.id,
+        "estado": factura.estado.value,
+        "uuid_fiscal": factura.uuid_fiscal,
+        "serie": factura.serie,
+        "folio": factura.folio,
+        "total": factura.total,
+        "estado_cobro": factura.estado_cobro.value,
+    }
 
 
 def datos_fiscales_bloqueados(session: Session, servicio: Servicio) -> bool:
