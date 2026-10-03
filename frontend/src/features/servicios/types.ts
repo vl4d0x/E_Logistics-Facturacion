@@ -1,4 +1,5 @@
 // Tipos de servicios/viajes — reflejan `backend/app/modules/servicios/schemas.py` (`03-api-contract §6`).
+import type { CargaOut, Cierre, Inspeccion, MercanciaClienteResumen } from "../operacion/types";
 
 export type EstadoServicio = "programado" | "en_curso" | "terminado" | "cancelado";
 export type EstadoFacturacion = "pendiente" | "facturado";
@@ -9,6 +10,14 @@ export interface LugarResumen {
   id: string;
   nombre: string;
   codigo_postal: string;
+  calle: string | null;
+  num_exterior: string | null;
+  colonia: string | null;
+  municipio: string | null;
+  estado: string | null;
+  referencia: string | null;
+  rfc_remitente_destinatario: string | null;
+  nombre_remitente_destinatario: string | null;
 }
 
 export interface AcuseOut {
@@ -108,6 +117,11 @@ export interface ServicioDetalle {
   factura_vigente: Record<string, unknown> | null;
   datos_fiscales_bloqueados: boolean;
   acciones_permitidas: string[];
+  mercancias_cliente: MercanciaClienteResumen[] | null;
+  inspeccion: Inspeccion | null;
+  cierre: Cierre | null;
+  cargas: CargaOut[];
+  combustible_total: { litros: number; importe: number } | null;
 }
 
 export interface ServicioListItem {

@@ -40,6 +40,7 @@ import {
   useTerminarViaje,
 } from "./api";
 import { LugarSelect } from "./components/LugarSelect";
+import { OperatorReportCard } from "../operacion/components/OperatorReportCard";
 import type { TipoViaje, ViajeOut } from "./types";
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -269,6 +270,8 @@ export function ServicioDetailPage() {
           </Alert>
         )}
       </Card>
+
+      <OperatorReportCard servicio={servicio} />
 
       <Text fw={600}>Viajes</Text>
       {servicio.viajes.map((v) => (
