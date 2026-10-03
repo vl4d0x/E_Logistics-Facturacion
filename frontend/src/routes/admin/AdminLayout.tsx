@@ -1,10 +1,11 @@
 import {
   IconBooks,
+  IconCoin,
   IconFileInvoice,
   IconLayoutDashboard,
   IconLogout,
   IconReceipt,
-  IconRoute,
+  IconSettings,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -18,17 +19,26 @@ interface NavItem {
   icon: ComponentType<{ size?: number | string; stroke?: number }>;
 }
 
+// `05-ui-spec §7`: "Dashboard · Servicios · Facturas · Cobranza · Catálogos · Configuración".
+// Servicios/Facturas/Cobranza llegan en Fases 2/4/5 — se listan ya (como en Fase 0) para
+// que la navegación no cambie de forma cuando se construyan; hoy no tienen pantalla.
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", subtitle: "Ingresos y pendientes", to: "/admin", icon: IconLayoutDashboard },
-  { label: "Viajes", subtitle: "Registro y seguimiento", to: "/admin/viajes", icon: IconRoute },
-  {
-    label: "Agrupar y facturar",
-    subtitle: "Une viajes en un servicio",
-    to: "/admin/servicios",
-    icon: IconFileInvoice,
-  },
+  { label: "Servicios", subtitle: "Viajes, acuses y cierre", to: "/admin/servicios", icon: IconFileInvoice },
   { label: "Facturas", subtitle: "CFDI timbrados", to: "/admin/facturas", icon: IconReceipt },
-  { label: "Catálogos", subtitle: "Unidades, operadores, clientes", to: "/admin/catalogos", icon: IconBooks },
+  { label: "Cobranza", subtitle: "Pagos y REP", to: "/admin/cobranza", icon: IconCoin },
+  {
+    label: "Catálogos",
+    subtitle: "Unidades, operadores, clientes, lugares",
+    to: "/admin/catalogos",
+    icon: IconBooks,
+  },
+  {
+    label: "Configuración",
+    subtitle: "Usuarios, precios y tarifas",
+    to: "/admin/configuracion",
+    icon: IconSettings,
+  },
 ];
 
 export function AdminLayout() {

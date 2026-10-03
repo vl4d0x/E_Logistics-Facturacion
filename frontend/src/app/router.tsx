@@ -1,10 +1,17 @@
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ClienteDetailPage } from "../features/catalogos/ClienteDetailPage";
+import { ClientesPage } from "../features/catalogos/ClientesPage";
+import { CatalogosLayout } from "../features/catalogos/CatalogosLayout";
+import { LugaresPage } from "../features/catalogos/LugaresPage";
+import { OperadoresPage } from "../features/catalogos/OperadoresPage";
+import { UnidadesPage } from "../features/catalogos/UnidadesPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { useAuth } from "../lib/useAuth";
 import type { Rol } from "../lib/auth";
 import { AdminLayout } from "../routes/admin/AdminLayout";
 import { DashboardPage } from "../routes/admin/DashboardPage";
+import { UsuariosPage } from "../routes/admin/configuracion/UsuariosPage";
 import { OperadorLayout } from "../routes/operador/OperadorLayout";
 import { MisViajesPage } from "../routes/operador/MisViajesPage";
 
@@ -38,6 +45,16 @@ export function AppRouter() {
           }
         >
           <Route index element={<DashboardPage />} />
+          <Route path="catalogos" element={<CatalogosLayout />}>
+            <Route index element={<Navigate to="unidades" replace />} />
+            <Route path="unidades" element={<UnidadesPage />} />
+            <Route path="operadores" element={<OperadoresPage />} />
+            <Route path="clientes" element={<ClientesPage />} />
+            <Route path="clientes/:id" element={<ClienteDetailPage />} />
+            <Route path="lugares" element={<LugaresPage />} />
+          </Route>
+          <Route path="configuracion" element={<Navigate to="usuarios" replace />} />
+          <Route path="configuracion/usuarios" element={<UsuariosPage />} />
         </Route>
         <Route
           path="/operador/*"
