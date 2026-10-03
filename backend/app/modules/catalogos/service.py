@@ -153,14 +153,19 @@ def update_unidad(session: Session, unidad_id: uuid.UUID, data: UnidadUpdate) ->
 
 
 def contar_uso_unidad(session: Session, unidad_id: uuid.UUID) -> UsoOut:
+    from app.modules.servicios import service as servicios_service  # evita import circular
+
     get_unidad(session, unidad_id)
-    # Fase 1: ninguna tabla referencia todavía a `unidad` (servicio/inspeccion_salida/
-    # carga_combustible llegan en Fases 2-3). Referencias = {} hasta entonces.
-    referencias: dict[str, int] = {}
+    referencias = {
+        "servicios": servicios_service.contar_referencias_catalogo(
+            session, unidad_id=unidad_id
+        )
+    }
+    bloqueos = servicios_service.contar_servicios_activos_por(session, unidad_id=unidad_id)
     return UsoOut(
         referencias=referencias,
         accion_al_eliminar="archivar" if sum(referencias.values()) else "eliminar",
-        bloqueos=[],
+        bloqueos=bloqueos,
     )
 
 
@@ -222,13 +227,20 @@ def update_operador(session: Session, operador_id: uuid.UUID, data: OperadorUpda
 
 
 def contar_uso_operador(session: Session, operador_id: uuid.UUID) -> UsoOut:
+    from app.modules.servicios import service as servicios_service
+
     get_operador(session, operador_id)
-    referencias = {"usuarios": _count(session, Usuario, operador_id=operador_id)}
-    # Fase 2 agregará aquí: referencias["servicios"] = ...
+    referencias = {
+        "usuarios": _count(session, Usuario, operador_id=operador_id),
+        "servicios": servicios_service.contar_referencias_catalogo(
+            session, operador_id=operador_id
+        ),
+    }
+    bloqueos = servicios_service.contar_servicios_activos_por(session, operador_id=operador_id)
     return UsoOut(
         referencias=referencias,
         accion_al_eliminar="archivar" if sum(referencias.values()) else "eliminar",
-        bloqueos=[],
+        bloqueos=bloqueos,
     )
 
 
@@ -348,16 +360,21 @@ def update_cliente(session: Session, cliente_id: uuid.UUID, data: ClienteUpdate)
 
 
 def contar_uso_cliente(session: Session, cliente_id: uuid.UUID) -> UsoOut:
+    from app.modules.servicios import service as servicios_service
+
     get_cliente(session, cliente_id)
     referencias = {
         "mercancias": _count(session, MercanciaFrecuente, cliente_id=cliente_id),
         "lugares": _count(session, Lugar, cliente_id=cliente_id),
+        "servicios": servicios_service.contar_referencias_catalogo(
+            session, cliente_id=cliente_id
+        ),
     }
-    # Fase 2+ agregará aquí: referencias["servicios"] = ...
+    bloqueos = servicios_service.contar_servicios_activos_por(session, cliente_id=cliente_id)
     return UsoOut(
         referencias=referencias,
         accion_al_eliminar="archivar" if sum(referencias.values()) else "eliminar",
-        bloqueos=[],
+        bloqueos=bloqueos,
     )
 
 
@@ -412,13 +429,17 @@ def update_mercancia(
 
 
 def contar_uso_mercancia(session: Session, mercancia_id: uuid.UUID) -> UsoOut:
+    from app.modules.servicios import service as servicios_service
+
     get_mercancia(session, mercancia_id)
-    # Fase 2 agregará aquí: referencias["viajes"] = ... (viaje_mercancia.mercancia_frecuente_id)
-    referencias: dict[str, int] = {}
+    referencias = {
+        "viajes": servicios_service.contar_referencias_mercancia(session, mercancia_id)
+    }
+    bloqueos = servicios_service.servicios_activos_con_mercancia(session, mercancia_id)
     return UsoOut(
         referencias=referencias,
         accion_al_eliminar="archivar" if sum(referencias.values()) else "eliminar",
-        bloqueos=[],
+        bloqueos=bloqueos,
     )
 
 
@@ -498,13 +519,15 @@ def update_lugar(session: Session, lugar_id: uuid.UUID, data: LugarUpdate) -> Lu
 
 
 def contar_uso_lugar(session: Session, lugar_id: uuid.UUID) -> UsoOut:
+    from app.modules.servicios import service as servicios_service
+
     get_lugar(session, lugar_id)
-    # Fase 2 agregará aquí: referencias["viajes"] = ... (viaje.origen/destino_lugar_id)
-    referencias: dict[str, int] = {}
+    referencias = {"viajes": servicios_service.contar_referencias_lugar(session, lugar_id)}
+    bloqueos = servicios_service.servicios_activos_con_lugar(session, lugar_id)
     return UsoOut(
         referencias=referencias,
         accion_al_eliminar="archivar" if sum(referencias.values()) else "eliminar",
-        bloqueos=[],
+        bloqueos=bloqueos,
     )
 
 
