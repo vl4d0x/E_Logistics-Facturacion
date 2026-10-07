@@ -2,7 +2,7 @@
 import base64
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -178,12 +178,66 @@ def cancelar(session: Session, factura: Factura, motivo: str) -> Factura:
         client.close()
 
     factura.motivo_cancelacion = motivo
-    estatus = str(resultado.get("Status", "")).lower()
+    factura.cancelacion_solicitada_at = utcnow()
+    _aplicar_estatus(session, factura, str(resultado.get("Status", "")), resultado.get("AcuseXmlBase64"))
+    session.add(factura)
+    session.commit()
+    session.refresh(factura)
+    return factura
+
+
+def _aplicar_estatus(session: Session, factura: Factura, estatus: str, acuse_xml_b64: str | None = None) -> None:
+    """Refleja el `Status` de Facturama (`canceled|pending|active`), `04 §8`."""
+    estatus = estatus.lower()
     if estatus in {"canceled", "cancelled"}:
         _marcar_cancelada(session, factura)
-    else:  # "pending": el receptor tiene 3 días hábiles para aceptar
+        _guardar_acuse_cancelacion(factura, acuse_xml_b64)
+    elif estatus == "active":
+        # El receptor rechazó (o no procedió): la factura sigue vigente, se informa al admin.
+        factura.estado = EstadoFactura.timbrada
+        factura.cancelacion_solicitada_at = None
+    else:  # "pending": el receptor tiene hasta 72 h para aceptar o rechazar
         factura.estado = EstadoFactura.cancelacion_pendiente
-        factura.cancelacion_solicitada_at = utcnow()
+
+
+def _guardar_acuse_cancelacion(factura: Factura, acuse_xml_b64: str | None) -> None:
+    """Acuse del SAT a R2. Nunca lanza: la cancelación ya ocurrió."""
+    if not acuse_xml_b64:
+        return
+    try:
+        from app.core import storage
+
+        key = f"facturas/{factura.id}_acuse_cancelacion.xml"
+        storage.subir_archivo(key, base64.b64decode(acuse_xml_b64), "application/xml")
+        factura.acuse_cancelacion_key = key
+    except Exception as exc:  # noqa: BLE001
+        log.warning("No se pudo guardar el acuse de cancelación de %s: %s", factura.id, exc)
+
+
+_THROTTLE_ESTATUS = timedelta(minutes=5)
+
+
+def actualizar_estatus(session: Session, factura: Factura) -> Factura:
+    """Consulta a Facturama una cancelación en espera; con throttle de 5 min (`04 §8`)."""
+    if factura.estado != EstadoFactura.cancelacion_pendiente:
+        raise AppError("conflict", "Solo aplica a facturas con cancelación en espera", 409)
+    consultada = factura.estatus_consultado_at
+    if consultada is not None:
+        consultada = consultada if consultada.tzinfo else consultada.replace(tzinfo=UTC)
+        if utcnow() - consultada < _THROTTLE_ESTATUS:
+            raise AppError("conflict", "Ya se consultó hace menos de 5 minutos; intenta más tarde", 409)
+    try:
+        client = FacturamaClient()
+    except FacturamaError as exc:
+        raise AppError("facturama_no_configurado", str(exc), 503) from exc
+    try:
+        cfdi = client.get_cfdi(factura.facturama_id)
+    except FacturamaError as exc:
+        raise AppError("facturama_error", str(exc), 502) from exc
+    finally:
+        client.close()
+    _aplicar_estatus(session, factura, str(cfdi.get("Status", "")))
+    factura.estatus_consultado_at = utcnow()
     session.add(factura)
     session.commit()
     session.refresh(factura)

@@ -68,3 +68,9 @@ def enviar(factura_id: uuid.UUID, body: EnviarIn, session: Session = Depends(get
 def cancelar(factura_id: uuid.UUID, body: CancelarIn, session: Session = Depends(get_session)) -> dict[str, Any]:
     factura = svc.cancelar(session, svc.get_factura(session, factura_id), body.motivo)
     return svc.detalle(session, factura)
+
+
+@router.post("/{factura_id}/actualizar-estatus")
+def actualizar_estatus(factura_id: uuid.UUID, session: Session = Depends(get_session)) -> dict[str, Any]:
+    factura = svc.actualizar_estatus(session, svc.get_factura(session, factura_id))
+    return svc.detalle(session, factura)

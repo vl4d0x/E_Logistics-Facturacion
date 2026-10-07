@@ -171,3 +171,53 @@ def test_enviar_sin_destinatarios_422_y_error_de_resend_se_registra(client: Test
     r = client.post(f"{API}/facturas/{factura['id']}/enviar", json={"to": ["a@b.mx"]}, headers=h)
     assert r.status_code == 502
     assert "dominio no verificado" in client.get(f"{API}/facturas/{factura['id']}", headers=h).json()["envio_error"]
+
+
+def _cancelacion_en_espera(client, h, monkeypatch):
+    servicio, factura, pac = _timbrar(client, h, monkeypatch)
+    pac.cancel_cfdi.return_value = {"Status": "pending"}
+    client.post(f"{API}/facturas/{factura['id']}/cancelar", json={"motivo": "02"}, headers=h)
+    return servicio, factura, pac
+
+
+def test_actualizar_estatus_aceptada_cancela_y_libera(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    servicio, factura, pac = _cancelacion_en_espera(client, h, monkeypatch)
+    pac.get_cfdi.return_value = {"Status": "canceled"}
+    r = client.post(f"{API}/facturas/{factura['id']}/actualizar-estatus", headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["estado"] == "cancelada" and r.json()["cancelada_at"] is not None
+    assert client.get(f"{API}/servicios/{servicio['id']}", headers=h).json()["estado_facturacion"] == "pendiente"
+
+
+def test_actualizar_estatus_rechazada_vuelve_a_timbrada(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    servicio, factura, pac = _cancelacion_en_espera(client, h, monkeypatch)
+    pac.get_cfdi.return_value = {"Status": "active"}
+    r = client.post(f"{API}/facturas/{factura['id']}/actualizar-estatus", headers=h)
+    assert r.json()["estado"] == "timbrada" and r.json()["cancelacion_solicitada_at"] is None
+    assert client.get(f"{API}/servicios/{servicio['id']}", headers=h).json()["estado_facturacion"] == "facturado"
+
+
+def test_actualizar_estatus_sigue_pendiente_y_throttle(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, pac = _cancelacion_en_espera(client, h, monkeypatch)
+    pac.get_cfdi.return_value = {"Status": "pending"}
+    assert client.post(f"{API}/facturas/{factura['id']}/actualizar-estatus", headers=h).json()["estado"] == "cancelacion_pendiente"
+    # segunda consulta dentro de 5 min -> 409
+    assert client.post(f"{API}/facturas/{factura['id']}/actualizar-estatus", headers=h).status_code == 409
+
+
+def test_actualizar_estatus_solo_con_cancelacion_en_espera(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, _ = _timbrar(client, h, monkeypatch)
+    assert client.post(f"{API}/facturas/{factura['id']}/actualizar-estatus", headers=h).status_code == 409
+
+
+def test_cancelar_guarda_acuse_en_r2(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    r2 = _R2Falso()
+    _, factura, pac = _timbrar(client, h, monkeypatch, r2)
+    pac.cancel_cfdi.return_value = {"Status": "canceled", "AcuseXmlBase64": base64.b64encode(b"<acuse/>").decode()}
+    client.post(f"{API}/facturas/{factura['id']}/cancelar", json={"motivo": "02"}, headers=h)
+    assert r2.objetos[f"facturas/{factura['id']}_acuse_cancelacion.xml"] == b"<acuse/>"

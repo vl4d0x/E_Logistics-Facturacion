@@ -86,6 +86,14 @@ class FacturamaClient:
         response = self._client.delete(f"/cfdi/{cfdi_id}", params=params)
         return self._parse(response)
 
+    def get_cfdi(self, cfdi_id: str) -> dict[str, Any]:
+        """`GET /cfdi/{id}?type=issued` -> el CFDI con su `Status` (`active|canceled|pending`).
+
+        Es como se consulta una cancelación "en espera" (doc oficial de Facturama).
+        """
+        response = self._client.get(f"/cfdi/{cfdi_id}", params={"type": "issued"})
+        return self._parse(response)
+
     @staticmethod
     def _parse(response: httpx.Response) -> dict[str, Any]:
         try:
