@@ -160,6 +160,8 @@ Etiquetas para la UI: `fifo` (saltadas = 0), `consecutivas` (huecos = 0), `mismo
 - `DoctoRelacionado` (uno por aplicación): `IdDocumento` (UUID de la factura), `Serie?`, `Folio?`, `MonedaDR MXN`, `EquivalenciaDR 1`, `NumParcialidad`, `ImpSaldoAnt`, `ImpPagado`, `ImpSaldoInsoluto`, `ObjetoImpDR 02`, `ImpuestosDR` (§5).
 - `ImpuestosP`: suma de los `ImpuestosDR` del pago (traslados IVA 16% con su base; retenciones IVA).
 
+> **Verificado en sandbox (6 oct 2026):** el JSON es `Complemento.Payments[].RelatedDocuments[]`, sin `Items` en la raíz y **sin `ExchangeRate`** en pesos; `Totales` e `ImpuestosP` los calcula Facturama. Detalle en `backend/NOTES.md`.
+
 Verificar en Facturama qué parte calcula su API (algunos PAC calculan `Totales`/`ImpuestosP`) y enviar solo lo que pida.
 
 ## 5. Impuestos proporcionales por documento relacionado

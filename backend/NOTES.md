@@ -143,3 +143,15 @@ Endpoints de catálogo usados (todos `GET`, mismo Basic Auth):
 - `GET /api/Cfdi/{xml|pdf}/issued/{id}` funciona (XML ~7 KB, PDF ~99 KB).
 - **Cancelación en sandbox** (investigado 2026-10-06 contra la doc oficial https://facturama.mx/docs/es/api-web/cancelar-cfdi): nuestro endpoint y parámetros coinciden con la doc (`DELETE /cfdi/{id}?type=issued&motive=0X`; respuesta `Status: canceled|pending|active`, `AcuseXmlBase64`; consulta de estatus `GET /cfdi/{id}?type=issued` → `Status` — verificado en vivo, devuelve `active`). Aun así `DELETE` respondió 500 (también sin `type`, como en la doc): `DELETE /cfdi/{id}?type=issued&motive=02` respondió 500 ("El equipo de Facturama ya se encuentra informado de este error") en dos intentos. Sin verificar si es una limitación del sandbox; la forma de la respuesta (`Status: canceled|pending`) sigue sin comprobarse en vivo.
 - `GET /api-lite/csds` devuelve `[]` aunque el CSD esté cargado; el CSD aparece en `GET /api/TaxEntity` (`Csd.Certificate`). **Ojo: esa respuesta incluye la contraseña de la llave privada** — no imprimirla.
+
+
+## REP (CFDI de pago 2.0) en el sandbox (spike de Fase 5, 2026-10-06)
+
+`python -m scripts.spike_rep <uuid_cfdi_de_prueba>` timbra de verdad (sandbox, receptor ficticio del SAT, nunca un cliente): un REP de $1,000 (parcialidad 1) y otro de $848 (parcialidad 2, última, que absorbe el redondeo de impuestos).
+
+- Endpoint: el mismo `POST /3/cfdis` con `CfdiType: "P"`. Estructura: `Complemento.Payments[]` → `RelatedDocuments[]` (`Uuid`, `PaymentMethod: "PPD"`, `PartialityNumber`, `PreviousBalanceAmount`, `AmountPaid`, `ImpSaldoInsoluto`, `TaxObject: "02"`, `Currency`, `EquivalenceDocRel`, `Taxes[]` con el mismo formato que los de una factura). Fuente del mapeo: `satcfdi.pacs.facturama`.
+- El comprobante raíz NO lleva `Items`, `PaymentForm`, `PaymentMethod` ni `Currency`. Receptor con `CfdiUse: "CP01"`.
+- **`ExchangeRate` no debe enviarse** en `Payments[]` para pesos: Facturama responde `"No debe incluir este atributo"`.
+- `Date` del pago es hora local de México, sin zona, y no puede estar en el futuro: con la hora UTC del servidor un pago de "hoy" quedaba adelantado y se rechazaba.
+- Sin `Serie` el timbrado funciona; el REP usa la que Facturama asigne.
+- Los errores de validación llegan en `ModelState` dentro del cuerpo del 400; `FacturamaError.raw` los conserva.

@@ -18,6 +18,8 @@ ErrorCode = Literal[
     "facturama_error",
     "facturama_no_configurado",
     "no_implementado",
+    "aplicacion_no_cuadra",
+    "factura_con_rep",
     "internal_error",
 ]
 

@@ -17,6 +17,8 @@ import { AdminLayout } from "../routes/admin/AdminLayout";
 import { DashboardPage } from "../routes/admin/DashboardPage";
 import { UsuariosPage } from "../routes/admin/configuracion/UsuariosPage";
 import { FacturasPage } from "../features/facturas/FacturasPage";
+import { CobranzaPage } from "../features/cobranza/CobranzaPage";
+import { PagoDetailPage } from "../features/cobranza/PagoDetailPage";
 import { FacturaDetailPage } from "../features/facturas/FacturaDetailPage";
 import { ConfiguracionLayout } from "../routes/admin/configuracion/ConfiguracionLayout";
 import { PreciosPage } from "../routes/admin/configuracion/PreciosPage";
@@ -61,6 +63,8 @@ export function AppRouter() {
           <Route path="servicios/:id/facturar" element={<FacturarPage />} />
           <Route path="facturas" element={<FacturasPage />} />
           <Route path="facturas/:id" element={<FacturaDetailPage />} />
+          <Route path="cobranza" element={<CobranzaPage />} />
+          <Route path="cobranza/pagos/:id" element={<PagoDetailPage />} />
           <Route path="catalogos" element={<CatalogosLayout />}>
             <Route index element={<Navigate to="unidades" replace />} />
             <Route path="unidades" element={<UnidadesPage />} />
