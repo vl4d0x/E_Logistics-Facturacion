@@ -79,6 +79,8 @@ function useAccionFactura<TBody>(id: string, accion: string, mensaje: string, fa
 
 export const useCancelarFactura = (id: string) =>
   useAccionFactura<{ motivo: string }>(id, "cancelar", "Cancelación solicitada", "No se pudo cancelar");
+export const useActualizarEstatus = (id: string) =>
+  useAccionFactura<undefined>(id, "actualizar-estatus", "Estatus actualizado", "No se pudo actualizar el estatus");
 export const useEnviarFactura = (id: string) =>
   useAccionFactura<{ to?: string[] }>(id, "enviar", "Correo enviado", "No se pudo enviar el correo");
 

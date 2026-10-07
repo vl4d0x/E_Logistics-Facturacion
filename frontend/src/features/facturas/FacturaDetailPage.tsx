@@ -4,7 +4,7 @@ import { IconAlertTriangle } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
-import { descargarFactura, useCancelarFactura, useEnviarFactura, useFactura } from "./api";
+import { descargarFactura, useActualizarEstatus, useCancelarFactura, useEnviarFactura, useFactura } from "./api";
 import { ESTADO_FACTURA, pesos } from "./format";
 
 const MOTIVOS = [
@@ -18,6 +18,7 @@ export function FacturaDetailPage() {
   const { data: f } = useFactura(id);
   const cancelar = useCancelarFactura(id);
   const enviar = useEnviarFactura(id);
+  const actualizarEstatus = useActualizarEstatus(id);
   const [cancelando, setCancelando] = useState(false);
   const [motivo, setMotivo] = useState<string | null>("02");
   const [destinatarios, setDestinatarios] = useState<string | null>(null);
@@ -51,6 +52,16 @@ export function FacturaDetailPage() {
           <Alert color="yellow" mt="md" icon={<IconAlertTriangle size={18} />}>
             Cancelación en espera de la aceptación del receptor (hasta 3 días hábiles). Los datos del servicio siguen
             bloqueados.
+            <Group mt="xs">
+              <Button
+                size="xs"
+                variant="default"
+                loading={actualizarEstatus.isPending}
+                onClick={() => actualizarEstatus.mutate(undefined)}
+              >
+                Actualizar estatus
+              </Button>
+            </Group>
           </Alert>
         )}
         {f.ejercicio_anterior && f.estado === "timbrada" && (
