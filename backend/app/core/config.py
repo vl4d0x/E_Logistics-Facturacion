@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     facturama_env: str = Field(default="sandbox", alias="FACTURAMA_ENV")
     facturama_user: str | None = Field(default=None, alias="FACTURAMA_USER")
     facturama_password: str | None = Field(default=None, alias="FACTURAMA_PASSWORD")
+    # Serie pre-registrada en la sucursal de Facturama (`backend/NOTES.md` §"Serie").
+    # "ELG" se registró en el sandbox el 2026-10-03; para producción, registrar la
+    # serie real deseada en el panel de Facturama y apuntar esta variable ahí.
+    facturama_serie: str = Field(default="ELG", alias="FACTURAMA_SERIE")
 
     # --- Cloudflare R2 ---
     r2_endpoint: str | None = Field(default=None, alias="R2_ENDPOINT")
@@ -50,6 +54,8 @@ class Settings(BaseSettings):
     # --- Resend (correo) ---
     resend_api_key: str | None = Field(default=None, alias="RESEND_API_KEY")
     email_from: str = Field(default="Elogistics <facturacion@dominio.mx>", alias="EMAIL_FROM")
+    # Las respuestas de los clientes llegan a este buzón, no al remitente de Resend.
+    email_reply_to: str = Field(default="e_logistics@outlook.com", alias="EMAIL_REPLY_TO")
 
     # --- CORS ---
     cors_origins: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")

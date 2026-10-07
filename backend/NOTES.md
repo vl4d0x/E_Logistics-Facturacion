@@ -134,3 +134,12 @@ Endpoints de catálogo usados (todos `GET`, mismo Basic Auth):
 - https://apisandbox.facturama.mx/docs/api/GET-BranchOffice, POST-BranchOffice, POST-serie-idBranchOffice
 - https://apisandbox.facturama.mx/docs/api/GET-TaxEntity, PUT-api-TaxEntity
 - https://facturama.elevio.help/es/articles/151-csd-de-pruebas-principal (CSD de prueba — solo válido para RFC genérico, no para un emisor real)
+
+
+## Con CSD real en el sandbox (2026-10-06)
+
+- Con el CSD de Vlad cargado, el sandbox **timbra de verdad** el payload completo (CFDI 4.0 + Carta Porte 3.1). Verificado con un CFDI de prueba a un receptor ficticio del SAT (`EKU9003173C9`, nombre exacto `ESCUELA KEMPER URGATE`, CP `42501`), nunca a un cliente.
+- Con CSD real Facturama valida más estricto: el nombre del receptor debe coincidir con el RFC, y `RFCFigura` debe estar en la lista l_RFC del SAT (el genérico `XAXX010101000` ya no sirve para el operador).
+- `GET /api/Cfdi/{xml|pdf}/issued/{id}` funciona (XML ~7 KB, PDF ~99 KB).
+- **Cancelación en sandbox**: `DELETE /cfdi/{id}?type=issued&motive=02` respondió 500 ("El equipo de Facturama ya se encuentra informado de este error") en dos intentos. Sin verificar si es una limitación del sandbox; la forma de la respuesta (`Status: canceled|pending`) sigue sin comprobarse en vivo.
+- `GET /api-lite/csds` devuelve `[]` aunque el CSD esté cargado; el CSD aparece en `GET /api/TaxEntity` (`Csd.Certificate`). **Ojo: esa respuesta incluye la contraseña de la llave privada** — no imprimirla.

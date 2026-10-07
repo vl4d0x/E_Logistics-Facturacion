@@ -76,6 +76,7 @@ export interface Cliente {
   modo_acuse: ModoAcuse;
   emails_facturacion: string[];
   dias_credito: number;
+  requiere_folio_concepto: boolean;
   activo: boolean;
 }
 

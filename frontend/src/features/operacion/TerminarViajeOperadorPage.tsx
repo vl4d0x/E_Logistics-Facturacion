@@ -4,6 +4,7 @@ import { IconArrowLeft, IconTrash, IconUpload } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { numberInputValue } from "../../lib/numberInput";
 import { useAgregarAcuseOperador, useMisServicios, useTerminarViajeOperador } from "./api";
 import type { ServicioDetalle, ViajeOut } from "../servicios/types";
 
@@ -162,13 +163,13 @@ export function TerminarViajeOperadorPage() {
                       label="Cantidad"
                       value={f.cantidad}
                       min={1}
-                      onChange={(v) => actualizarFila(f.id, { cantidad: typeof v === "number" ? v : 1 })}
+                      onChange={(v) => actualizarFila(f.id, { cantidad: numberInputValue(v) ?? 1 })}
                       style={{ flex: 1 }}
                     />
                     <NumberInput
                       label="Peso (kg)"
                       value={f.pesoKg}
-                      onChange={(v) => actualizarFila(f.id, { pesoKg: typeof v === "number" ? v : 0 })}
+                      onChange={(v) => actualizarFila(f.id, { pesoKg: numberInputValue(v) ?? 0 })}
                       style={{ flex: 1 }}
                     />
                     <ActionIcon

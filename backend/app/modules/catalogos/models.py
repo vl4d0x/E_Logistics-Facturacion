@@ -89,6 +89,9 @@ class Cliente(TimestampMixin, table=True):
         default_factory=list, sa_column=Column(_EMAILS_COLUMN_TYPE, nullable=False)
     )
     dias_credito: int = Field(default=30, nullable=False)
+    # Caso real: Chemital exige su propio folio de remisión dentro del concepto de
+    # la factura; es exclusivo de ese cliente, confirmado por Vlad (04 §2).
+    requiere_folio_concepto: bool = Field(default=False, nullable=False)
     activo: bool = Field(default=True)
 
 
@@ -120,6 +123,11 @@ class Lugar(TimestampMixin, table=True):
     colonia: str | None = Field(default=None)
     localidad: str | None = Field(default=None)
     municipio: str | None = Field(default=None)
+    # Claves numéricas del catálogo SAT (`c_Municipio`/`c_Localidad`), resueltas vía
+    # Facturama a partir del CP la primera vez que el lugar se usa en una factura, y
+    # cacheadas aquí para no volver a llamar al catálogo (`backend/NOTES.md`).
+    municipio_clave: str | None = Field(default=None)
+    localidad_clave: str | None = Field(default=None)
     estado: str = Field(nullable=False)
     pais: str = Field(default="MEX", nullable=False)
     codigo_postal: str = Field(nullable=False)

@@ -27,6 +27,23 @@ Del servicio (o del formulario de "Nuevo servicio" antes de que exista):
 
 Después de elegir el monto: **redondear** al múltiplo de `precio.redondeo` (default $50) con half-up. Los niveles 1 y 2 no se redondean (son precios reales).
 
+### 2.0 Tarifario fijo por cliente — IMPLEMENTADO (hoy solo Chemital, 5 oct 2026)
+
+Vlad decidió que, por ahora, **solo se precalcula el cliente Chemital** con un tarifario fijo; los demás clientes usan la cascada de abajo. Esta regla tiene prioridad sobre los niveles 1-4 (`fuente = "tarifa_pactada"`, confianza alta, sin redondeo) y conserva `ultimos_precios_ruta` y `rango` como contexto.
+
+- **Quién**: el cliente cuyo nombre comercial o razón social contiene el texto `cliente` del tarifario (case-insensitive; default `chemital`).
+- **Unidad**: se clasifica por su peso bruto vehicular: ≤0.5 t Saveiro, ≤1 t Nissan, ≤3.5 t Ram. Una unidad más pesada (Rabón) no tiene tarifa y cae a la cascada.
+- **Destino en CDMX**: CP entre 01000 y 16999.
+- **Cálculo**: el primer destino en CDMX se cobra con la tarifa `cdmx` de la unidad; **cada destino adicional** (viaje con destino) suma la tarifa `extra`. Sin ningún destino en CDMX la regla no aplica.
+
+| Unidad | Viaje a CDMX | Cada destino adicional |
+|---|---|---|
+| Saveiro | $1,650 | $660 |
+| Nissan | $2,200 | $660 |
+| Ram | $2,970 | $990 |
+
+Los valores viven en `configuracion` (`precio.tarifario_cliente`) y se editan en **Configuración → Precios y tarifas** (`GET/PATCH /configuracion`). Código: `precios/tarifario.py`. Esto cubre el caso de varios destinos **para Chemital**; la regla general (§2.1) sigue en stand-by para los demás clientes.
+
 ### 2.1 Servicios con varios destinos — EN STAND-BY
 
 Vlad aún no define cómo se cobran (¿suma de tarifas?, ¿la mayor más un cargo por parada?, ¿otra regla?). Hasta que lo defina:

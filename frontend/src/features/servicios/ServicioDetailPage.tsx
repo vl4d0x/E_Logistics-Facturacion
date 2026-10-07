@@ -211,24 +211,29 @@ export function ServicioDetailPage() {
         <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate("/admin/servicios")} px={0}>
           Servicios
         </Button>
-        <Menu>
-          <Menu.Target>
-            <ActionIcon variant="default" aria-label="Más acciones">
-              <IconDotsVertical size={18} />
-            </ActionIcon>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item onClick={() => setDuplicarAbierto(true)}>Duplicar</Menu.Item>
-            {servicio.acciones_permitidas.includes("marcar_terminado") && (
-              <Menu.Item onClick={() => marcarTerminado.mutate()}>Marcar terminado</Menu.Item>
-            )}
-            {servicio.acciones_permitidas.includes("cancelar") && (
-              <Menu.Item color="red" onClick={() => setCancelarAbierto(true)}>
-                Cancelar servicio
-              </Menu.Item>
-            )}
-          </Menu.Dropdown>
-        </Menu>
+        <Group gap="xs">
+          {servicio.acciones_permitidas.includes("facturar") && (
+            <Button onClick={() => navigate(`/admin/servicios/${servicio.id}/facturar`)}>Facturar</Button>
+          )}
+          <Menu>
+            <Menu.Target>
+              <ActionIcon variant="default" aria-label="Más acciones">
+                <IconDotsVertical size={18} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item onClick={() => setDuplicarAbierto(true)}>Duplicar</Menu.Item>
+              {servicio.acciones_permitidas.includes("marcar_terminado") && (
+                <Menu.Item onClick={() => marcarTerminado.mutate()}>Marcar terminado</Menu.Item>
+              )}
+              {servicio.acciones_permitidas.includes("cancelar") && (
+                <Menu.Item color="red" onClick={() => setCancelarAbierto(true)}>
+                  Cancelar servicio
+                </Menu.Item>
+              )}
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
       </Group>
 
       <Card>
@@ -256,7 +261,7 @@ export function ServicioDetailPage() {
         </Group>
         {servicio.subtotal && (
           <Text mt="sm">
-            Subtotal: <strong>${servicio.subtotal}</strong>
+            Subtotal: <strong>${Number(servicio.subtotal).toFixed(2)}</strong>
           </Text>
         )}
         {servicio.notas && (

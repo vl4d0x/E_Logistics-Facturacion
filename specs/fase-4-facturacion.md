@@ -58,6 +58,7 @@ Como admin, quiero un precio de partida con su explicación y los precios recien
 - Al timbrar se guardan `precio_sugerido` y su detalle en el servicio.
 
 ### H4.6 — Tarifas pactadas y parámetros de precio
+> **Alcance reducido (5 oct 2026):** por ahora solo hay tarifario fijo para Chemital (`07 §2.0`), editable en Configuración → Precios y tarifas. La tabla de tarifas pactadas por destino, `GET /configuracion/pendientes` y el aviso SetupReminder quedan fuera hasta que se amplíe a más clientes.
 Como admin, quiero registrar tarifas acordadas por cliente y destino, y ajustar la fórmula base, sin código.
 **Criterios de aceptación**
 - Configuración → Precios y tarifas: parámetros (`tarifa_base`, `tarifa_km`, redondeo, ventana de historial) y tabla de tarifas pactadas; también en la tab "Tarifas" del cliente. `cargo_parada_extra` se muestra deshabilitado ("Pendiente de definir").

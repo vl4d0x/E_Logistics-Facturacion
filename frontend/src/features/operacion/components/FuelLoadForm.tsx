@@ -2,6 +2,7 @@
 // valores se calcula el tercero; avisa si los tres capturados no cuadran (±$1.00).
 import { ActionIcon, Alert, Button, FileButton, Group, NumberInput, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
+import { numberInputValue } from "../../../lib/numberInput";
 import { type CargaDraft, nuevaCargaDraft } from "../types";
 
 function calcularFaltante(c: CargaDraft): Partial<CargaDraft> {
@@ -52,21 +53,21 @@ export function FuelLoadForm({
               label="Litros"
               decimalScale={2}
               value={c.litros ?? undefined}
-              onChange={(v) => actualizar(c.id, { litros: typeof v === "number" ? v : null })}
+              onChange={(v) => actualizar(c.id, { litros: numberInputValue(v) })}
             />
             <NumberInput
               label="Precio por litro"
               prefix="$"
               decimalScale={3}
               value={c.precioLitro ?? undefined}
-              onChange={(v) => actualizar(c.id, { precioLitro: typeof v === "number" ? v : null })}
+              onChange={(v) => actualizar(c.id, { precioLitro: numberInputValue(v) })}
             />
             <NumberInput
               label="Importe"
               prefix="$"
               decimalScale={2}
               value={c.importe ?? undefined}
-              onChange={(v) => actualizar(c.id, { importe: typeof v === "number" ? v : null })}
+              onChange={(v) => actualizar(c.id, { importe: numberInputValue(v) })}
             />
             <ActionIcon
               variant="subtle"

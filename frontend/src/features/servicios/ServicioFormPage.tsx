@@ -16,6 +16,7 @@ import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { numberInputValue } from "../../lib/numberInput";
 import { clientesApi, operadoresApi, unidadesApi } from "../catalogos/api";
 import { useLugares } from "../catalogos/api";
 import { useCrearServicio } from "./api";
@@ -279,7 +280,7 @@ export function ServicioFormPage() {
             prefix="$"
             decimalScale={2}
             value={subtotal ?? undefined}
-            onChange={(v) => setSubtotal(typeof v === "number" ? v : null)}
+            onChange={(v) => setSubtotal(numberInputValue(v))}
           />
 
           <Switch

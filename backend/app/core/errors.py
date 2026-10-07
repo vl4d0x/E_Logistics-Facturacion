@@ -16,6 +16,8 @@ ErrorCode = Literal[
     "validation_error",
     "conflict",
     "facturama_error",
+    "facturama_no_configurado",
+    "no_implementado",
     "internal_error",
 ]
 

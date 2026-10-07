@@ -65,6 +65,18 @@ class FacturamaClient:
         response = self._client.get(f"/api/Cfdi/{fmt}/issued/{cfdi_id}")
         return self._parse(response)
 
+    def resolve_postal_code(self, cp: str) -> dict[str, Any] | None:
+        """`GET /Catalogs/PostalCodes?keyword={cp}` -> {StateCode, MunicipalityCode, LocationCode}.
+
+        Hace falta para `Domicilio.Municipio`/`Localidad` de Carta Porte (claves
+        numéricas del catálogo SAT, no texto libre) -- ver `backend/NOTES.md`.
+        """
+        response = self._client.get("/Catalogs/PostalCodes", params={"keyword": cp})
+        data = self._parse(response)
+        if not data:
+            return None
+        return data[0]
+
     def cancel_cfdi(
         self, cfdi_id: str, motive: str, uuid_replacement: str | None = None
     ) -> dict[str, Any]:
