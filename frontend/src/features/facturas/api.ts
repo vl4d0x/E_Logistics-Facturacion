@@ -8,6 +8,7 @@ export interface FacturaResumen {
   id: string;
   servicio_id: string;
   servicio_numero: number;
+  cliente_id: string;
   cliente_nombre: string;
   estado: "timbrada" | "cancelacion_pendiente" | "cancelada" | "error";
   estado_cobro: "pendiente" | "parcial" | "pagada";

@@ -9,6 +9,7 @@ from app.core.config import get_settings
 # Importa todos los módulos con tablas para que SQLModel.metadata las conozca.
 from app.modules.auth import models as auth_models  # noqa: F401
 from app.modules.catalogos import models as catalogos_models  # noqa: F401
+from app.modules.cobranza import models as cobranza_models  # noqa: F401
 from app.modules.configuracion import models as configuracion_models  # noqa: F401
 from app.modules.facturacion import models as facturacion_models  # noqa: F401
 from app.modules.operacion import models as operacion_models  # noqa: F401

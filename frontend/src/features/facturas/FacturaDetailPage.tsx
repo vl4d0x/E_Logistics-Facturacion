@@ -2,7 +2,7 @@
 import { Alert, Badge, Button, Group, Modal, Select, Stack, Text, TextInput } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { descargarFactura, useActualizarEstatus, useCancelarFactura, useEnviarFactura, useFactura } from "./api";
 import { ESTADO_FACTURA, pesos } from "./format";
@@ -15,6 +15,7 @@ const MOTIVOS = [
 
 export function FacturaDetailPage() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const { data: f } = useFactura(id);
   const cancelar = useCancelarFactura(id);
   const enviar = useEnviarFactura(id);
@@ -77,6 +78,14 @@ export function FacturaDetailPage() {
           <Button variant="default" onClick={() => descargarFactura(f.id, "xml")}>
             Descargar XML
           </Button>
+          {f.estado === "timbrada" && f.estado_cobro !== "pagada" && (
+            <Button
+              variant="light"
+              onClick={() => navigate(`/admin/cobranza?tab=por-cobrar&cliente=${f.cliente_id}&factura=${f.id}`)}
+            >
+              Registrar pago
+            </Button>
+          )}
           {f.estado === "timbrada" && (
             <Button color="red" variant="light" onClick={() => setCancelando(true)}>
               Cancelar factura

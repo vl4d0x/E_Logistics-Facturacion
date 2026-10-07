@@ -122,6 +122,7 @@ def _resumen(f: Factura, s: Servicio, c: Cliente) -> dict:
         "id": f.id,
         "servicio_id": s.id,
         "servicio_numero": s.numero,
+        "cliente_id": c.id,
         "cliente_nombre": c.nombre_comercial,
         "estado": f.estado,
         "estado_cobro": f.estado_cobro,
@@ -163,7 +164,14 @@ def cancelar(session: Session, factura: Factura, motivo: str) -> Factura:
         raise AppError("validation_error", "Motivo inválido: usa 02, 03 o 04", 422)
     if factura.estado != EstadoFactura.timbrada:
         raise AppError("conflict", "Solo se puede cancelar una factura timbrada", 409)
-    # `409 factura_con_rep` (04 §8) se agrega en Fase 5, cuando existan los pagos aplicados.
+    from app.modules.cobranza.models import PagoAplicacion
+
+    if session.exec(select(PagoAplicacion).where(PagoAplicacion.factura_id == factura.id)).first():
+        raise AppError(
+            "factura_con_rep",
+            "La factura tiene pagos aplicados: cancela su REP, revierte el pago y luego cancela la factura",
+            409,
+        )
     if not factura.facturama_id:
         raise AppError("conflict", "La factura no tiene id de Facturama", 409)
     try:
@@ -271,6 +279,32 @@ def _cuerpo_correo(session: Session, factura: Factura, servicio: Servicio, clien
     return "<p>" + "<br>".join(lineas) + "</p>"
 
 
+def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos: list[dict]) -> None:
+    """Envío por Resend con `reply_to` al buzón de Elogistics. Lanza `AppError` si falla."""
+    settings = get_settings()
+    if not settings.resend_api_key:
+        raise AppError("internal_error", "El correo (Resend) no está configurado en este entorno.", 500)
+    if not destinatarios:
+        raise AppError("validation_error", "No hay destinatarios: el cliente no tiene correos de facturación", 422)
+    import resend
+
+    resend.api_key = settings.resend_api_key
+    try:
+        resend.Emails.send(
+            {
+                "from": settings.email_from,
+                "reply_to": settings.email_reply_to,
+                "to": destinatarios,
+                "subject": asunto,
+                "html": html,
+                "attachments": adjuntos,
+            }
+        )
+    except Exception as exc:
+        raise AppError("internal_error", f"No se pudo enviar el correo: {exc}", 502) from exc
+
+
+
 def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factura:
     if factura.estado not in {EstadoFactura.timbrada, EstadoFactura.cancelacion_pendiente}:
         raise AppError("conflict", "Solo se envían facturas vigentes", 409)
@@ -306,25 +340,18 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
     elif cliente.modo_acuse == ModoAcuse.referencia:
         folios = [a.referencia for a in acuses if a.referencia]
 
-    import resend
-
-    resend.api_key = settings.resend_api_key
     try:
-        resend.Emails.send(
-            {
-                "from": settings.email_from,
-                "reply_to": settings.email_reply_to,
-                "to": destinatarios,
-                "subject": f"Factura {factura.serie or ''}{factura.folio or ''} · Servicio #{servicio.numero} · Elogistics",
-                "html": _cuerpo_correo(session, factura, servicio, cliente, folios),
-                "attachments": adjuntos,
-            }
+        enviar_correo(
+            destinatarios=destinatarios,
+            asunto=f"Factura {factura.serie or ''}{factura.folio or ''} · Servicio #{servicio.numero} · Elogistics",
+            html=_cuerpo_correo(session, factura, servicio, cliente, folios),
+            adjuntos=adjuntos,
         )
-    except Exception as exc:
-        factura.envio_error = str(exc)
+    except AppError as exc:
+        factura.envio_error = exc.message
         session.add(factura)
         session.commit()
-        raise AppError("internal_error", f"No se pudo enviar el correo: {exc}", 502) from exc
+        raise
 
     factura.enviado_at = utcnow()
     factura.envio_destinatarios = destinatarios
