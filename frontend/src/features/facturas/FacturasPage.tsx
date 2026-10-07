@@ -1,7 +1,7 @@
 // H4.9 — lista de facturas con filtros por estado y mes de emisión.
 import { Badge, Group, Select, Table, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { useFacturas } from "./api";
 import { ESTADO_FACTURA, pesos } from "./format";
@@ -9,7 +9,8 @@ import { ESTADO_FACTURA, pesos } from "./format";
 export function FacturasPage() {
   const navigate = useNavigate();
   const [estado, setEstado] = useState("");
-  const [mes, setMes] = useState("");
+  const [params] = useSearchParams();
+  const [mes, setMes] = useState(params.get("mes_emision") ?? "");
   const mesValido = /^\d{4}-\d{2}$/.test(mes) ? mes : "";
   const { data: facturas, isLoading } = useFacturas({ estado, mes: mesValido });
 

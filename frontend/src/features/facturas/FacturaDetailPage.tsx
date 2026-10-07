@@ -81,7 +81,7 @@ export function FacturaDetailPage() {
           {f.estado === "timbrada" && f.estado_cobro !== "pagada" && (
             <Button
               variant="light"
-              onClick={() => navigate(`/admin/cobranza?tab=por-cobrar&cliente=${f.cliente_id}&factura=${f.id}`)}
+              onClick={() => navigate(`/admin/cobranza?tab=por_cobrar&cliente=${f.cliente_id}&factura=${f.id}`)}
             >
               Registrar pago
             </Button>

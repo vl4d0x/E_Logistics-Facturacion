@@ -7,6 +7,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.catalogos.router import router as catalogos_router
 from app.modules.cobranza.router import router as cobranza_router
 from app.modules.configuracion.router import router as configuracion_router
+from app.modules.dashboard.router import router as dashboard_router
 from app.modules.facturacion.facturas_router import router as facturas_router
 from app.modules.facturacion.router import router as facturacion_router
 from app.modules.operacion.router import router as operacion_router
@@ -35,6 +36,7 @@ app.include_router(facturacion_router, prefix=api_v1)
 app.include_router(facturas_router, prefix=api_v1)
 app.include_router(configuracion_router, prefix=api_v1)
 app.include_router(cobranza_router, prefix=api_v1)
+app.include_router(dashboard_router, prefix=api_v1)
 
 
 @app.get("/health", tags=["health"])
