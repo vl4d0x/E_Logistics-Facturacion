@@ -10,7 +10,9 @@ function PorCobrarTab() {
   const [params, setParams] = useSearchParams();
   const clienteId = params.get("cliente");
   const { data: clientes } = useCobranzaClientes();
-  const { data: facturas = [] } = useCobranzaFacturas(clienteId, "pendiente,parcial");
+  const mes = params.get("mes");
+  const anio = params.get("anio");
+  const { data: facturas = [] } = useCobranzaFacturas(clienteId, "pendiente,parcial", mes, anio);
   const [seleccion, setSeleccion] = useState<Record<string, number>>({});
   const preseleccion = params.get("factura"); // atajo desde el detalle de una factura (H5.2)
   const inicial = facturas.find((f) => f.id === preseleccion);
@@ -36,7 +38,7 @@ function PorCobrarTab() {
               <Table.Tr
                 key={c.cliente.id} style={{ cursor: "pointer" }}
                 bg={c.cliente.id === clienteId ? "var(--mantine-color-red-0)" : undefined}
-                onClick={() => { setSeleccion({}); setParams({ tab: "por-cobrar", cliente: c.cliente.id }); }}
+                onClick={() => { setSeleccion({}); setParams({ tab: "por_cobrar", cliente: c.cliente.id }); }}
               >
                 <Table.Td>{c.cliente.nombre_comercial}</Table.Td>
                 <Table.Td ta="right">{pesos(c.saldo)}</Table.Td>
@@ -47,7 +49,7 @@ function PorCobrarTab() {
           </Table.Tbody>
         </Table>
         {clientes?.length === 0 && <Text c="dimmed" ta="center">No hay saldos por cobrar.</Text>}
-        {clienteId && (
+        {(clienteId || mes || anio) && (
           <Table verticalSpacing="xs">
             <Table.Thead>
               <Table.Tr><Table.Th /><Table.Th>Folio</Table.Th><Table.Th>Servicio</Table.Th><Table.Th>Emisión</Table.Th><Table.Th ta="right">Total</Table.Th><Table.Th ta="right">Saldo</Table.Th><Table.Th>Antigüedad</Table.Th></Table.Tr>
@@ -89,7 +91,8 @@ export function DueBadge({ pendiente, dias, vence }: { pendiente: boolean; dias:
 
 function PagosTab() {
   const navigate = useNavigate();
-  const { data: pagos = [] } = usePagos();
+  const [params] = useSearchParams();
+  const { data: pagos = [] } = usePagos(params.get("rep_pendiente") === "true");
   const pendientes = pagos.filter((p) => p.rep_pendiente);
   return (
     <Card>
@@ -120,7 +123,8 @@ function PagosTab() {
 }
 
 function PagadasTab() {
-  const { data: facturas = [] } = useCobranzaFacturas(null, "pagada");
+  const [params] = useSearchParams();
+  const { data: facturas = [] } = useCobranzaFacturas(null, "pagada", params.get("mes"), params.get("anio"));
   return (
     <Card>
       <Table verticalSpacing="sm">
@@ -145,16 +149,16 @@ function PagadasTab() {
 
 export function CobranzaPage() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") ?? "por-cobrar";
+  const tab = params.get("tab") ?? "por_cobrar";
   return (
     <Tabs value={tab} onChange={(v) => v && setParams({ tab: v })}>
       <Tabs.List mb="lg">
-        <Tabs.Tab value="por-cobrar">Por cobrar</Tabs.Tab>
+        <Tabs.Tab value="por_cobrar">Por cobrar</Tabs.Tab>
         <Tabs.Tab value="pagos">Pagos y REP</Tabs.Tab>
         <Tabs.Tab value="pagadas">Pagadas</Tabs.Tab>
       </Tabs.List>
       <Group />
-      {tab === "por-cobrar" && <PorCobrarTab />}
+      {tab === "por_cobrar" && <PorCobrarTab />}
       {tab === "pagos" && <PagosTab />}
       {tab === "pagadas" && <PagadasTab />}
     </Tabs>

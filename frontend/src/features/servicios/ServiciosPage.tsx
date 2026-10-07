@@ -1,8 +1,9 @@
 // `fase-2-servicios.md` H2.2 — lista de servicios por estado y fecha.
 import { Alert, Badge, Button, Group, Select, Table, Tabs, Text, TextInput } from "@mantine/core";
-import { IconAlertTriangle, IconPlus, IconSearch } from "@tabler/icons-react";
+import { IconAlertTriangle, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { descargarArchivo } from "../../lib/descargar";
 import { Card } from "../../components/Card";
 import { clientesApi, operadoresApi, unidadesApi } from "../catalogos/api";
 import { useConteosServicios, useServicios, type FiltrosServicios } from "./api";
@@ -36,7 +37,8 @@ function agruparPorFecha(items: ServicioListItem[]): [string, ServicioListItem[]
 
 export function ServiciosPage() {
   const navigate = useNavigate();
-  const [vista, setVista] = useState<Vista | "todos">("todos");
+  const [params] = useSearchParams();
+  const [vista, setVista] = useState<Vista | "todos">((params.get("vista") as Vista | null) ?? "todos");
   const [q, setQ] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [operadorId, setOperadorId] = useState<string | null>(null);
@@ -78,9 +80,20 @@ export function ServiciosPage() {
             ))}
           </Tabs.List>
         </Tabs>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => navigate("/admin/servicios/nuevo")}>
-          Nuevo servicio
-        </Button>
+        <Group gap="xs">
+          <Button
+            variant="default"
+            leftSection={<IconDownload size={16} />}
+            onClick={() =>
+              descargarArchivo(`/api/v1/export/servicios.xlsx${clienteId ? `?cliente_id=${clienteId}` : ""}`, "servicios.xlsx")
+            }
+          >
+            Exportar a Excel
+          </Button>
+          <Button leftSection={<IconPlus size={16} />} onClick={() => navigate("/admin/servicios/nuevo")}>
+            Nuevo servicio
+          </Button>
+        </Group>
       </Group>
 
       <Group mb="md" wrap="wrap">

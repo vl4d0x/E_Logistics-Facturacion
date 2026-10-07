@@ -123,11 +123,13 @@ const toastError = (title: string) => (err: unknown) =>
 export const useCobranzaClientes = () =>
   useQuery({ queryKey: ["cobranza", "clientes"], queryFn: () => api.get<ClienteCobranza[]>("/api/v1/cobranza/clientes") });
 
-export function useCobranzaFacturas(clienteId: string | null, estados: string) {
+export function useCobranzaFacturas(clienteId: string | null, estados: string, mes?: string | null, anio?: string | null) {
   const params = new URLSearchParams({ estado_cobro: estados });
   if (clienteId) params.set("cliente_id", clienteId);
+  if (mes) params.set("mes_emision", mes);
+  if (anio) params.set("anio", anio);
   return useQuery({
-    queryKey: ["cobranza", "facturas", clienteId, estados],
+    queryKey: ["cobranza", "facturas", clienteId, estados, mes, anio],
     queryFn: () => api.get<FacturaCobranza[]>(`/api/v1/cobranza/facturas?${params}`),
   });
 }

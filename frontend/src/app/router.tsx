@@ -14,7 +14,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { useAuth } from "../lib/useAuth";
 import type { Rol } from "../lib/auth";
 import { AdminLayout } from "../routes/admin/AdminLayout";
-import { DashboardPage } from "../routes/admin/DashboardPage";
+import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { UsuariosPage } from "../routes/admin/configuracion/UsuariosPage";
 import { FacturasPage } from "../features/facturas/FacturasPage";
 import { CobranzaPage } from "../features/cobranza/CobranzaPage";
