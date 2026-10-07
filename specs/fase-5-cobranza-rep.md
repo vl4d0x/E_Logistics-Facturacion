@@ -75,6 +75,7 @@ Como admin, quiero no pasarme del día 5.
 - Pago registrado con una fecha cuyo plazo de REP ya venció → aviso "el REP de este pago ya está vencido; emítelo hoy".
 
 ## Definición de terminado
+- [ ] **Responsivo** (tablet 820 px y teléfono 390 px sin scroll horizontal; `05 §3.1`, auditoría con `frontend/scripts/audit-responsive.mjs`).
 - [ ] Spike de REP documentado.
 - [ ] Tests de `06 §8` (conciliación, aplicación, REP, cancelación, vencimientos).
 - [ ] Flujo completo en sandbox: registrar → sugerencia exacta → aplicar y generar REP → enviar.

@@ -329,7 +329,7 @@ export function FacturarPage() {
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 5 }}>
-          <Stack gap="md" style={{ position: "sticky", top: 20 }}>
+          <Stack gap="md" className="el-sticky-aside">
             <Card>
               <Text fw={600} mb="sm">
                 Acuses

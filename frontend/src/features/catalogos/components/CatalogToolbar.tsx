@@ -21,8 +21,8 @@ export function CatalogToolbar({
   placeholder: string;
 }) {
   return (
-    <Group justify="space-between" mb="md" wrap="wrap">
-      <Group>
+    <Group justify="space-between" mb="md" wrap="wrap" className="el-filters">
+      <Group className="el-filters">
         <TextInput
           placeholder={placeholder}
           leftSection={<IconSearch size={16} />}

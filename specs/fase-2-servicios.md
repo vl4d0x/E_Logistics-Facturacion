@@ -83,6 +83,7 @@ Como admin, quiero indicar al crear el servicio que el cliente necesita la Carta
 - Dos admins editando el mismo servicio: gana el último en guardar (volumen bajo); el detalle se refresca al enfocar la ventana.
 
 ## Definición de terminado
+- [ ] **Responsivo** (tablet 820 px y teléfono 390 px sin scroll horizontal; `05 §3.1`, auditoría con `frontend/scripts/audit-responsive.mjs`).
 - [ ] Crear servicio con N viajes en una transacción; número legible.
 - [ ] Lista con tabs/conteos, filtros en URL y agrupación por fecha.
 - [ ] Edición restringida por estado y por factura vigente; reabrir viajes.

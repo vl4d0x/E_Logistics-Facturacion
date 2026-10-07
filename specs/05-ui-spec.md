@@ -10,7 +10,7 @@
 - Minimalista, limpio, denso pero respirable. Superficies planas.
 - Una acción primaria (roja) por vista.
 - El color comunica estado, pero **nunca solo**: siempre con texto.
-- Admin: escritorio (≥1280 px ideal, usable desde 1024). Operador: móvil, dedos, offline.
+- **Responsivo en todo el producto** (§3.1): el admin se usa en escritorio, **tablet y teléfono**; el operador es móvil primero. Ninguna pantalla puede depender de un ancho mínimo ni provocar scroll horizontal de la página.
 - **Lo que más se edita va primero y más grande** (el precio en Facturar, el monto en Registrar pago).
 
 ## 2. Tokens de color
@@ -61,6 +61,30 @@ Texto sobre fondo de color: el color "texto" de su familia. Contraste ≥ 4.5:1 
 - **Radios**: control 10 · tarjeta 14 · pill 20–40.
 - **Sombra**: casi nada; bordes 1px `--el-line`. Solo menús/drawers flotantes llevan `0 20px 40px rgba(20,20,20,.08)`.
 - **Iconos**: Tabler, 16–20 px inline, 24 máx.
+
+## 3.1 Responsivo (obligatorio en toda pantalla)
+
+**Breakpoints** (los `md` y `sm` de Mantine): **desktop ≥ 992 px** · **tablet 768–991 px** · **teléfono < 768 px**. Se verifica siempre a **390 px** (teléfono), **820 px** (tablet vertical) y **1280 px** (laptop). Diseña a 390 px primero y amplía.
+
+| Tema | Regla |
+|---|---|
+| **Navegación admin** | ≥ 992 px: sidebar fija de 224 px. < 992 px: la sidebar desaparece; la **hamburguesa** de la topbar abre un cajón de 280 px con el mismo menú y el chip de usuario. El cajón se cierra al navegar. |
+| **Topbar y márgenes** | Topbar 74 px / padding 28 px (desktop) → 64 px / 20 px (tablet) → 56 px / 12 px (teléfono, sin subtítulo). |
+| **Contenido en dos columnas** (principal + panel lateral: Cobranza, Nuevo servicio, Facturar) | Clase **`el-grid-aside`** (principal + 380 px): en < 992 px el panel pasa **debajo** del contenido. Un panel `sticky` usa **`el-sticky-aside`** (solo es sticky en desktop). Nada de `flex` con `nowrap` para esto. |
+| **Rejillas de tarjetas** | `el-grid-tiles` (contadores: 4 → 2 por fila en tablet y teléfono) y `el-grid-cards` (tarjetas de ≥ 360 px que se apilan). Prohibido `gridTemplateColumns` inline con anchos mínimos fijos. |
+| **Formularios** | Una columna en teléfono. Para dos columnas usar **`el-grid-form`**. Campos al 100 % del ancho en teléfono; inputs de **44 px** y fuente de **16 px** (evita el zoom de iOS). |
+| **Filtros y barras de búsqueda** | Contenedor con clase **`el-filters`**: en teléfono cada control ocupa todo el ancho, uno bajo otro. |
+| **Pestañas** | Una sola fila con **scroll horizontal** (nunca apiladas). |
+| **Listas transaccionales** (servicios, facturas, pagos, cuentas por cobrar) | En teléfono se muestran como **tarjetas**: clase **`el-cardtable`** en la `Table` y **`data-label="Nombre"`** en cada `Table.Td` que necesite etiqueta (el encabezado se oculta). En tablet siguen siendo tabla. |
+| **Tablas densas** (catálogos, aplicaciones de un pago…) | Se quedan como tabla con **scroll horizontal dentro de su tarjeta** (global en < 992 px). Nunca ensanchan la página. |
+| **Cajones y modales** | Nunca más anchos que la pantalla (`max-width: 100vw` / `100vw − 16 px`). Los formularios largos van en cajón a pantalla completa en teléfono. |
+| **Objetivos táctiles** | ≥ 44 px de alto en teléfono (botones e inputs). Los iconos solos ≥ 36 px con `aria-label`. |
+| **Gráficas** | SVG con `viewBox` y `width: 100%`; las leyendas son botones (también sirven de objetivo táctil). Los segmentos pequeños no son el único modo de navegar. |
+| **Operador (PWA)** | Teléfono primero; en tablet el contenido se centra en una columna de ≤ 720 px. |
+
+Las clases viven en `frontend/src/app/responsive.css`; **úsalas en vez de estilos inline** y, si falta un patrón, agrégalo ahí (no en cada pantalla).
+
+**Auditoría automática**: `frontend/scripts/audit-responsive.mjs` recorre todas las pantallas del admin a 390, 820 y 1280 px con Playwright y falla si encuentra scroll horizontal o la sidebar visible en < 992 px (uso en el propio archivo). Correrla —y mirar las capturas— forma parte de terminar cualquier pantalla (§10).
 
 ## 4. Tema de Mantine (copiar tal cual)
 
@@ -144,7 +168,7 @@ Wrappers finos sobre Mantine, reutilizados en todas las fases.
 
 ## 7. Admin — layout y pantallas
 
-**Estructura**: Sidebar 224 px + Main (Topbar 74 px + contenido con scroll en `--el-bg`).
+**Estructura**: Sidebar 224 px + Main (Topbar 74 px + contenido con scroll en `--el-bg`). En < 992 px la sidebar se vuelve un cajón con hamburguesa (§3.1).
 **Navegación**: Dashboard · Servicios · Facturas · Cobranza · Catálogos (Unidades, Operadores, Clientes, Lugares) · Configuración (Precios y tarifas, Usuarios).
 
 ### 7.1 Servicios
@@ -283,3 +307,4 @@ Diseño a 390×844 primero. Tap targets ≥ 44 px. Sin sidebar: header con títu
 - [ ] Layout según §7/§8; filtros en la URL.
 - [ ] Operador: tap targets, offline UX, FuelGauge en ambos modos.
 - [ ] Accesibilidad de §9.
+- [ ] **Responsivo (§3.1)**: probada a 390, 820 y 1280 px con `scripts/audit-responsive.mjs` (sin scroll horizontal) y revisada visualmente en capturas.

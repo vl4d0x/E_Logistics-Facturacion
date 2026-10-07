@@ -96,7 +96,7 @@ export function ServiciosPage() {
         </Group>
       </Group>
 
-      <Group mb="md" wrap="wrap">
+      <Group mb="md" wrap="wrap" className="el-filters">
         <TextInput
           placeholder="Buscar por número, cliente o lugar…"
           leftSection={<IconSearch size={16} />}
@@ -148,7 +148,7 @@ export function ServiciosPage() {
               year: "numeric",
             })}
           </Text>
-          <Table verticalSpacing="sm">
+          <Table verticalSpacing="sm" className="el-cardtable">
             <Table.Tbody>
               {items.map((s) => (
                 <Table.Tr

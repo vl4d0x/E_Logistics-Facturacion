@@ -140,3 +140,49 @@
   padding: 24px 28px;
   overflow-y: auto;
 }
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.drawerBody {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 90px);
+}
+
+/* Breakpoints de `05-ui-spec §3.1`: desktop ≥ 992px · tablet 768–991px · teléfono < 768px. */
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 991px) {
+  .topbar {
+    height: 64px;
+    padding: 0 20px;
+  }
+
+  .content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .topbar {
+    height: 56px;
+    padding: 0 12px;
+  }
+
+  .topbarSubtitle {
+    display: none;
+  }
+
+  .content {
+    padding: 12px;
+  }
+}

@@ -59,6 +59,7 @@
 - Cliente archivado con saldo → sigue apareciendo en Por cobrar.
 
 ## Definición de terminado
+- [ ] **Responsivo** (tablet 820 px y teléfono 390 px sin scroll horizontal; `05 §3.1`, auditoría con `frontend/scripts/audit-responsive.mjs`).
 - [ ] Las 4 tarjetas de ingresos + pendientes, con el mapa de clics de `05 §7.6`.
 - [ ] "Ver todos" en Por cobrar.
 - [ ] Leyendas como botones accesibles.

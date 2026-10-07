@@ -14,6 +14,10 @@ Marcan **datos del mundo real que solo Vlad puede dar**: credenciales y secretos
 
 **Regla para cualquier agente:** al llegar a un bloque `INFO REQUERIDA`, **detente y pide esos datos a Vlad antes de continuar esa parte.** No los inventes, no uses RFCs/claves/placeholders que parezcan reales. Para avanzar puedes usar datos *claramente ficticios y rotulados como tales*, pero nada ficticio debe llegar a un timbrado real.
 
+## 0.1 Convención — frontend responsivo
+
+Todo el frontend (admin y operador) debe funcionar en **escritorio, tablet y teléfono**. Las reglas, las clases compartidas y la auditoría automática están en `05-ui-spec §3.1`; terminar una pantalla incluye comprobarla a 390, 820 y 1280 px (`§10` de ese spec). **Regla para cualquier agente:** no entregues una pantalla sin haberla visto a 390 px.
+
 ## 1. Qué es
 
 Software web interno para **Elogistics**, empresa de autotransporte en el Estado de México (Toluca/Metepec). Automatiza:

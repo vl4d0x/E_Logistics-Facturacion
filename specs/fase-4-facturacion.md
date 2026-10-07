@@ -120,6 +120,7 @@ Como admin, quiero timbrar la Carta Porte antes del traslado cuando el cliente l
 - Cancelación de una factura anticipada confirmada con el servicio en curso → vuelve a "Por facturar" y se puede corregir y re-timbrar (anticipado si no ha terminado, normal si ya terminó).
 
 ## Definición de terminado
+- [ ] **Responsivo** (tablet 820 px y teléfono 390 px sin scroll horizontal; `05 §3.1`, auditoría con `frontend/scripts/audit-responsive.mjs`).
 - [ ] Tests del checklist de `04 §11` y de `07 §7`.
 - [ ] Pantalla Facturar completa: subtotal sugerido listo para modificar con su suma y el total calculado debajo, todo editable, acuse visible, validación navegable.
 - [ ] Timbrado anticipado de punta a punta en sandbox, con descarga de PDF y XML.

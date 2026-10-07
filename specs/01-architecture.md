@@ -82,9 +82,9 @@ elogistics/
 
 ## 4. Frontend: una app, dos experiencias
 
-- Tras login, el rol decide el árbol de rutas: `admin` → `/admin/*` (escritorio, sidebar); `operador` → `/operador/*` (móvil, PWA, offline).
+- Tras login, el rol decide el árbol de rutas: `admin` → `/admin/*` (escritorio con sidebar; **tablet y teléfono con menú en cajón**, `05 §3.1`); `operador` → `/operador/*` (móvil, PWA, offline).
 - El service worker y el offline solo aplican al operador. El admin es online.
-- Diseño: `05-ui-spec` es la fuente de verdad.
+- Diseño: `05-ui-spec` es la fuente de verdad. **Todo el frontend es responsivo** (desktop, tablet y teléfono): los estilos y patrones compartidos viven en `frontend/src/app/responsive.css`.
 
 ## 5. Auth
 
@@ -168,3 +168,4 @@ Sin cambios respecto a Fase 0: backend con `alembic upgrade head` como release c
 - No inventar campos fiscales: seguir `04`, `06` y la doc vigente de Facturama.
 - No romper la idempotencia de las acciones del operador ni del timbrado/REP.
 - No usar `float` para dinero ni para la conciliación.
+- No crear pantallas solo para escritorio: toda UI nueva cumple `05 §3.1` (390/820/1280 px, sin scroll horizontal de la página).

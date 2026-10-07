@@ -133,8 +133,8 @@ export function ServicioFormPage() {
   }
 
   return (
-    <Group align="flex-start" gap="lg" wrap="nowrap">
-      <Stack style={{ flex: 2 }} gap="lg">
+    <div className="el-grid-aside">
+      <Stack gap="lg">
         <Card>
           <Text fw={600} mb="md">
             Datos del servicio
@@ -237,7 +237,7 @@ export function ServicioFormPage() {
         </Card>
       </Stack>
 
-      <Stack style={{ flex: 1, position: "sticky", top: 16 }} gap="lg">
+      <Stack className="el-sticky-aside" gap="lg">
         <Card>
           <Text fw={600} mb="sm">
             Se llenará solo en la Carta Porte
@@ -306,6 +306,6 @@ export function ServicioFormPage() {
           </Group>
         </Card>
       </Stack>
-    </Group>
+    </div>
   );
 }

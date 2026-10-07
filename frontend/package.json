@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "start": "serve -s dist -l ${PORT:-3000}"
+    "start": "serve -s dist -l ${PORT:-3000}",
+    "audit:responsive": "node scripts/audit-responsive.mjs"
   },
   "dependencies": {
     "@mantine/core": "^9.6.2",

@@ -77,7 +77,7 @@ export function DashboardPage() {
 
   return (
     <Stack gap="md">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+      <div className="el-grid-tiles">
         <CountTile
           titulo="Por facturar" valor={pend?.por_facturar ?? "—"} to="/admin/servicios?vista=por_facturar"
           detalle={pend && pend.por_facturar_anticipados > 0 ? `${pend.por_facturar_anticipados} anticipadas` : undefined}
@@ -91,7 +91,7 @@ export function DashboardPage() {
         <CountTile titulo="Inspecciones con fallas" valor={pend?.inspecciones_con_fallas ?? "—"} to="/admin/servicios" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 12 }}>
+      <div className="el-grid-cards">
         <DashCard titulo="Ingresos por periodo" actualizado={ing?.actualizado_at} onRefresh={refrescar("ingresos")}>
           {periodo && (
             <Stack align="center" gap="sm">
@@ -148,7 +148,7 @@ export function DashboardPage() {
 
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 12 }}>
+      <div className="el-grid-cards">
         <DashCard titulo="Por cobrar" actualizado={cobrar?.actualizado_at} onRefresh={refrescar("por-cobrar")}>
           <Select data={aniosOpciones} value={anioCobrar} onChange={(v) => v && setAnioCobrar(v)} allowDeselect={false} size="xs" w={160} mb="sm" aria-label="Año" />
           <ScrollArea.Autosize mah={verTodos ? 360 : undefined}>

@@ -45,4 +45,7 @@
 
 .content {
   padding: 16px;
+  /* Diseño pensado para teléfono: en tablet se centra en una columna legible. */
+  max-width: 720px;
+  margin: 0 auto;
 }

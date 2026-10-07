@@ -27,7 +27,7 @@ function PorCobrarTab() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 380px", gap: 16, alignItems: "start" }}>
+    <div className="el-grid-aside">
       <Card>
         <Table verticalSpacing="xs" highlightOnHover mb="lg">
           <Table.Thead>
@@ -50,7 +50,7 @@ function PorCobrarTab() {
         </Table>
         {clientes?.length === 0 && <Text c="dimmed" ta="center">No hay saldos por cobrar.</Text>}
         {(clienteId || mes || anio) && (
-          <Table verticalSpacing="xs">
+          <Table verticalSpacing="xs" className="el-cardtable">
             <Table.Thead>
               <Table.Tr><Table.Th /><Table.Th>Folio</Table.Th><Table.Th>Servicio</Table.Th><Table.Th>Emisión</Table.Th><Table.Th ta="right">Total</Table.Th><Table.Th ta="right">Saldo</Table.Th><Table.Th>Antigüedad</Table.Th></Table.Tr>
             </Table.Thead>
@@ -58,11 +58,11 @@ function PorCobrarTab() {
               {facturas.map((f) => (
                 <Table.Tr key={f.id}>
                   <Table.Td><Checkbox checked={f.id in seleccion} onChange={() => alternar(f.id, f.saldo_insoluto)} aria-label={`Seleccionar ${f.folio}`} /></Table.Td>
-                  <Table.Td>{f.folio}</Table.Td>
-                  <Table.Td>#{f.servicio.numero} · {f.servicio.ruta_resumen}</Table.Td>
-                  <Table.Td>{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
-                  <Table.Td ta="right">{pesos(f.total)}</Table.Td>
-                  <Table.Td ta="right">{pesos(f.saldo_insoluto)}</Table.Td>
+                  <Table.Td data-label="Folio">{f.folio}</Table.Td>
+                  <Table.Td data-label="Servicio">#{f.servicio.numero} · {f.servicio.ruta_resumen}</Table.Td>
+                  <Table.Td data-label="Emisión">{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
+                  <Table.Td ta="right" data-label="Total">{pesos(f.total)}</Table.Td>
+                  <Table.Td ta="right" data-label="Saldo">{pesos(f.saldo_insoluto)}</Table.Td>
                   <Table.Td><Badge color={f.vencida ? "red" : "gray"} variant="light" title={f.vencida ? "Vencida" : undefined} style={{ maxWidth: "none" }}>{f.dias_transcurridos} d{f.vencida ? " ⚠" : ""}</Badge></Table.Td>
                 </Table.Tr>
               ))}
@@ -101,16 +101,16 @@ function PagosTab() {
           {pendientes.length} REP por emitir · vence el {pendientes[0].vence_rep}
         </Text>
       )}
-      <Table verticalSpacing="sm" highlightOnHover>
+      <Table verticalSpacing="sm" highlightOnHover className="el-cardtable">
         <Table.Thead>
           <Table.Tr><Table.Th>Fecha</Table.Th><Table.Th>Cliente</Table.Th><Table.Th ta="right">Monto</Table.Th><Table.Th>Estado</Table.Th><Table.Th>REP</Table.Th></Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {pagos.map((p) => (
             <Table.Tr key={p.id} style={{ cursor: "pointer" }} onClick={() => navigate(`/admin/cobranza/pagos/${p.id}`)}>
-              <Table.Td>{new Date(p.fecha_pago).toLocaleDateString("es-MX")}</Table.Td>
+              <Table.Td data-label="Fecha">{new Date(p.fecha_pago).toLocaleDateString("es-MX")}</Table.Td>
               <Table.Td>{p.cliente.nombre_comercial}</Table.Td>
-              <Table.Td ta="right">{pesos(p.monto)}</Table.Td>
+              <Table.Td ta="right" data-label="Monto">{pesos(p.monto)}</Table.Td>
               <Table.Td>{p.estado === "registrado" ? "Sin aplicar" : p.estado === "aplicado" ? "Aplicado" : "Con REP"}</Table.Td>
               <Table.Td>{p.estado === "registrado" ? "—" : <DueBadge pendiente={p.rep_pendiente} dias={p.dias_para_vencer} vence={p.vence_rep} />}</Table.Td>
             </Table.Tr>
@@ -127,17 +127,17 @@ function PagadasTab() {
   const { data: facturas = [] } = useCobranzaFacturas(null, "pagada", params.get("mes"), params.get("anio"));
   return (
     <Card>
-      <Table verticalSpacing="sm">
+      <Table verticalSpacing="sm" className="el-cardtable">
         <Table.Thead>
           <Table.Tr><Table.Th>Folio</Table.Th><Table.Th>Cliente</Table.Th><Table.Th>Servicio</Table.Th><Table.Th>Emisión</Table.Th><Table.Th ta="right">Total</Table.Th></Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {facturas.map((f) => (
             <Table.Tr key={f.id}>
-              <Table.Td>{f.folio}</Table.Td><Table.Td>{f.cliente_nombre}</Table.Td>
-              <Table.Td>#{f.servicio.numero} · {f.servicio.ruta_resumen}</Table.Td>
-              <Table.Td>{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
-              <Table.Td ta="right">{pesos(f.total)}</Table.Td>
+              <Table.Td data-label="Folio">{f.folio}</Table.Td><Table.Td>{f.cliente_nombre}</Table.Td>
+              <Table.Td data-label="Servicio">#{f.servicio.numero} · {f.servicio.ruta_resumen}</Table.Td>
+              <Table.Td data-label="Emisión">{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
+              <Table.Td ta="right" data-label="Total">{pesos(f.total)}</Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>

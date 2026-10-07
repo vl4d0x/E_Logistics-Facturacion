@@ -1,0 +1,170 @@
+/* Responsivo — `specs/05-ui-spec.md §3.1`. Breakpoints: desktop ≥ 992px · tablet 768–991px ·
+   teléfono < 768px (los mismos `md` y `sm` de Mantine). Todo componente nuevo debe verse bien a
+   390 px y a 820 px de ancho sin scroll horizontal de la página. */
+
+/* Rejillas reutilizables: usar estas clases en vez de `gridTemplateColumns` inline. */
+.el-grid-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 12px;
+}
+
+/* Barra de filtros/búsqueda: en teléfono cada control ocupa todo el ancho. */
+.el-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.el-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 12px;
+}
+
+/* Contenido principal + panel lateral fijo (ej. Cobranza: tabla + "Registrar pago"). */
+.el-grid-aside {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Panel lateral que acompaña al scroll solo en desktop. */
+.el-sticky-aside {
+  position: sticky;
+  top: 16px;
+}
+
+/* Formularios en dos columnas que pasan a una sola. */
+.el-grid-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Tablet y teléfono */
+@media (max-width: 991px) {
+  .el-grid-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .el-grid-aside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .el-sticky-aside {
+    position: static;
+  }
+
+  /* Tablas: scroll horizontal dentro de su tarjeta; la página nunca se ensancha. */
+  .mantine-Table-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Cajones laterales nunca más anchos que la pantalla. */
+  .mantine-Drawer-content {
+    max-width: 100vw;
+  }
+
+  /* Pestañas: una sola fila con scroll horizontal en vez de apilarse. */
+  .mantine-Tabs-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .mantine-Tabs-root {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mantine-Tabs-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+/* Teléfono */
+@media (max-width: 767px) {
+  .el-grid-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .el-filters > * {
+    flex: 1 1 100%;
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  /* Listas de filas (sin encabezado) como tarjetas apiladas en vez de tabla con scroll. */
+  .el-cardtable,
+  .el-cardtable tbody {
+    display: block;
+    overflow: visible;
+  }
+
+  .el-cardtable tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: var(--el-surface-2);
+    border: 1px solid var(--el-line);
+    border-radius: 10px;
+  }
+
+  .el-cardtable thead {
+    display: none;
+  }
+
+  /* El encabezado desaparece, así que cada celda lleva su etiqueta (`data-label`). */
+  .el-cardtable td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--el-muted);
+    font-size: 12px;
+  }
+
+  .el-cardtable td {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+    width: auto !important;
+  }
+
+  .el-grid-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Objetivos táctiles ≥ 44 px. */
+  .mantine-Button-root {
+    min-height: 44px;
+  }
+
+  .mantine-ActionIcon-root {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .mantine-Input-input,
+  .mantine-Select-input {
+    min-height: 44px;
+    font-size: 16px; /* evita el zoom automático de iOS al enfocar un campo */
+  }
+
+  /* Campos con ancho fijo (`w={260}`) nunca exceden la pantalla. */
+  .mantine-InputWrapper-root {
+    max-width: 100%;
+  }
+
+  .mantine-Modal-content {
+    max-width: calc(100vw - 16px);
+  }
+}

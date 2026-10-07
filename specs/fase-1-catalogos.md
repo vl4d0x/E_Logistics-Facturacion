@@ -78,6 +78,7 @@ Como admin, quiero dar de alta a otra persona de la oficina como admin, sin ped�
 - Restaurar un cliente archivado restaura solo el cliente, no sus mercancías/lugares archivados (cada uno se restaura aparte).
 
 ## Definición de terminado
+- [ ] **Responsivo** (tablet 820 px y teléfono 390 px sin scroll horizontal; `05 §3.1`, auditoría con `frontend/scripts/audit-responsive.mjs`).
 - [ ] CRUD + archivar/restaurar de unidades, operadores, clientes, mercancías y lugares, desde la UI.
 - [ ] Acceso de operadores (dar, restablecer, desactivar) y administradores.
 - [ ] Validaciones (RFC, únicos, régimen, modo de acuse, medidor).

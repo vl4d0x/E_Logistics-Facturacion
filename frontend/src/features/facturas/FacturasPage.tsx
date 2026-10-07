@@ -16,7 +16,7 @@ export function FacturasPage() {
 
   return (
     <Card>
-      <Group mb="md">
+      <Group mb="md" className="el-filters">
         <Select
           placeholder="Todos los estados"
           clearable
@@ -26,7 +26,7 @@ export function FacturasPage() {
         />
         <TextInput placeholder="Mes (AAAA-MM)" value={mes} onChange={(e) => setMes(e.currentTarget.value)} maw={150} />
       </Group>
-      <Table verticalSpacing="sm" highlightOnHover>
+      <Table verticalSpacing="sm" highlightOnHover className="el-cardtable">
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Folio</Table.Th>
@@ -40,11 +40,11 @@ export function FacturasPage() {
         <Table.Tbody>
           {facturas?.map((f) => (
             <Table.Tr key={f.id} style={{ cursor: "pointer" }} onClick={() => navigate(`/admin/facturas/${f.id}`)}>
-              <Table.Td>{`${f.serie ?? ""}${f.folio ?? ""}` || "—"}</Table.Td>
+              <Table.Td data-label="Folio">{`${f.serie ?? ""}${f.folio ?? ""}` || "—"}</Table.Td>
               <Table.Td>{f.cliente_nombre}</Table.Td>
-              <Table.Td>#{f.servicio_numero}</Table.Td>
-              <Table.Td>{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
-              <Table.Td ta="right">{pesos(f.total)}</Table.Td>
+              <Table.Td data-label="Servicio">#{f.servicio_numero}</Table.Td>
+              <Table.Td data-label="Emisión">{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
+              <Table.Td ta="right" data-label="Total">{pesos(f.total)}</Table.Td>
               <Table.Td>
                 <Badge variant="light" color={ESTADO_FACTURA[f.estado].color}>
                   {ESTADO_FACTURA[f.estado].label}

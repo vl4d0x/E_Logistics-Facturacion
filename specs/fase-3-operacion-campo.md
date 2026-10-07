@@ -89,6 +89,7 @@ Como admin, quiero ver la inspección, el cierre y las cargas de gasolina de cad
 - Dos dispositivos del mismo operador → la idempotencia evita duplicados; el primer cierre válido gana y el segundo recibe el estado actual.
 
 ## Definición de terminado
+- [ ] **Responsivo** (tablet 820 px y teléfono 390 px sin scroll horizontal; `05 §3.1`, auditoría con `frontend/scripts/audit-responsive.mjs`).
 - [ ] Flujo completo Inspección → Viajes → Cierre en la PWA, offline incluido.
 - [ ] FuelGauge en modo aguja y barras, con lectura validada en backend.
 - [ ] Cargas con cálculo del tercer valor y ticket opcional.
