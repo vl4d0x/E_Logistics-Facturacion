@@ -62,3 +62,8 @@ def url_firmada(key: str) -> str:
 def eliminar_archivo(key: str) -> None:
     settings = get_settings()
     _require_client().delete_object(Bucket=settings.r2_bucket, Key=key)
+
+
+def leer_archivo(key: str) -> bytes:
+    settings = get_settings()
+    return _require_client().get_object(Bucket=settings.r2_bucket, Key=key)["Body"].read()

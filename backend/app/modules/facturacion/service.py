@@ -44,6 +44,14 @@ from app.modules.servicios.models import (
 from app.modules.servicios.service import datos_fiscales_bloqueados, get_servicio
 
 
+def _url_o_none(key: str | None) -> str | None:
+    if not key:
+        return None
+    from app.core.storage import url_firmada
+
+    return url_firmada(key)
+
+
 def preview_impuestos(body: ImpuestosPreviewIn) -> MontosOut:
     subtotal = body.subtotal
     if subtotal is None:
@@ -529,13 +537,19 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
     session.commit()
     session.refresh(factura)
 
+    # R2 después del commit: si falla, la factura sigue timbrada (`reintentar-archivos`).
+    from app.modules.facturacion.facturas import guardar_archivos
+
+    guardar_archivos(session, factura)
+    session.refresh(factura)
+
     return {
         "factura": {
             "id": str(factura.id),
             "uuid_fiscal": factura.uuid_fiscal,
             "estado": factura.estado.value,
             "total": str(factura.total),
-            "pdf_url": None,
-            "xml_url": None,
+            "pdf_url": _url_o_none(factura.pdf_key),
+            "xml_url": _url_o_none(factura.xml_key),
         }
     }

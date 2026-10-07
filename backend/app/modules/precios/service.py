@@ -6,9 +6,17 @@ from decimal import Decimal
 from sqlmodel import Session, select
 
 from app.core.models import utcnow
+from app.modules.catalogos.models import Cliente, Lugar, Unidad
 from app.modules.configuracion.service import get_valor
 from app.modules.facturacion.models import EstadoFactura, Factura
-from app.modules.precios.sugeridor import PuntoHistorial, PuntoKm, Sugerencia, sugerir_precio
+from app.modules.precios import tarifario
+from app.modules.precios.sugeridor import (
+    DesgloseLinea,
+    PuntoHistorial,
+    PuntoKm,
+    Sugerencia,
+    sugerir_precio,
+)
 from app.modules.servicios.models import Servicio, Viaje
 
 
@@ -65,7 +73,7 @@ def sugerir_para_servicio(session: Session, servicio: Servicio) -> Sugerencia:
     tarifa_km = get_valor(session, "precio.tarifa_km")
     redondeo = get_valor(session, "precio.redondeo") or 50
 
-    return sugerir_precio(
+    sugerencia = sugerir_precio(
         n_destinos=len(destinos),
         km=km,
         historial_ruta=historial_ruta,
@@ -74,3 +82,32 @@ def sugerir_para_servicio(session: Session, servicio: Servicio) -> Sugerencia:
         tarifa_km=Decimal(str(tarifa_km)) if tarifa_km is not None else None,
         redondeo=Decimal(str(redondeo)),
     )
+
+    return _aplicar_tarifario(session, servicio, sugerencia)
+
+
+def _aplicar_tarifario(session: Session, servicio: Servicio, sugerencia: Sugerencia) -> Sugerencia:
+    """Nivel 1: tarifa fija por unidad y destino (hoy solo Chemital). Pisa el monto de la
+    cascada pero conserva `ultimos_precios_ruta` y `rango` como contexto."""
+    config = get_valor(session, "precio.tarifario_cliente")
+    cliente = session.get(Cliente, servicio.cliente_id)
+    if cliente is None or not tarifario.cliente_aplica(config, [cliente.nombre_comercial, cliente.razon_social]):
+        return sugerencia
+    unidad = session.get(Unidad, servicio.unidad_id)
+    viajes = session.exec(select(Viaje).where(Viaje.servicio_id == servicio.id)).all()
+    cps = [
+        lugar.codigo_postal if (lugar := session.get(Lugar, v.destino_lugar_id)) else None
+        for v in viajes
+        if v.destino_lugar_id
+    ]
+    tier = tarifario.tier_de_unidad(unidad.peso_bruto_vehicular if unidad else None)
+    lineas = tarifario.calcular(config, tier, cps)
+    if lineas is None:
+        return sugerencia
+    sugerencia.monto = sum((l.monto for l in lineas), Decimal(0))
+    sugerencia.desglose = [DesgloseLinea(l.concepto, l.monto) for l in lineas]
+    sugerencia.confianza = "alta"
+    sugerencia.fuente = "tarifa_pactada"
+    sugerencia.explicacion = "Tarifa fija del cliente según la unidad y los destinos"
+    sugerencia.referencias = []
+    return sugerencia

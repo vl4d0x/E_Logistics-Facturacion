@@ -16,6 +16,15 @@ DEFAULTS: dict[str, Any] = {
     "precio.tarifa_km": None,
     "precio.cargo_parada_extra": None,
     "precio.redondeo": 50,
+    # Tarifario fijo del cliente cuyo nombre contiene `cliente` (Vlad, 2026-10-05).
+    "precio.tarifario_cliente": {
+        "cliente": "chemital",
+        "tarifas": {
+            "saveiro": {"cdmx": 1650, "extra": 660},
+            "nissan": {"cdmx": 2200, "extra": 660},
+            "ram": {"cdmx": 2970, "extra": 990},
+        },
+    },
     "precio.ventana_historial_dias": 365,
     "precio.recordatorio_descartado": False,
     "facturacion.permisos_revisar": ["TPAF14"],

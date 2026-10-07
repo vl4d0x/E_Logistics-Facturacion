@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     # --- Resend (correo) ---
     resend_api_key: str | None = Field(default=None, alias="RESEND_API_KEY")
     email_from: str = Field(default="Elogistics <facturacion@dominio.mx>", alias="EMAIL_FROM")
+    # Las respuestas de los clientes llegan a este buzón, no al remitente de Resend.
+    email_reply_to: str = Field(default="e_logistics@outlook.com", alias="EMAIL_REPLY_TO")
 
     # --- CORS ---
     cors_origins: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
