@@ -103,6 +103,11 @@ class FacturamaClient:
 
         if response.is_error:
             message = data.get("Message") or data.get("message") or str(data)
+            if response.status_code in (401, 403) and not (data.get("Message") or data.get("message")):
+                message = (
+                    f"Facturama rechazó las credenciales ({response.status_code}): revisa "
+                    "FACTURAMA_USER, FACTURAMA_PASSWORD y FACTURAMA_ENV"
+                )
             raise FacturamaError(message, status_code=response.status_code, raw=data)
 
         return data

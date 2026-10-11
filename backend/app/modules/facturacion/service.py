@@ -554,6 +554,8 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
             session.add(factura)
             session.commit()
             raise AppError("facturama_error", str(exc), 502) from exc
+    except FacturamaError as exc:  # p. ej. credenciales inválidas al resolver un CP
+        raise AppError("facturama_error", str(exc), 502) from exc
     finally:
         client.close()
 
