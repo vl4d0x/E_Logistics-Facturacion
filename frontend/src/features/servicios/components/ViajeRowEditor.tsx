@@ -6,7 +6,6 @@ import {
   Badge,
   Group,
   NumberInput,
-  SegmentedControl,
   Stack,
   Textarea,
   TextInput,
@@ -73,18 +72,19 @@ function CpField({
 }
 
 export function ViajeRowEditor({
-  numero,
+  etiqueta,
   viaje,
   clienteId,
   onChange,
   onRemove,
-  origenOcupado = false,
+  puedeQuitar = true,
 }: {
-  numero: number;
+  /** "Origen", "Destino 1", ... */
+  etiqueta: string;
   viaje: ViajeDraft;
   clienteId: string;
-  /** Otro viaje del servicio ya tiene el origen: solo se permiten entregas aquí. */
-  origenOcupado?: boolean;
+  /** El origen y el último destino no se pueden quitar. */
+  puedeQuitar?: boolean;
   onChange: (patch: Partial<ViajeDraft>) => void;
   onRemove: () => void;
 }) {
@@ -136,7 +136,7 @@ export function ViajeRowEditor({
       <Group justify="space-between">
         <Group gap="xs">
           <Badge variant="light" color="gray">
-            Viaje {numero}
+            {etiqueta}
           </Badge>
           {viaje.terminado && (
             <Badge leftSection={<IconLock size={12} />} color="gray" variant="light">
@@ -148,23 +148,12 @@ export function ViajeRowEditor({
           variant="subtle"
           color="red"
           aria-label="Quitar viaje"
-          disabled={viaje.terminado}
+          disabled={viaje.terminado || !puedeQuitar}
           onClick={onRemove}
         >
           <IconTrash size={16} />
         </ActionIcon>
       </Group>
-
-      <SegmentedControl
-        disabled={viaje.terminado}
-        data={[
-          { label: "Recolección", value: "recoleccion", disabled: origenOcupado },
-          { label: "Entrega", value: "entrega" },
-          { label: "Recolección y entrega", value: "recoleccion_entrega", disabled: origenOcupado },
-        ]}
-        value={viaje.tipo}
-        onChange={(v) => onChange({ tipo: v as TipoViaje })}
-      />
 
       <Group grow align="flex-start">
         {requiereOrigen && (

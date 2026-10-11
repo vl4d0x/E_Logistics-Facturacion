@@ -30,8 +30,6 @@ function nuevoId(): string {
   return `nuevo-${Math.random().toString(36).slice(2)}`;
 }
 
-const tieneOrigen = (v: ViajeDraft) => v.tipo === "recoleccion" || v.tipo === "recoleccion_entrega";
-
 function draftToViajeIn(d: ViajeDraft): ViajeIn {
   return {
     tipo: d.tipo,
@@ -72,11 +70,20 @@ export function ServicioFormPage() {
     const origenPredeterminado = lugaresCliente?.find(
       (l) => l.cliente_id === id && l.es_origen_predeterminado,
     );
+    // Todo servicio lleva un origen y al menos un destino: ambos ya vienen en pantalla.
     setViajes([
       {
         key: nuevoId(),
         tipo: "recoleccion",
         origen_lugar_id: origenPredeterminado?.id ?? null,
+        destino_lugar_id: null,
+        distancia_km: null,
+        notas_admin: null,
+      },
+      {
+        key: nuevoId(),
+        tipo: "entrega",
+        origen_lugar_id: null,
         destino_lugar_id: null,
         distancia_km: null,
         notas_admin: null,
@@ -92,12 +99,12 @@ export function ServicioFormPage() {
     setViajes((prev) => prev.filter((v) => v.key !== key));
   }
 
-  function agregarViaje(tipo: ViajeDraft["tipo"]) {
+  function agregarDestino() {
     setViajes((prev) => [
       ...prev,
       {
         key: nuevoId(),
-        tipo,
+        tipo: "entrega",
         origen_lugar_id: null,
         destino_lugar_id: null,
         distancia_km: null,
@@ -111,8 +118,11 @@ export function ServicioFormPage() {
   const operadorSeleccionado = operadoresPage?.items.find((o) => o.id === operadorId);
 
   const subtotalObligatorio = timbradoAnticipado && timbradoModo === "precio";
+  const rutaCompleta =
+    viajes.length > 1 &&
+    viajes.every((v) => (v.tipo === "recoleccion" ? v.origen_lugar_id : v.destino_lugar_id));
   const puedeGuardar =
-    clienteId && unidadId && operadorId && viajes.length > 0 && (!subtotalObligatorio || subtotal);
+    clienteId && unidadId && operadorId && rutaCompleta && (!subtotalObligatorio || subtotal);
 
   function handleSubmit() {
     if (!clienteId || !unidadId || !operadorId) return;
@@ -208,9 +218,9 @@ export function ServicioFormPage() {
             {viajes.map((v, i) => (
               <ViajeRowEditor
                 key={v.key}
-                numero={i + 1}
+                etiqueta={v.tipo === "recoleccion" ? "Origen" : `Destino ${viajes.slice(0, i + 1).filter((o) => o.tipo === "entrega").length}`}
+                puedeQuitar={v.tipo === "entrega" && viajes.filter((o) => o.tipo === "entrega").length > 1}
                 viaje={v}
-                origenOcupado={viajes.some((o) => o.key !== v.key && tieneOrigen(o))}
                 clienteId={clienteId ?? ""}
                 onChange={(patch) => actualizarViaje(v.key, patch)}
                 onRemove={() => quitarViaje(v.key)}
@@ -223,19 +233,9 @@ export function ServicioFormPage() {
                 color="green"
                 size="xs"
                 leftSection={<IconPlus size={14} />}
-                onClick={() => agregarViaje("recoleccion")}
-                disabled={viajes.some(tieneOrigen)}
-                title={viajes.some(tieneOrigen) ? "Un servicio solo puede tener un origen" : undefined}
+                onClick={agregarDestino}
               >
-                Recolección
-              </Button>
-              <Button
-                color="green"
-                size="xs"
-                leftSection={<IconPlus size={14} />}
-                onClick={() => agregarViaje("entrega")}
-              >
-                Entrega
+                Destino
               </Button>
             </Group>
           )}
