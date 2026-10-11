@@ -78,10 +78,13 @@ export function ViajeRowEditor({
   clienteId,
   onChange,
   onRemove,
+  origenOcupado = false,
 }: {
   numero: number;
   viaje: ViajeDraft;
   clienteId: string;
+  /** Otro viaje del servicio ya tiene el origen: solo se permiten entregas aquí. */
+  origenOcupado?: boolean;
   onChange: (patch: Partial<ViajeDraft>) => void;
   onRemove: () => void;
 }) {
@@ -155,9 +158,9 @@ export function ViajeRowEditor({
       <SegmentedControl
         disabled={viaje.terminado}
         data={[
-          { label: "Recolección", value: "recoleccion" },
+          { label: "Recolección", value: "recoleccion", disabled: origenOcupado },
           { label: "Entrega", value: "entrega" },
-          { label: "Recolección y entrega", value: "recoleccion_entrega" },
+          { label: "Recolección y entrega", value: "recoleccion_entrega", disabled: origenOcupado },
         ]}
         value={viaje.tipo}
         onChange={(v) => onChange({ tipo: v as TipoViaje })}

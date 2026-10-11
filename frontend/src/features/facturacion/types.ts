@@ -40,6 +40,7 @@ export interface Ubicacion {
   fecha_hora: string | null;
   fecha_hora_fuente: "real" | "programada";
   hora_programada?: string | null; // "HH:MM:SS"
+  viaje_tipo?: "recoleccion" | "entrega" | "recoleccion_entrega" | null;
   distancia_km: number | null;
   km_reportado: number | null;
 }

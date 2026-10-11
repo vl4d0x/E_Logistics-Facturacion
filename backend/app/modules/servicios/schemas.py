@@ -9,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from app.modules.servicios.models import EstadoFacturacion, EstadoServicio, EstadoViaje, TipoViaje
 
 
+_TIPOS_CON_ORIGEN = (TipoViaje.recoleccion, TipoViaje.recoleccion_entrega)
+
+
 def _normalizar_cp(v: str | None) -> str | None:
     if v is None:
         return None
@@ -156,6 +159,8 @@ class ServicioCreate(BaseModel):
     def _check(self) -> "ServicioCreate":
         if not self.viajes:
             raise ValueError("Un servicio necesita al menos un viaje")
+        if sum(1 for v in self.viajes if v.tipo in _TIPOS_CON_ORIGEN) > 1:
+            raise ValueError("Un servicio solo puede tener un origen")
         if (
             self.timbrado_anticipado
             and self.timbrado_modo == "precio"

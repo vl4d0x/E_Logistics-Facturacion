@@ -415,3 +415,61 @@ def test_catalogo_bloquea_archivar_con_servicio_activo(client: TestClient, admin
     ).json()
     assert uso_lugar["referencias"]["viajes"] == 1
     assert len(uso_lugar["bloqueos"]) == 1
+
+
+def test_solo_un_origen_por_servicio(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    dos_origenes = _servicio_payload(
+        cat,
+        viajes=[
+            {"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+            {"tipo": "recoleccion_entrega", "origen_lugar_id": cat["origen"]["id"],
+             "destino_lugar_id": cat["destino"]["id"]},
+        ],
+    )
+    assert client.post(f"{API}/servicios", json=dos_origenes, headers=headers).status_code == 422
+
+    # Un origen y varias entregas sí se permite
+    ok = client.post(
+        f"{API}/servicios",
+        json=_servicio_payload(
+            cat,
+            viajes=[
+                {"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+                {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"]},
+                {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"]},
+            ],
+        ),
+        headers=headers,
+    )
+    assert ok.status_code == 201, ok.text
+    sid = ok.json()["id"]
+
+    # Agregar otro origen o convertir una entrega en recolección-entrega: 422
+    extra = client.post(
+        f"{API}/servicios/{sid}/viajes",
+        json={"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+        headers=headers,
+    )
+    assert extra.status_code == 422
+    entrega = ok.json()["viajes"][1]["id"]
+    assert client.patch(f"{API}/viajes/{entrega}", json={"tipo": "recoleccion_entrega"}, headers=headers).status_code == 422
+
+
+def test_origen_agregado_despues_queda_primero(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    creado = client.post(
+        f"{API}/servicios",
+        json=_servicio_payload(cat, viajes=[{"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"]}]),
+        headers=headers,
+    ).json()
+    r = client.post(
+        f"{API}/servicios/{creado['id']}/viajes",
+        json={"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+        headers=headers,
+    )
+    assert r.status_code in (200, 201), r.text
+    tipos = [v["tipo"] for v in client.get(f"{API}/servicios/{creado['id']}", headers=headers).json()["viajes"]]
+    assert tipos == ["recoleccion", "entrega"]

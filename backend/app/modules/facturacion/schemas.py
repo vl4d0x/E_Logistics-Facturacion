@@ -67,6 +67,7 @@ class UbicacionOut(BaseModel):
     id_ubicacion: str
     tipo: str  # "Origen" | "Destino"
     viaje_id: uuid.UUID
+    viaje_tipo: str | None = None  # recoleccion | entrega | recoleccion_entrega
     lugar: dict
     fecha_hora: datetime | None
     fecha_hora_fuente: str  # "real" | "programada"

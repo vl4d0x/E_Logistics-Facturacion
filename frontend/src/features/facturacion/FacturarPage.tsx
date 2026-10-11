@@ -280,7 +280,7 @@ export function FacturarPage() {
               summary={`${detalle.ubicaciones.length} ubicaciones`}
               forceOpen={campoConError(["viajes"])}
             >
-              <RutaEditable servicioId={detalle.servicio_id} ubicaciones={detalle.ubicaciones} />
+              <RutaEditable servicioId={detalle.servicio_id} clienteId={detalle.cliente_id} ubicaciones={detalle.ubicaciones} />
             </CollapsibleSection>
 
             <CollapsibleSection

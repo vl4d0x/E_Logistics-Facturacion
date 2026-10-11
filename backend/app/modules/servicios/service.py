@@ -568,9 +568,31 @@ def cancelar_servicio(
 # --- Viajes -------------------------------------------------------------
 
 
+def _validar_un_solo_origen(
+    session: Session, servicio_id: uuid.UUID, tipo: TipoViaje, excluir: uuid.UUID | None = None
+) -> None:
+    """Un servicio tiene un solo origen: no se acepta otra recolección (ni "recolección y entrega")."""
+    if tipo not in (TipoViaje.recoleccion, TipoViaje.recoleccion_entrega):
+        return
+    stmt = select(func.count()).select_from(Viaje).where(
+        Viaje.servicio_id == servicio_id,
+        Viaje.tipo.in_([TipoViaje.recoleccion, TipoViaje.recoleccion_entrega]),
+    )
+    if excluir is not None:
+        stmt = stmt.where(Viaje.id != excluir)
+    if session.exec(stmt).one():
+        raise AppError(
+            "validation_error",
+            "Un servicio solo puede tener un origen",
+            422,
+            details=[{"field": "tipo", "issue": "un_solo_origen"}],
+        )
+
+
 def add_viaje(session: Session, servicio_id: uuid.UUID, data: ViajeCreate) -> Viaje:
     servicio = get_servicio(session, servicio_id)
     _check_editable(session, servicio)
+    _validar_un_solo_origen(session, servicio_id, data.tipo)
     if data.origen_lugar_id:
         _validar_lugar_del_cliente(session, data.origen_lugar_id, servicio.cliente_id)
     if data.destino_lugar_id:
@@ -594,6 +616,12 @@ def add_viaje(session: Session, servicio_id: uuid.UUID, data: ViajeCreate) -> Vi
     )
     session.add(viaje)
     session.commit()
+    if data.tipo in (TipoViaje.recoleccion, TipoViaje.recoleccion_entrega):
+        # El origen va primero en la ruta (Carta Porte): el viaje nuevo pasa al principio.
+        otros = session.exec(
+            select(Viaje.id).where(Viaje.servicio_id == servicio_id, Viaje.id != viaje.id).order_by(Viaje.orden)
+        ).all()
+        reordenar_viajes(session, servicio_id, [viaje.id, *otros])
     session.refresh(viaje)
     return viaje
 
@@ -615,6 +643,8 @@ def update_viaje(session: Session, viaje_id: uuid.UUID, data: ViajeUpdate) -> Vi
     payload = data.model_dump(exclude_unset=True)
     solo_notas = set(payload.keys()) <= {"notas_admin"}
     _check_editable(session, servicio, solo_notas=solo_notas)
+    if payload.get("tipo") is not None:
+        _validar_un_solo_origen(session, servicio.id, payload["tipo"], excluir=viaje.id)
 
     if payload.get("origen_lugar_id"):
         _validar_lugar_del_cliente(session, payload["origen_lugar_id"], servicio.cliente_id)

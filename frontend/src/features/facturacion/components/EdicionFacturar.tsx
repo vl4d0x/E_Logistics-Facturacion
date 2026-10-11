@@ -6,14 +6,71 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { numberInputValue } from "../../../lib/numberInput";
 import { operadoresApi, unidadesApi, useMercancias } from "../../catalogos/api";
-import { useEditarServicio, useEditarViaje } from "../../servicios/api";
+import { fetchDistanciaSugerida, useAgregarViaje, useEditarServicio, useEditarViaje, useEliminarViaje } from "../../servicios/api";
+import { LugarSelect } from "../../servicios/components/LugarSelect";
 import { useGuardarMercancias } from "../api";
 import type { FacturacionDetalle, MercanciaFacturar, Ubicacion } from "../types";
 
 // --- Ruta y ubicaciones ------------------------------------------------------
 
-export function RutaEditable({ servicioId, ubicaciones }: { servicioId: string; ubicaciones: Ubicacion[] }) {
+export function RutaEditable({
+  servicioId,
+  clienteId,
+  ubicaciones,
+}: {
+  servicioId: string;
+  clienteId: string | null | undefined;
+  ubicaciones: Ubicacion[];
+}) {
   const editar = useEditarViaje(servicioId);
+  const eliminar = useEliminarViaje(servicioId);
+  const agregar = useAgregarViaje(servicioId);
+  const [nuevoOrigen, setNuevoOrigen] = useState<string | null>(null);
+  const [nuevoDestino, setNuevoDestino] = useState<string | null>(null);
+  const hayOrigen = ubicaciones.some((u) => u.tipo === "Origen");
+
+  // Cambiar el lugar de una ubicación; en un destino se vuelve a sugerir su km.
+  async function cambiarLugar(u: Ubicacion, lugarId: string | null) {
+    if (!lugarId || lugarId === u.lugar.id) return;
+    if (u.tipo === "Origen") {
+      editar.mutate({ id: u.viaje_id, payload: { origen_lugar_id: lugarId, origen_cp: null } });
+      return;
+    }
+    const km = (await fetchDistanciaSugerida(lugarId))?.km ?? null;
+    editar.mutate({ id: u.viaje_id, payload: { destino_lugar_id: lugarId, destino_cp: null, distancia_km: km } });
+  }
+
+  // Quitar una ubicación: si el viaje solo tenía esa, se elimina; si era "recolección y
+  // entrega", se queda con la otra mitad.
+  function quitar(u: Ubicacion) {
+    const que = u.tipo === "Origen" ? "origen" : "destino";
+    if (!window.confirm(`¿Quitar este ${que} (${u.lugar.nombre ?? "sin nombre"}) del servicio?`)) return;
+    if (u.viaje_tipo === "recoleccion_entrega") {
+      editar.mutate({
+        id: u.viaje_id,
+        payload:
+          u.tipo === "Origen"
+            ? { tipo: "entrega", origen_lugar_id: null, origen_cp: null }
+            : { tipo: "recoleccion", destino_lugar_id: null, destino_cp: null, distancia_km: null },
+      });
+    } else {
+      eliminar.mutate(u.viaje_id);
+    }
+  }
+
+  async function agregarOrigen() {
+    if (!nuevoOrigen) return;
+    agregar.mutate({ tipo: "recoleccion", origen_lugar_id: nuevoOrigen }, { onSuccess: () => setNuevoOrigen(null) });
+  }
+
+  async function agregarDestino() {
+    if (!nuevoDestino) return;
+    const km = (await fetchDistanciaSugerida(nuevoDestino))?.km ?? null;
+    agregar.mutate(
+      { tipo: "entrega", destino_lugar_id: nuevoDestino, distancia_km: km },
+      { onSuccess: () => setNuevoDestino(null) },
+    );
+  }
 
   function guardarCp(u: Ubicacion, valor: string) {
     const cp = valor.trim();
@@ -42,7 +99,7 @@ export function RutaEditable({ servicioId, ubicaciones }: { servicioId: string; 
   return (
     <Stack gap="xs">
       <Text size="xs" c="dimmed">
-        Edita el CP, la hora programada y los km; se guarda al salir del campo. Vaciar el CP vuelve al del lugar.
+        Cambia el lugar, el CP, la hora programada y los km, o quita un origen o destino; se guarda al salir del campo. Vaciar el CP vuelve al del lugar.
       </Text>
       <Table verticalSpacing={4}>
         <Table.Thead>
@@ -52,6 +109,7 @@ export function RutaEditable({ servicioId, ubicaciones }: { servicioId: string; 
             <Table.Th>CP</Table.Th>
             <Table.Th>Hora</Table.Th>
             <Table.Th>Km</Table.Th>
+            <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -60,7 +118,19 @@ export function RutaEditable({ servicioId, ubicaciones }: { servicioId: string; 
             return (
               <Table.Tr key={u.id_ubicacion}>
                 <Table.Td>{u.tipo}</Table.Td>
-                <Table.Td>{u.lugar.nombre ?? "—"}</Table.Td>
+                <Table.Td>
+                  {clienteId ? (
+                    <LugarSelect
+                      clienteId={clienteId}
+                      label=""
+                      value={u.lugar.id ?? null}
+                      onChange={(id) => cambiarLugar(u, id)}
+                      nuevoLabel={u.tipo === "Origen" ? "Agregar nuevo origen" : "Agregar nuevo destino"}
+                    />
+                  ) : (
+                    (u.lugar.nombre ?? "—")
+                  )}
+                </Table.Td>
                 <Table.Td>
                   <TextInput
                     key={`cp-${u.id_ubicacion}-${u.lugar.codigo_postal}`}
@@ -113,11 +183,57 @@ export function RutaEditable({ servicioId, ubicaciones }: { servicioId: string; 
                     "—"
                   )}
                 </Table.Td>
+                <Table.Td>
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    aria-label={`Quitar ${u.tipo.toLowerCase()}`}
+                    loading={eliminar.isPending}
+                    onClick={() => quitar(u)}
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Table.Td>
               </Table.Tr>
             );
           })}
         </Table.Tbody>
       </Table>
+
+      {clienteId && (
+        <Group align="flex-end" gap="md" wrap="wrap">
+          {!hayOrigen && (
+            <Group align="flex-end" gap="xs" wrap="nowrap">
+              <div style={{ width: 240 }}>
+                <LugarSelect
+                  clienteId={clienteId}
+                  label="Agregar origen"
+                  nuevoLabel="Agregar nuevo origen"
+                  value={nuevoOrigen}
+                  onChange={setNuevoOrigen}
+                />
+              </div>
+              <Button size="xs" color="green" leftSection={<IconPlus size={14} />} disabled={!nuevoOrigen} loading={agregar.isPending} onClick={agregarOrigen}>
+                Origen
+              </Button>
+            </Group>
+          )}
+          <Group align="flex-end" gap="xs" wrap="nowrap">
+            <div style={{ width: 240 }}>
+              <LugarSelect
+                clienteId={clienteId}
+                label="Agregar destino"
+                nuevoLabel="Agregar nuevo destino"
+                value={nuevoDestino}
+                onChange={setNuevoDestino}
+              />
+            </div>
+            <Button size="xs" color="green" leftSection={<IconPlus size={14} />} disabled={!nuevoDestino} loading={agregar.isPending} onClick={agregarDestino}>
+              Destino
+            </Button>
+          </Group>
+        </Group>
+      )}
     </Stack>
   );
 }

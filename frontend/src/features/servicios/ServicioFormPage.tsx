@@ -30,6 +30,8 @@ function nuevoId(): string {
   return `nuevo-${Math.random().toString(36).slice(2)}`;
 }
 
+const tieneOrigen = (v: ViajeDraft) => v.tipo === "recoleccion" || v.tipo === "recoleccion_entrega";
+
 function draftToViajeIn(d: ViajeDraft): ViajeIn {
   return {
     tipo: d.tipo,
@@ -208,6 +210,7 @@ export function ServicioFormPage() {
                 key={v.key}
                 numero={i + 1}
                 viaje={v}
+                origenOcupado={viajes.some((o) => o.key !== v.key && tieneOrigen(o))}
                 clienteId={clienteId ?? ""}
                 onChange={(patch) => actualizarViaje(v.key, patch)}
                 onRemove={() => quitarViaje(v.key)}
@@ -221,6 +224,8 @@ export function ServicioFormPage() {
                 size="xs"
                 leftSection={<IconPlus size={14} />}
                 onClick={() => agregarViaje("recoleccion")}
+                disabled={viajes.some(tieneOrigen)}
+                title={viajes.some(tieneOrigen) ? "Un servicio solo puede tener un origen" : undefined}
               >
                 Recolección
               </Button>
