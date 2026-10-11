@@ -12,7 +12,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { IconLock, IconTrash } from "@tabler/icons-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { numberInputValue } from "../../../lib/numberInput";
 import { useLugares } from "../../catalogos/api";
 import { fetchDistanciaSugerida } from "../api";
@@ -107,16 +107,21 @@ export function ViajeRowEditor({
     }
   }
 
-  async function elegirDestino(destinoId: string | null) {
+  // El km sale del lugar del viaje: el destino si lo tiene; en una recolección (sin destino),
+  // el lugar donde se recoge. Se dispara al elegir el lugar a mano o al precargarse solo (el
+  // origen predeterminado del cliente).
+  const lugarDelKm = requiereDestino ? viaje.destino_lugar_id : viaje.origen_lugar_id;
+  useEffect(() => {
+    if (lugarDelKm) void sugerirKm(lugarDelKm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lugarDelKm]);
+
+  function elegirDestino(destinoId: string | null) {
     onChange({ destino_lugar_id: destinoId, destino_cp: null });
-    if (destinoId) await sugerirKm(destinoId);
   }
 
-  // Una recolección no tiene destino: el km sale del lugar donde se recoge (casi siempre un
-  // cliente del cliente). Con destino, el km es el del destino.
-  async function elegirOrigen(origenId: string | null) {
+  function elegirOrigen(origenId: string | null) {
     onChange({ origen_lugar_id: origenId, origen_cp: null });
-    if (origenId && !requiereDestino) await sugerirKm(origenId);
   }
 
   return (
