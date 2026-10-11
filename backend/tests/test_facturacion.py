@@ -229,7 +229,7 @@ def test_obtener_facturacion_precargada(client: TestClient, admin_user: Usuario)
     assert body["receptor"]["rfc"] == "CME091007LG1"
     assert body["receptor"]["forma_pago"] == "99"
     assert body["concepto"]["descripcion_autogenerada"] is True
-    assert "FLETE UNIDAD 2 TON" in body["concepto"]["descripcion"]  # capacidad de carga, no el apodo
+    assert body["concepto"]["descripcion"].splitlines()[0] == "UNIDAD: 2.0 TON"  # capacidad, no el apodo
     assert "Saveiro" not in body["concepto"]["descripcion"]
     assert len(body["ubicaciones"]) == 2
     assert body["ubicaciones"][0]["tipo"] == "Origen"
@@ -404,21 +404,21 @@ def test_folio_por_viaje_en_el_concepto_y_editable(client: TestClient, admin_use
     assert any(c["regla"] == "folio_cliente_presente" for c in sin_folio["checks"] if c["nivel"] == "error")
     detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
     assert detalle["concepto"]["folios"] == [{"viaje_id": viaje_entrega, "destino": "Tiendas Express", "folio": None}]
-    assert "DESTINO: Tiendas Express FOLIO: —" in detalle["concepto"]["descripcion"]
+    assert detalle["concepto"]["descripcion"].endswith("REF: —")
 
     # Se captura el folio del viaje y el concepto lo lleva
     r = client.put(f"{API}/viajes/{viaje_entrega}/folio", json={"folio": " 5318 "}, headers=headers)
     assert r.status_code == 200, r.text
     detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
     assert detalle["concepto"]["folios"][0]["folio"] == "5318"
-    assert "DESTINO: Tiendas Express FOLIO: 5318" in detalle["concepto"]["descripcion"]
+    assert detalle["concepto"]["descripcion"].endswith("REF: 5318")
     ok = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
     assert all(c["nivel"] != "error" for c in ok["checks"] if c["regla"] == "folio_cliente_presente")
 
     # Y se puede corregir
     client.put(f"{API}/viajes/{viaje_entrega}/folio", json={"folio": "5319"}, headers=headers)
     detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
-    assert "FOLIO: 5319" in detalle["concepto"]["descripcion"] and "5318" not in detalle["concepto"]["descripcion"]
+    assert detalle["concepto"]["descripcion"].endswith("REF: 5319") and "5318" not in detalle["concepto"]["descripcion"]
 
 
 def test_capacidad_txt_en_toneladas():
@@ -428,7 +428,29 @@ def test_capacidad_txt_en_toneladas():
         return Unidad(apodo="X", placa="P", config_vehicular="VL", peso_bruto_vehicular=peso,
                       perm_sct="A4", num_permiso_sct="1", capacidad_carga_kg=capacidad)
 
-    assert facturacion_service._capacidad_txt(u(1000, 3)) == "1 TON"
+    assert facturacion_service._capacidad_txt(u(1000, 3)) == "1.0 TON"
     assert facturacion_service._capacidad_txt(u(500, 3)) == "0.5 TON"
     assert facturacion_service._capacidad_txt(u(1500, 3)) == "1.5 TON"
     assert facturacion_service._capacidad_txt(u(None, 0.5)) == "0.5 TON"  # sin capacidad: peso bruto
+
+
+def test_concepto_con_varios_destinos_junta_los_folios_en_ref(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers, poliza=True)
+    client.patch(f"{API}/catalogos/clientes/{cat['cliente']['id']}", json={"requiere_folio_concepto": True}, headers=headers)
+    payload = _servicio_payload(
+        cat,
+        viajes=[
+            {"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+            {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"]},
+            {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"]},
+        ],
+    )
+    s = client.post(f"{API}/servicios", json=payload, headers=headers).json()
+    for viaje, folio in zip(s["viajes"][1:], ["5151", "5152"]):
+        client.put(f"{API}/viajes/{viaje['id']}/folio", json={"folio": folio}, headers=headers)
+    d = client.get(f"{API}/servicios/{s['id']}/facturacion", headers=headers).json()["concepto"]["descripcion"]
+    lineas = d.split("\n")
+    assert lineas[0] == "UNIDAD: 2.0 TON" and lineas[1] == "ORIGEN: Planta Chemital"
+    assert lineas[2].startswith("DESTINO: Tiendas Express") and lineas[3].startswith("FECHA: ")
+    assert lineas[4] == "REF: 5151, 5152"

@@ -260,7 +260,7 @@ export function FacturarPage() {
                       Folios de {detalle.receptor.razon_social} por destino
                     </Text>
                     <Text size="xs" c="dimmed">
-                      Cada destino lleva su folio en el concepto (Destino X Folio Y). Corrígelo aquí si está mal.
+                      Cada destino lleva su folio en el concepto (REF: folio, folio). Corrígelo aquí si está mal.
                     </Text>
                     {detalle.concepto.folios.map((f) => (
                       <Group key={`${f.viaje_id}-${f.folio}`} gap="xs" wrap="nowrap" align="center">

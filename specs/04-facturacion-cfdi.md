@@ -42,14 +42,14 @@ Un servicio = **un concepto** de flete:
 - `ValorUnitario = Importe = servicio.subtotal` · `ObjetoImp = 02`.
 - `Descripcion`: si `servicio.descripcion_concepto` es null, **se autogenera**:
   ```
-  FLETE UNIDAD {capacidad en TON, ej. "1 TON" o "0.5 TON"; no el apodo}
+  UNIDAD: {capacidad en TON con un decimal, ej. "1.0 TON" o "0.5 TON"; no el apodo}
   ORIGEN: {nombres de los lugares de origen, " / "}
   DESTINO: {nombres de los lugares de destino en orden, " / "}
   FECHA: {fecha o rango "dd/mm/aaaa – dd/mm/aaaa"}
+  REF: {folios de los destinos, ", "}   <- solo clientes con folio en el concepto (Chemital)
   ```
   El admin puede editar el texto en la pantalla "Facturar" (se guarda en `descripcion_concepto`) o volver al autogenerado ("Regenerar" → `null`).
 
-> 🔴 **INFO REQUERIDA (Vlad)** — confirma si la descripción debe mostrar el apodo de la unidad o su placa (el apodo es interno; el cliente lo verá en su factura).
 
 ## 3. Impuestos — retención 4% condicional
 

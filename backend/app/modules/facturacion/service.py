@@ -131,10 +131,10 @@ def _fecha_concepto(fecha: date) -> str:
 
 
 def _capacidad_txt(unidad: Unidad) -> str:
-    """Capacidad de carga de la unidad en toneladas ("1 TON", "0.5 TON"); no el apodo.
+    """Capacidad de carga de la unidad en toneladas, con un decimal ("1.0 TON", "0.5 TON"); no el apodo.
     Sin `capacidad_carga_kg` usa el peso bruto vehicular (que ya está en toneladas)."""
     toneladas = unidad.capacidad_carga_kg / 1000 if unidad.capacidad_carga_kg else unidad.peso_bruto_vehicular
-    return f"{toneladas:.2f}".rstrip("0").rstrip(".") + " TON"
+    return f"{toneladas:.1f} TON"
 
 
 def _descripcion_autogenerada(
@@ -145,27 +145,24 @@ def _descripcion_autogenerada(
     folios: dict[uuid.UUID, str | None],
 ) -> str:
     """`04-facturacion-cfdi §2`. Los clientes con `requiere_folio_concepto` (caso real:
-    Chemital) llevan un renglón "DESTINO: X FOLIO: Y" por cada destino."""
+    Chemital) llevan al final un renglón "REF: folio1, folio2" con el folio de cada destino."""
     origenes = [lugares[v.origen_lugar_id].nombre for v in viajes if v.origen_lugar_id in lugares]
     destinos = [lugares[v.destino_lugar_id].nombre for v in viajes if v.destino_lugar_id in lugares]
+    lineas_ref: list[str] = []
     if cliente.requiere_folio_concepto:
-        lineas_destino = [
-            f"DESTINO: {lugares[v.destino_lugar_id].nombre} FOLIO: {folios.get(v.id) or '—'}"
-            for v in viajes
-            if v.destino_lugar_id in lugares
-        ] or ["DESTINO: —"]
-    else:
-        lineas_destino = [f"DESTINO: {' / '.join(destinos) or '—'}"]
+        refs = [folios.get(v.id) or "—" for v in viajes if v.destino_lugar_id in lugares]
+        lineas_ref = [f"REF: {', '.join(refs) or '—'}"]
     fechas = sorted({v.fecha for v in viajes})
     if len(fechas) <= 1:
         fecha_txt = _fecha_concepto(fechas[0] if fechas else datetime.now(UTC).date())
     else:
         fecha_txt = f"{_fecha_concepto(fechas[0])} – {_fecha_concepto(fechas[-1])}"
     lineas = [
-        f"FLETE UNIDAD {_capacidad_txt(unidad)}",
+        f"UNIDAD: {_capacidad_txt(unidad)}",
         f"ORIGEN: {' / '.join(origenes) or '—'}",
-        *lineas_destino,
+        f"DESTINO: {' / '.join(destinos) or '—'}",
         f"FECHA: {fecha_txt}",
+        *lineas_ref,
     ]
     return "\n".join(lineas)
 
