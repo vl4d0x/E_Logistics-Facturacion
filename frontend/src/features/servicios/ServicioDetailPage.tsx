@@ -8,7 +8,6 @@ import {
   Group,
   Menu,
   Modal,
-  Select,
   Skeleton,
   Stack,
   Text,
@@ -19,7 +18,6 @@ import {
   IconArrowLeft,
   IconCheck,
   IconDotsVertical,
-  IconPlus,
   IconRestore,
   IconTrash,
   IconUpload,
@@ -31,20 +29,17 @@ import { TotalConIva } from "../../components/TotalConIva";
 import {
   useAgregarAcuseArchivo,
   useAgregarAcuseReferencia,
-  useAgregarViaje,
   useCancelarServicio,
   useDuplicarServicio,
-  fetchDistanciaSugerida,
   useEliminarViaje,
   useMarcarTerminado,
   useReabrirViaje,
   useServicio,
   useTerminarViaje,
 } from "./api";
-import { LugarSelect } from "./components/LugarSelect";
 import { OperatorReportCard } from "../operacion/components/OperatorReportCard";
 import type { RegimenReceptor } from "../catalogos/types";
-import type { TipoViaje, ViajeOut } from "./types";
+import type { ViajeOut } from "./types";
 
 const ESTADO_LABEL: Record<string, string> = {
   programado: "Programado",
@@ -184,7 +179,6 @@ export function ServicioDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: servicio, isLoading, isError } = useServicio(id ?? null);
-  const agregarViaje = useAgregarViaje(id ?? "");
   const eliminarViaje = useEliminarViaje(id ?? "");
   const duplicar = useDuplicarServicio(id ?? "");
   const cancelar = useCancelarServicio(id ?? "");
@@ -194,8 +188,6 @@ export function ServicioDetailPage() {
   const [fechaDuplicar, setFechaDuplicar] = useState("");
   const [cancelarAbierto, setCancelarAbierto] = useState(false);
   const [motivo, setMotivo] = useState("");
-  const [tipoNuevoViaje, setTipoNuevoViaje] = useState<TipoViaje>("entrega");
-  const [lugarNuevoViaje, setLugarNuevoViaje] = useState<string | null>(null);
 
   if (isLoading) return <Skeleton height={300} />;
   if (isError || !servicio) {
@@ -304,54 +296,6 @@ export function ServicioDetailPage() {
         />
       ))}
 
-      {puedeEditar && (
-        <Card>
-          <Text fw={600} mb="sm">
-            Agregar viaje
-          </Text>
-          <Group>
-            <Select
-              data={[
-                { value: "recoleccion", label: "Recolección" },
-                { value: "entrega", label: "Entrega" },
-                { value: "recoleccion_entrega", label: "Recolección y entrega" },
-              ]}
-              value={tipoNuevoViaje}
-              onChange={(v) => v && setTipoNuevoViaje(v as TipoViaje)}
-              w={200}
-            />
-            <div style={{ width: 240 }}>
-              <LugarSelect
-                clienteId={servicio.cliente.id}
-                label="Lugar"
-                value={lugarNuevoViaje}
-                onChange={setLugarNuevoViaje}
-              />
-            </div>
-            <Button
-              leftSection={<IconPlus size={16} />}
-              loading={agregarViaje.isPending}
-              onClick={async () => {
-                const km =
-                  lugarNuevoViaje
-                    ? (await fetchDistanciaSugerida(lugarNuevoViaje))?.km ?? null
-                    : null;
-                agregarViaje.mutate(
-                  {
-                    tipo: tipoNuevoViaje,
-                    origen_lugar_id: tipoNuevoViaje !== "entrega" ? lugarNuevoViaje : null,
-                    destino_lugar_id: tipoNuevoViaje !== "recoleccion" ? lugarNuevoViaje : null,
-                    distancia_km: km,
-                  },
-                  { onSuccess: () => setLugarNuevoViaje(null) },
-                );
-              }}
-            >
-              Agregar
-            </Button>
-          </Group>
-        </Card>
-      )}
 
       <Modal opened={duplicarAbierto} onClose={() => setDuplicarAbierto(false)} title="Duplicar servicio">
         <Stack>
