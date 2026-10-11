@@ -97,16 +97,26 @@ export function ViajeRowEditor({
   const kmAutomatico = useRef<number | null>(null);
   const [kmNoConfirmado, setKmNoConfirmado] = useState(false);
 
-  async function elegirDestino(destinoId: string | null) {
-    onChange({ destino_lugar_id: destinoId, destino_cp: null });
-    if (!destinoId) return;
-    const sugerida = await fetchDistanciaSugerida(destinoId);
+  async function sugerirKm(lugarId: string) {
+    const sugerida = await fetchDistanciaSugerida(lugarId);
     if (sugerida == null) return;
     if (viaje.distancia_km == null || viaje.distancia_km === kmAutomatico.current) {
       kmAutomatico.current = sugerida.km;
       setKmNoConfirmado(!sugerida.confirmado);
       onChange({ distancia_km: sugerida.km });
     }
+  }
+
+  async function elegirDestino(destinoId: string | null) {
+    onChange({ destino_lugar_id: destinoId, destino_cp: null });
+    if (destinoId) await sugerirKm(destinoId);
+  }
+
+  // Una recolección no tiene destino: el km sale del lugar donde se recoge (casi siempre un
+  // cliente del cliente). Con destino, el km es el del destino.
+  async function elegirOrigen(origenId: string | null) {
+    onChange({ origen_lugar_id: origenId, origen_cp: null });
+    if (origenId && !requiereDestino) await sugerirKm(origenId);
   }
 
   return (
@@ -156,7 +166,7 @@ export function ViajeRowEditor({
               label="Origen"
               nuevoLabel="Agregar nuevo origen"
               value={viaje.origen_lugar_id}
-              onChange={(v) => onChange({ origen_lugar_id: v, origen_cp: null })}
+              onChange={elegirOrigen}
             />
             {viaje.origen_lugar_id && (
               <CpField

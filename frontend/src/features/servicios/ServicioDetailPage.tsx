@@ -333,7 +333,7 @@ export function ServicioDetailPage() {
               loading={agregarViaje.isPending}
               onClick={async () => {
                 const km =
-                  tipoNuevoViaje !== "recoleccion" && lugarNuevoViaje
+                  lugarNuevoViaje
                     ? (await fetchDistanciaSugerida(lugarNuevoViaje))?.km ?? null
                     : null;
                 agregarViaje.mutate(
