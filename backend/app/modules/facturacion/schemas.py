@@ -1,6 +1,6 @@
 """DTOs de facturación — `03-api-contract §9`."""
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 from decimal import Decimal
 
 from pydantic import BaseModel, model_validator
@@ -70,12 +70,15 @@ class UbicacionOut(BaseModel):
     lugar: dict
     fecha_hora: datetime | None
     fecha_hora_fuente: str  # "real" | "programada"
+    hora_programada: time | None = None  # editable en la pantalla Facturar
     distancia_km: float | None
     km_reportado: float | None
 
 
 class MercanciaFacturarOut(BaseModel):
     viaje_id: uuid.UUID
+    id: uuid.UUID | None = None
+    mercancia_frecuente_id: uuid.UUID | None = None
     descripcion: str
     bienes_transp: str
     clave_unidad: str
@@ -127,6 +130,9 @@ class AcuseFacturarOut(BaseModel):
 
 
 class FacturacionDetalleOut(BaseModel):
+    cliente_id: uuid.UUID | None = None
+    unidad_id: uuid.UUID | None = None
+    operador_id: uuid.UUID | None = None
     modo: str  # "normal" | "anticipado"
     timbrado_modo: str = "precio"  # "precio" | "cero" (timbra con $0.10 y se cancela sola)
     servicio_id: uuid.UUID

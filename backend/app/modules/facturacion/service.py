@@ -41,7 +41,7 @@ from app.modules.servicios.models import (
     Viaje,
     ViajeMercancia,
 )
-from app.modules.servicios.service import datos_fiscales_bloqueados, get_servicio
+from app.modules.servicios.service import asegurar_mercancia_default, datos_fiscales_bloqueados, get_servicio
 
 
 def _url_o_none(key: str | None) -> str | None:
@@ -171,6 +171,7 @@ def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[U
                     lugar=_lugar_dict(lugares.get(v.origen_lugar_id), v.origen_cp),
                     fecha_hora=fecha_hora,
                     fecha_hora_fuente=fuente,
+                    hora_programada=v.hora_salida_programada,
                     distancia_km=None,
                     km_reportado=None,
                 )
@@ -186,6 +187,7 @@ def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[U
                     lugar=_lugar_dict(lugares.get(v.destino_lugar_id), v.destino_cp),
                     fecha_hora=fecha_hora,
                     fecha_hora_fuente=fuente,
+                    hora_programada=v.hora_llegada_programada,
                     distancia_km=v.distancia_km,
                     km_reportado=v.km_reportado,
                 )
@@ -195,6 +197,8 @@ def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[U
 
 def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> FacturacionDetalleOut:
     servicio = get_servicio(session, servicio_id)
+    if modo_timbrado(servicio) == "cero":
+        asegurar_mercancia_default(session, servicio)  # 1 kg de preservativos de alimentos
     cliente = session.get(Cliente, servicio.cliente_id)
     unidad = session.get(Unidad, servicio.unidad_id)
     operador = session.get(Operador, servicio.operador_id)
@@ -209,6 +213,8 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
     mercancias = [
         MercanciaFacturarOut(
             viaje_id=m.viaje_id,
+            id=m.id,
+            mercancia_frecuente_id=m.mercancia_frecuente_id,
             descripcion=m.descripcion,
             bienes_transp=m.bienes_transp,
             clave_unidad=m.clave_unidad,
@@ -273,6 +279,9 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
     settings = get_settings()
 
     return FacturacionDetalleOut(
+        cliente_id=cliente.id,
+        unidad_id=unidad.id,
+        operador_id=operador.id,
         modo="anticipado" if anticipado else "normal",
         timbrado_modo=modo_timbrado(servicio),
         servicio_id=servicio.id,
@@ -414,6 +423,8 @@ def _ubicaciones_payload(
 def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current_user: Usuario) -> dict:
     """`04-facturacion-cfdi §6`."""
     servicio = get_servicio(session, servicio_id)
+    if modo_timbrado(servicio) == "cero":
+        asegurar_mercancia_default(session, servicio)
 
     factura_vigente = session.exec(
         select(Factura).where(

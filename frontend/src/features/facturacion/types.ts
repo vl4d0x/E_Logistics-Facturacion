@@ -39,12 +39,15 @@ export interface Ubicacion {
   };
   fecha_hora: string | null;
   fecha_hora_fuente: "real" | "programada";
+  hora_programada?: string | null; // "HH:MM:SS"
   distancia_km: number | null;
   km_reportado: number | null;
 }
 
 export interface MercanciaFacturar {
   viaje_id: string;
+  id?: string | null;
+  mercancia_frecuente_id?: string | null;
   descripcion: string;
   bienes_transp: string;
   clave_unidad: string;
@@ -115,6 +118,9 @@ export interface Validacion {
 }
 
 export interface FacturacionDetalle {
+  cliente_id?: string | null;
+  unidad_id?: string | null;
+  operador_id?: string | null;
   modo: "normal" | "anticipado";
   timbrado_modo: "precio" | "cero";
   servicio_id: string;

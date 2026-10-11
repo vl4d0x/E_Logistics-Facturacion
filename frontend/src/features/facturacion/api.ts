@@ -45,3 +45,20 @@ export function useFacturar(servicioId: string) {
       api.post<FacturarResultado>(`/api/v1/servicios/${servicioId}/facturar`, { total_esperado: totalEsperado }),
   });
 }
+
+export interface MercanciaItemIn {
+  mercancia_frecuente_id: string;
+  cantidad: number;
+  peso_kg: number;
+}
+
+/** Reemplaza las mercancías de un viaje (`PUT /viajes/{id}/mercancias`) y refresca Facturar. */
+export function useGuardarMercancias(servicioId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ viajeId, items }: { viajeId: string; items: MercanciaItemIn[] }) =>
+      api.put(`/api/v1/viajes/${viajeId}/mercancias`, items),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKey(servicioId) }),
+    onError: (err) => toastError(err, "No se pudo guardar la mercancía"),
+  });
+}

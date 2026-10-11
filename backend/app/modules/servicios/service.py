@@ -231,6 +231,9 @@ def create_servicio(session: Session, data: ServicioCreate, current_user: Usuari
 
     session.commit()
     session.refresh(servicio)
+    if servicio.timbrado_anticipado and servicio.timbrado_modo == "cero":
+        asegurar_mercancia_default(session, servicio)
+        session.refresh(servicio)
     return servicio
 
 
@@ -816,6 +819,60 @@ def eliminar_acuse(session: Session, acuse_id: uuid.UUID) -> None:
         except AppError:
             pass  # el registro ya se borró; limpiar R2 es best-effort
 
+
+
+# --- Mercancía por defecto del timbrado en $0 --------------------------------
+MERCANCIA_DEFAULT = {
+    "nombre": "Preservativos de alimentos",
+    "bienes_transp": "12164501",
+    "clave_unidad": "X4G",
+}
+
+
+def asegurar_mercancia_default(session: Session, servicio: Servicio) -> bool:
+    """Timbrado anticipado en $0: si el servicio no tiene mercancías, agrega 1 kg de
+    "Preservativos de alimentos" al primer viaje con destino (la toma del catálogo del
+    cliente, o la crea ahí si aún no existe). Devuelve True si agregó algo."""
+    viajes = session.exec(
+        select(Viaje).where(Viaje.servicio_id == servicio.id).order_by(Viaje.orden)
+    ).all()
+    if not viajes:
+        return False
+    ids = [v.id for v in viajes]
+    hay = session.exec(select(ViajeMercancia).where(ViajeMercancia.viaje_id.in_(ids))).first()
+    destino = next((v for v in viajes if v.destino_lugar_id), None)
+    if hay is not None or destino is None:
+        return False
+    nombre = MERCANCIA_DEFAULT["nombre"]
+    catalogo = session.exec(
+        select(MercanciaFrecuente).where(
+            MercanciaFrecuente.cliente_id == servicio.cliente_id,
+            func.lower(MercanciaFrecuente.nombre_humano) == nombre.lower(),
+        )
+    ).first()
+    if catalogo is None:
+        catalogo = MercanciaFrecuente(
+            cliente_id=servicio.cliente_id,
+            nombre_humano=nombre,
+            bienes_transp=MERCANCIA_DEFAULT["bienes_transp"],
+            clave_unidad=MERCANCIA_DEFAULT["clave_unidad"],
+        )
+        session.add(catalogo)
+        session.flush()
+    session.add(
+        ViajeMercancia(
+            viaje_id=destino.id,
+            mercancia_frecuente_id=catalogo.id,
+            descripcion=catalogo.nombre_humano,
+            bienes_transp=catalogo.bienes_transp,
+            clave_unidad=catalogo.clave_unidad,
+            unidad_desc=catalogo.unidad_desc,
+            cantidad=1,
+            peso_kg=1.0,
+        )
+    )
+    session.commit()
+    return True
 
 # --- Distancia sugerida ----------------------------------------------------
 

@@ -2,6 +2,7 @@
 // subtotal en segundos y timbrar con confianza.
 import {
   Alert,
+  Anchor,
   Badge,
   Button,
   Grid,
@@ -10,7 +11,6 @@ import {
   Select,
   Skeleton,
   Stack,
-  Table,
   Text,
   Textarea,
   TextInput,
@@ -19,12 +19,13 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertTriangle, IconArrowLeft, IconCheck, IconDownload, IconX } from "@tabler/icons-react";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { ApiError } from "../../lib/api";
 import { descargarFactura } from "../facturas/api";
 import { AcuseViewerSimple } from "./components/AcuseViewerSimple";
 import { CollapsibleSection } from "./components/CollapsibleSection";
+import { MercanciasEditable, RutaEditable, UnidadOperadorEditable } from "./components/EdicionFacturar";
 import { PriceField } from "./components/PriceField";
 import { useActualizarFacturacion, useFacturacionDetalle, useFacturar, type FacturarResultado } from "./api";
 
@@ -217,6 +218,11 @@ export function FacturarPage() {
                 <Text size="sm" c="dimmed">
                   CP fiscal {detalle.receptor.cp_fiscal} · Régimen {detalle.receptor.regimen_fiscal}
                 </Text>
+                {detalle.cliente_id && (
+                  <Anchor component={Link} to={`/admin/catalogos/clientes/${detalle.cliente_id}`} size="xs">
+                    Editar razón social, RFC, CP o régimen fiscal del cliente
+                  </Anchor>
+                )}
                 <Group grow>
                   <Select
                     label="Uso CFDI"
@@ -274,40 +280,7 @@ export function FacturarPage() {
               summary={`${detalle.ubicaciones.length} ubicaciones`}
               forceOpen={campoConError(["viajes"])}
             >
-              <Table verticalSpacing={4}>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Tipo</Table.Th>
-                    <Table.Th>Lugar</Table.Th>
-                    <Table.Th>CP</Table.Th>
-                    <Table.Th>Fecha/hora</Table.Th>
-                    <Table.Th>Distancia</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {detalle.ubicaciones.map((u) => (
-                    <Table.Tr key={u.id_ubicacion}>
-                      <Table.Td>{u.tipo}</Table.Td>
-                      <Table.Td>{u.lugar.nombre ?? "—"}</Table.Td>
-                      <Table.Td>{u.lugar.codigo_postal ?? "—"}</Table.Td>
-                      <Table.Td>
-                        {u.fecha_hora ? new Date(u.fecha_hora).toLocaleString("es-MX") : "—"}{" "}
-                        <Text span size="xs" c="dimmed">
-                          ({u.fecha_hora_fuente})
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        {u.distancia_km != null ? `${u.distancia_km} km` : "—"}
-                        {u.km_reportado != null && u.distancia_km != null && u.km_reportado !== u.distancia_km && (
-                          <Badge ml={6} size="xs" variant="light" color="yellow">
-                            Operador: {u.km_reportado} km
-                          </Badge>
-                        )}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
+              <RutaEditable servicioId={detalle.servicio_id} ubicaciones={detalle.ubicaciones} />
             </CollapsibleSection>
 
             <CollapsibleSection
@@ -315,30 +288,12 @@ export function FacturarPage() {
               summary={`${detalle.mercancias.length} partidas · ${detalle.mercancias.reduce((a, m) => a + m.peso_kg, 0)} kg`}
               forceOpen={campoConError(["viajes"])}
             >
-              <Table verticalSpacing={4}>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Descripción</Table.Th>
-                    <Table.Th>Clave SAT</Table.Th>
-                    <Table.Th>Cantidad</Table.Th>
-                    <Table.Th>Peso (kg)</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {detalle.mercancias.map((m, i) => (
-                    <Table.Tr key={i}>
-                      <Table.Td>{m.descripcion}</Table.Td>
-                      <Table.Td>
-                        <Text size="xs" c="dimmed">
-                          {m.bienes_transp} / {m.clave_unidad}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>{Number(m.cantidad)}</Table.Td>
-                      <Table.Td>{m.peso_kg}</Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
+              <MercanciasEditable
+                servicioId={detalle.servicio_id}
+                clienteId={detalle.cliente_id}
+                mercancias={detalle.mercancias}
+                ubicaciones={detalle.ubicaciones}
+              />
             </CollapsibleSection>
 
             <CollapsibleSection
@@ -346,17 +301,7 @@ export function FacturarPage() {
               summary={`${detalle.autotransporte.apodo} · ${detalle.figura.nombre}`}
               forceOpen={campoConError(["unidad", "operador"])}
             >
-              <Group gap="xs" mb="sm">
-                <Badge variant="light">Placa {detalle.autotransporte.placa}</Badge>
-                <Badge variant="light">{detalle.autotransporte.config_vehicular}</Badge>
-                <Badge variant="light">{detalle.autotransporte.perm_sct}</Badge>
-                <Badge variant="light" color={detalle.autotransporte.poliza ? "gray" : "red"}>
-                  {detalle.autotransporte.poliza ? `Póliza ${detalle.autotransporte.poliza}` : "Sin póliza"}
-                </Badge>
-              </Group>
-              <Text size="sm">
-                {detalle.figura.nombre} · RFC {detalle.figura.rfc} · Lic. {detalle.figura.num_licencia}
-              </Text>
+              <UnidadOperadorEditable servicioId={detalle.servicio_id} detalle={detalle} />
             </CollapsibleSection>
           </Stack>
         </Grid.Col>

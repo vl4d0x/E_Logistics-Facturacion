@@ -156,10 +156,19 @@ def test_timbrado_anticipado_exige_subtotal(client: TestClient, admin_user: Usua
 def test_timbrado_anticipado_en_cero_no_exige_subtotal(client: TestClient, admin_user: Usuario):
     headers = _auth_headers(client, admin_user.email)
     cat = _setup_catalogos(client, headers)
-    payload = _servicio_payload(cat, timbrado_anticipado=True, timbrado_modo="cero")
-    ok = client.post(f"{API}/servicios", json=payload, headers=headers)
+    sin_mercancias = [
+        {"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+        {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"]},
+    ]
+    payload = _servicio_payload(
+        cat, timbrado_anticipado=True, timbrado_modo="cero", viajes=sin_mercancias
+    )
+    ok =client.post(f"{API}/servicios", json=payload, headers=headers)
     assert ok.status_code == 201, ok.text
     assert ok.json()["timbrado_modo"] == "cero"
+    # sin mercancías capturadas, se agrega 1 kg de "Preservativos de alimentos" al primer destino
+    mercancias = [m for v in ok.json()["viajes"] for m in v["mercancias"]]
+    assert [(m["descripcion"], m["peso_kg"]) for m in mercancias] == [("Preservativos de alimentos", 1.0)]
 
     # sin la casilla, el modo se ignora
     sin_casilla = client.post(
