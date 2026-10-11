@@ -229,7 +229,8 @@ def test_obtener_facturacion_precargada(client: TestClient, admin_user: Usuario)
     assert body["receptor"]["rfc"] == "CME091007LG1"
     assert body["receptor"]["forma_pago"] == "99"
     assert body["concepto"]["descripcion_autogenerada"] is True
-    assert "FLETE UNIDAD Saveiro Blanca" in body["concepto"]["descripcion"]
+    assert "FLETE UNIDAD 2 TON" in body["concepto"]["descripcion"]  # capacidad de carga, no el apodo
+    assert "Saveiro" not in body["concepto"]["descripcion"]
     assert len(body["ubicaciones"]) == 2
     assert body["ubicaciones"][0]["tipo"] == "Origen"
     assert body["ubicaciones"][0]["id_ubicacion"] == "OR000001"
@@ -418,3 +419,16 @@ def test_folio_por_viaje_en_el_concepto_y_editable(client: TestClient, admin_use
     client.put(f"{API}/viajes/{viaje_entrega}/folio", json={"folio": "5319"}, headers=headers)
     detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
     assert "FOLIO: 5319" in detalle["concepto"]["descripcion"] and "5318" not in detalle["concepto"]["descripcion"]
+
+
+def test_capacidad_txt_en_toneladas():
+    from app.modules.catalogos.models import Unidad
+
+    def u(capacidad, peso):
+        return Unidad(apodo="X", placa="P", config_vehicular="VL", peso_bruto_vehicular=peso,
+                      perm_sct="A4", num_permiso_sct="1", capacidad_carga_kg=capacidad)
+
+    assert facturacion_service._capacidad_txt(u(1000, 3)) == "1 TON"
+    assert facturacion_service._capacidad_txt(u(500, 3)) == "0.5 TON"
+    assert facturacion_service._capacidad_txt(u(1500, 3)) == "1.5 TON"
+    assert facturacion_service._capacidad_txt(u(None, 0.5)) == "0.5 TON"  # sin capacidad: peso bruto

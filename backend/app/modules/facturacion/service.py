@@ -130,6 +130,13 @@ def _fecha_concepto(fecha: date) -> str:
     return f"{fecha.day} {_MESES_ABREV[fecha.month - 1]} {fecha.strftime('%y')}"
 
 
+def _capacidad_txt(unidad: Unidad) -> str:
+    """Capacidad de carga de la unidad en toneladas ("1 TON", "0.5 TON"); no el apodo.
+    Sin `capacidad_carga_kg` usa el peso bruto vehicular (que ya está en toneladas)."""
+    toneladas = unidad.capacidad_carga_kg / 1000 if unidad.capacidad_carga_kg else unidad.peso_bruto_vehicular
+    return f"{toneladas:.2f}".rstrip("0").rstrip(".") + " TON"
+
+
 def _descripcion_autogenerada(
     unidad: Unidad,
     viajes: list[Viaje],
@@ -155,7 +162,7 @@ def _descripcion_autogenerada(
     else:
         fecha_txt = f"{_fecha_concepto(fechas[0])} – {_fecha_concepto(fechas[-1])}"
     lineas = [
-        f"FLETE UNIDAD {unidad.apodo}",
+        f"FLETE UNIDAD {_capacidad_txt(unidad)}",
         f"ORIGEN: {' / '.join(origenes) or '—'}",
         *lineas_destino,
         f"FECHA: {fecha_txt}",

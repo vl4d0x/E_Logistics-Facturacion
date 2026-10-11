@@ -42,7 +42,7 @@ Un servicio = **un concepto** de flete:
 - `ValorUnitario = Importe = servicio.subtotal` · `ObjetoImp = 02`.
 - `Descripcion`: si `servicio.descripcion_concepto` es null, **se autogenera**:
   ```
-  FLETE UNIDAD {unidad.apodo}
+  FLETE UNIDAD {capacidad en TON, ej. "1 TON" o "0.5 TON"; no el apodo}
   ORIGEN: {nombres de los lugares de origen, " / "}
   DESTINO: {nombres de los lugares de destino en orden, " / "}
   FECHA: {fecha o rango "dd/mm/aaaa – dd/mm/aaaa"}
