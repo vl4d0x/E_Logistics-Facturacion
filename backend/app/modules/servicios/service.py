@@ -664,8 +664,12 @@ def delete_viaje(session: Session, viaje_id: uuid.UUID) -> None:
     viaje = get_viaje(session, viaje_id)
     servicio = get_servicio(session, viaje.servicio_id)
     _check_editable(session, servicio)
-    if viaje.estado == EstadoViaje.terminado:
-        raise AppError("conflict", "El viaje ya está terminado; reábrelo primero", 409)
+    # Un viaje terminado también se puede quitar (el admin corrige desde Facturar): se borran
+    # sus mercancías y acuses (los archivos del acuse se conservan en el almacenamiento).
+    for dependiente in (ViajeMercancia, Acuse):
+        for fila in session.exec(select(dependiente).where(dependiente.viaje_id == viaje_id)).all():
+            session.delete(fila)
+    session.flush()
     session.delete(viaje)
     session.commit()
 

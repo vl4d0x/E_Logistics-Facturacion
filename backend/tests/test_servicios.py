@@ -473,3 +473,17 @@ def test_origen_agregado_despues_queda_primero(client: TestClient, admin_user: U
     assert r.status_code in (200, 201), r.text
     tipos = [v["tipo"] for v in client.get(f"{API}/servicios/{creado['id']}", headers=headers).json()["viajes"]]
     assert tipos == ["recoleccion", "entrega"]
+
+
+def test_quitar_viaje_terminado_borra_sus_datos_y_el_servicio_lo_refleja(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    s = client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers).json()
+    recoleccion, entrega = s["viajes"][0]["id"], s["viajes"][1]["id"]
+    client.post(f"{API}/viajes/{entrega}/terminar", json={"referencia_acuse": "FOLIO-1"}, headers=headers)
+    assert client.get(f"{API}/servicios/{s['id']}", headers=headers).json()["viajes"][1]["estado"] == "terminado"
+
+    r = client.delete(f"{API}/viajes/{entrega}", headers=headers)
+    assert r.status_code == 204, r.text
+    detalle = client.get(f"{API}/servicios/{s['id']}", headers=headers).json()
+    assert [v["id"] for v in detalle["viajes"]] == [recoleccion]

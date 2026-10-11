@@ -44,7 +44,9 @@ export function RutaEditable({
   // entrega", se queda con la otra mitad.
   function quitar(u: Ubicacion) {
     const que = u.tipo === "Origen" ? "origen" : "destino";
-    if (!window.confirm(`¿Quitar este ${que} (${u.lugar.nombre ?? "sin nombre"}) del servicio?`)) return;
+    if (!window.confirm(`¿Quitar este ${que} (${u.lugar.nombre ?? "sin nombre"}) del servicio?
+
+Si el viaje ya estaba terminado, también se borran sus mercancías y acuses.`)) return;
     if (u.viaje_tipo === "recoleccion_entrega") {
       editar.mutate({
         id: u.viaje_id,
