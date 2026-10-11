@@ -1,10 +1,11 @@
 // `fase-1-catalogos.md` H1.5 — formulario de lugar (origen/destino frecuente).
-import { Button, Group, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
+import { Button, Group, NumberInput, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
   useCreateLugar,
   useUpdateLugar,
 } from "../api";
+import { numberInputValue } from "../../../lib/numberInput";
 import type { Cliente, Lugar, LugarPayload } from "../types";
 
 export function LugarForm({
@@ -45,6 +46,7 @@ export function LugarForm({
           codigo_postal: lugar.codigo_postal,
           referencia: lugar.referencia ?? "",
           es_origen_predeterminado: lugar.es_origen_predeterminado,
+          distancia_km: lugar.distancia_km ?? null,
         }
       : {
           cliente_id: clienteIdFijo ?? null,
@@ -61,6 +63,7 @@ export function LugarForm({
           codigo_postal: "",
           referencia: "",
           es_origen_predeterminado: false,
+          distancia_km: null,
         },
     validate: {
       nombre: (v) => (v.trim() ? null : "Requerido"),
@@ -83,6 +86,7 @@ export function LugarForm({
       localidad: values.localidad || null,
       municipio: values.municipio || null,
       referencia: values.referencia || null,
+      distancia_km: values.distancia_km == null ? null : numberInputValue(values.distancia_km),
     };
     if (lugar) {
       editar.mutate({ id: lugar.id, payload }, { onSuccess: onSaved });
@@ -140,6 +144,15 @@ export function LugarForm({
           label="Referencia"
           placeholder="Entrada por calle lateral…"
           {...form.getInputProps("referencia")}
+        />
+
+        <NumberInput
+          label="Kilómetros hasta este lugar"
+          description="Se sugiere al elegirlo como destino de un viaje. Vacío = 70 km marcados “no confirmado”."
+          min={0}
+          decimalScale={2}
+          suffix=" km"
+          {...form.getInputProps("distancia_km")}
         />
 
         {(clienteIdFijo ?? form.values.cliente_id) && (

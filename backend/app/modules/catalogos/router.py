@@ -1,7 +1,7 @@
 """Endpoints de catálogos y accesos — `03-api-contract §5`. Todo solo-admin."""
 import uuid
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 
 from app.core.db import get_session
@@ -9,7 +9,6 @@ from app.core.deps import require_role
 from app.core.errors import AppError
 from app.modules.auth.models import RolUsuario, Usuario
 from app.modules.catalogos import service
-from app.modules.catalogos.importar_km import importar_km
 from app.modules.catalogos.schemas import (
     AccesoOperadorCreate,
     AccesoOperadorOut,
@@ -255,13 +254,6 @@ def restaurar_mercancia(
 
 
 # --- Lugares ----------------------------------------------------------------
-@router.post("/catalogos/lugares/importar-km")
-async def importar_km_lugares(
-    archivo: UploadFile = File(...), session: Session = Depends(get_session)
-) -> dict:
-    """Admin: sube el Excel de Carta Porte para cargar los km por destino de cada cliente."""
-    return importar_km(session, await archivo.read())
-
 
 @router.get("/catalogos/lugares", response_model=list[LugarOut])
 def listar_lugares(

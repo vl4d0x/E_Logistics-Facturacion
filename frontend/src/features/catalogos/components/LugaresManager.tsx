@@ -80,6 +80,7 @@ export function LugaresManager({ clienteIdFijo }: { clienteIdFijo?: string }) {
             {esGlobal && <Table.Th>Cliente</Table.Th>}
             <Table.Th>CP</Table.Th>
             <Table.Th>Estado</Table.Th>
+            <Table.Th>Km</Table.Th>
             <Table.Th>Estatus</Table.Th>
             <Table.Th />
           </Table.Tr>
@@ -104,6 +105,7 @@ export function LugaresManager({ clienteIdFijo }: { clienteIdFijo?: string }) {
               )}
               <Table.Td>{lugar.codigo_postal}</Table.Td>
               <Table.Td>{lugar.estado}</Table.Td>
+              <Table.Td>{lugar.distancia_km != null ? `${lugar.distancia_km} km` : "—"}</Table.Td>
               <Table.Td>
                 <Badge color={lugar.activo ? "green" : "gray"} variant="light">
                   {lugar.activo ? "Activo" : "Archivado"}

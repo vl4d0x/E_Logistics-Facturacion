@@ -1,7 +1,5 @@
 """Tests de servicios y viajes — `fase-2-servicios §Definición de terminado`."""
-import io
 
-import openpyxl
 from fastapi.testclient import TestClient
 
 from app.modules.auth.models import Usuario
@@ -354,15 +352,12 @@ def test_distancia_sugerida(client: TestClient, admin_user: Usuario):
         },
         headers=headers,
     ).json()
-    excel = _excel_km([["ALIMENTOS BAAB", "ABA131030NV2", "04300", "65km"], ["Sin Lugar SA", "X", "01000", 10]])
-    r = client.post(
-        f"{API}/catalogos/lugares/importar-km",
-        files={"archivo": ("CartaPorte.xlsx", excel, "application/octet-stream")},
-        headers=headers,
+    # Con km capturado en el catálogo de Lugares: ese km, confirmado (sin importar el origen).
+    editado = client.patch(
+        f"{API}/catalogos/lugares/{baab['id']}", json={"distancia_km": 65}, headers=headers
     )
-    assert r.status_code == 200, r.text
-    hoja = r.json()["hojas"][0]
-    assert hoja["actualizados"] == 1 and hoja["sin_lugar"] == ["Sin Lugar SA"]
+    assert editado.status_code == 200, editado.text
+    assert editado.json()["distancia_km"] == 65.0
     con_km = client.get(
         f"{API}/lugares/distancia-sugerida?destino_lugar_id={baab['id']}", headers=headers
     )
@@ -411,15 +406,3 @@ def test_catalogo_bloquea_archivar_con_servicio_activo(client: TestClient, admin
     ).json()
     assert uso_lugar["referencias"]["viajes"] == 1
     assert len(uso_lugar["bloqueos"]) == 1
-
-
-def _excel_km(filas: list[list]) -> bytes:
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "CHEMITAL"
-    ws.append(["NOMBRE", "RFC", "CP", "KM"])
-    for fila in filas:
-        ws.append(fila)
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()

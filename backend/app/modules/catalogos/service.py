@@ -499,6 +499,7 @@ def create_lugar(session: Session, data: LugarCreate) -> Lugar:
     if data.es_origen_predeterminado:
         _desmarcar_origen_predeterminado(session, data.cliente_id)
     lugar = Lugar(**data.model_dump())
+    lugar.km_confirmado = lugar.distancia_km is not None
     session.add(lugar)
     session.commit()
     session.refresh(lugar)
@@ -512,6 +513,8 @@ def update_lugar(session: Session, lugar_id: uuid.UUID, data: LugarUpdate) -> Lu
     if payload.get("es_origen_predeterminado"):
         _desmarcar_origen_predeterminado(session, cliente_id, excluir_id=lugar_id)
     _apply_patch(lugar, payload)
+    if "distancia_km" in payload:
+        lugar.km_confirmado = lugar.distancia_km is not None
     session.add(lugar)
     session.commit()
     session.refresh(lugar)

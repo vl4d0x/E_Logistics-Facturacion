@@ -113,6 +113,7 @@ export interface Lugar {
   codigo_postal: string;
   referencia: string | null;
   es_origen_predeterminado: boolean;
+  distancia_km?: number | null;
   activo: boolean;
 }
 

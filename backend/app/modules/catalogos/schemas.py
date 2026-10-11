@@ -187,6 +187,7 @@ class LugarBase(BaseModel):
     codigo_postal: str
     referencia: str | None = None
     es_origen_predeterminado: bool = False
+    distancia_km: float | None = None  # km típico hasta este lugar (sugerido al armar un servicio)
 
 
 class LugarCreate(LugarBase):
@@ -208,6 +209,7 @@ class LugarUpdate(BaseModel):
     codigo_postal: str | None = None
     referencia: str | None = None
     es_origen_predeterminado: bool | None = None
+    distancia_km: float | None = None
 
 
 class LugarOut(LugarBase):

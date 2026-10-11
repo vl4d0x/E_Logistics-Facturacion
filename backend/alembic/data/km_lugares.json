@@ -1,0 +1,700 @@
+{
+    "AERZEN":  [
+                   {
+                       "nombre":  "AERZEN DE MEXICO",
+                       "cp":  "52166",
+                       "km":  null
+                   },
+                   {
+                       "nombre":  "BIMBO",
+                       "cp":  "36580",
+                       "km":  230
+                   },
+                   {
+                       "nombre":  "CALIDRA DE APASCO",
+                       "cp":  "55660",
+                       "km":  170
+                   },
+                   {
+                       "nombre":  "CALIDRA DE OCCIENTE",
+                       "cp":  "48540",
+                       "km":  600
+                   },
+                   {
+                       "nombre":  "CALIDRA DE ORIENTE",
+                       "cp":  "75112",
+                       "km":  300
+                   },
+                   {
+                       "nombre":  "CASA CUERVO",
+                       "cp":  "45438",
+                       "km":  600
+                   },
+                   {
+                       "nombre":  "CHAMPIÑONES LOS ALTOS MB",
+                       "cp":  "45477",
+                       "km":  600
+                   },
+                   {
+                       "nombre":  "CEMEX JALISCO",
+                       "cp":  "44940",
+                       "km":  630
+                   },
+                   {
+                       "nombre":  "CEMEX TAMUIN",
+                       "cp":  "79200",
+                       "km":  580
+                   },
+                   {
+                       "nombre":  "CERVECERIA CUAUHTEMOC MOCTEZUMA",
+                       "cp":  "33130",
+                       "km":  1400
+                   },
+                   {
+                       "nombre":  "ECOSISTEMAS DE TUXTLA",
+                       "cp":  "29020",
+                       "km":  1100
+                   },
+                   {
+                       "nombre":  "HARINERA LOS PIRINEOS",
+                       "cp":  "36700",
+                       "km":  230
+                   },
+                   {
+                       "nombre":  "HONDA DE MEXICO",
+                       "cp":  "38140",
+                       "km":  240
+                   },
+                   {
+                       "nombre":  "INNOVIA FILMS MEXICO",
+                       "cp":  "58600",
+                       "km":  350
+                   },
+                   {
+                       "nombre":  "MUNSA MOLINOS",
+                       "cp":  "42950",
+                       "km":  160
+                   },
+                   {
+                       "nombre":  "NESTLE",
+                       "cp":  "47800",
+                       "km":  600
+                   },
+                   {
+                       "nombre":  "OPERADORA DE MOLINOS",
+                       "cp":  "58594",
+                       "km":  300
+                   },
+                   {
+                       "nombre":  "RAIMSA",
+                       "cp":  "76246",
+                       "km":  200
+                   },
+                   {
+                       "nombre":  "POLIETILENOS DEL SUR",
+                       "cp":  "62578",
+                       "km":  300
+                   },
+                   {
+                       "nombre":  "CMI GROUP HOLDINGS",
+                       "cp":  "78395",
+                       "km":  220
+                   }
+               ],
+    "CHEMITAL":  [
+                     {
+                         "nombre":  "CHEMITAL DE MEXICO",
+                         "cp":  "52004",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "ALDISAN",
+                         "cp":  "09209",
+                         "km":  83
+                     },
+                     {
+                         "nombre":  "AMERICAN SPECIALIZED TEXTILES",
+                         "cp":  "55340",
+                         "km":  83
+                     },
+                     {
+                         "nombre":  "ALIMENTOS BAAB",
+                         "cp":  "04300",
+                         "km":  65
+                     },
+                     {
+                         "nombre":  "ALIMENTOS EFA",
+                         "cp":  "57819",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "ALIMENTOS Y EMBUTIDOS JARVA",
+                         "cp":  "57460",
+                         "km":  63
+                     },
+                     {
+                         "nombre":  "ALIMENTOS PAR",
+                         "cp":  "57819",
+                         "km":  69
+                     },
+                     {
+                         "nombre":  "ALFREDO CABAÑAS GUZMAN",
+                         "cp":  "52048",
+                         "km":  80
+                     },
+                     {
+                         "nombre":  "ALSUR",
+                         "cp":  "54730",
+                         "km":  90
+                     },
+                     {
+                         "nombre":  "APLICACIONES FLEXOGRAFICAS",
+                         "cp":  "54180",
+                         "km":  82
+                     },
+                     {
+                         "nombre":  "BRIGHT COLOR INC",
+                         "cp":  "50220",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "COLORBATCH",
+                         "cp":  "01789",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "COMERCIALIZADORA DE PIGMENTOS PARA PLASTICO",
+                         "cp":  "52967",
+                         "km":  75
+                     },
+                     {
+                         "nombre":  "COMERCIALIZADORA DE CARNES ROSSPORK",
+                         "cp":  "14160",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "COMERCIALIZADORA PISIS",
+                         "cp":  "09100",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "COMERCIALIZADORA MK DE SAN JUAN",
+                         "cp":  "76843",
+                         "km":  180
+                     },
+                     {
+                         "nombre":  "COMERCIALIZADORA SUPERKARNE",
+                         "cp":  "54073",
+                         "km":  65
+                     },
+                     {
+                         "nombre":  "COMERCIALIZADORA Y EMPACADORA DE CARNICOS MAREN",
+                         "cp":  "53530",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "DISTRIBUIDORA DE CARNE MAVA CARR",
+                         "cp":  "15300",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "DISTRIBUIDORA DE CARNES SELECTAS Y SUS DERIVADOS MAG",
+                         "cp":  "02250",
+                         "km":  71
+                     },
+                     {
+                         "nombre":  "DISTRIBUIDORA DE TERNERA AMERICA LUIS",
+                         "cp":  "06600",
+                         "km":  65
+                     },
+                     {
+                         "nombre":  "DISTRIBUIDORA VASSA DIVASSA",
+                         "cp":  "54030",
+                         "km":  80
+                     },
+                     {
+                         "nombre":  "EMPACADORA DE CARNES FRIAS HANZ",
+                         "cp":  "02040",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "EMPACADORA LAS POLVILLAS",
+                         "cp":  "54159",
+                         "km":  61
+                     },
+                     {
+                         "nombre":  "EMPACADORA SAN BENITO",
+                         "cp":  "11320",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "EMPACADORA SILVA",
+                         "cp":  "03300",
+                         "km":  55
+                     },
+                     {
+                         "nombre":  "ENTRETELAS BRINCO",
+                         "cp":  "54900",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "EQUILIBRIUM COLOUR",
+                         "cp":  "09300",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "EVA SANTAMARIA CARRANZA",
+                         "cp":  "54060",
+                         "km":  80
+                     },
+                     {
+                         "nombre":  "EXPRESS TIENDAS DE ALIMENTOS BASICOS",
+                         "cp":  "04930",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "FLETES ALTEÑA",
+                         "cp":  "54090",
+                         "km":  95
+                     },
+                     {
+                         "nombre":  "FOMENTO AGROALIMENTARIO MEXICANO",
+                         "cp":  "08300",
+                         "km":  68
+                     },
+                     {
+                         "nombre":  "GRAPHIC SCIENCES",
+                         "cp":  "53618",
+                         "km":  68
+                     },
+                     {
+                         "nombre":  "GRUPO ISKAG",
+                         "cp":  "53150",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "IRWING RODRIGO TENORIO JIMENEZ",
+                         "cp":  "52947",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "LA PILARCA",
+                         "cp":  "56530",
+                         "km":  106
+                     },
+                     {
+                         "nombre":  "NUEVA WALMART DE MEXICO",
+                         "cp":  "54830",
+                         "km":  96
+                     },
+                     {
+                         "nombre":  "OBRADOR SANTA ROSA",
+                         "cp":  "07620",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "OBRADOR Y EMPACADORA LA BARCA",
+                         "cp":  "54030",
+                         "km":  80
+                     },
+                     {
+                         "nombre":  "PLASTIPIGMENTOS E INSUMOS",
+                         "cp":  "08710",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "PRODUCTOS CARNICOS AR",
+                         "cp":  "54030",
+                         "km":  80
+                     },
+                     {
+                         "nombre":  "PRODUCTOS FINOS DEL PATRON",
+                         "cp":  "57210",
+                         "km":  76
+                     },
+                     {
+                         "nombre":  "PROCESADORA MMF",
+                         "cp":  "53140",
+                         "km":  19024
+                     },
+                     {
+                         "nombre":  "PRODUCTOS NEZA",
+                         "cp":  "57810",
+                         "km":  87
+                     },
+                     {
+                         "nombre":  "PROVELAC",
+                         "cp":  "11650",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "QUALTIA ALIMENTOS OPERACIONES",
+                         "cp":  "54614",
+                         "km":  97
+                     },
+                     {
+                         "nombre":  "SIGMA EMPACADORA DE EMBUTIDOS DEL CENTRO",
+                         "cp":  "57819",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "TINTAS PARA IMPRESIÓN PRISMA",
+                         "cp":  "54180",
+                         "km":  82
+                     },
+                     {
+                         "nombre":  "TINTAS GRAFICOLOR",
+                         "cp":  "55320",
+                         "km":  90
+                     },
+                     {
+                         "nombre":  "RAY COLOR",
+                         "cp":  "06800",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "RECUBRIMIENTOS PLASTICOS VVV",
+                         "cp":  "55320",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "REALIZADORA DE PLASTICOS",
+                         "cp":  "54900",
+                         "km":  90
+                     },
+                     {
+                         "nombre":  "X O DE CHIHUAHUA",
+                         "cp":  "11320",
+                         "km":  70
+                     },
+                     {
+                         "nombre":  "YACARNICOS",
+                         "cp":  "55016",
+                         "km":  110
+                     }
+                 ],
+    "FARMABIOT":  [
+                      {
+                          "nombre":  "FARMABIOT",
+                          "cp":  "50200",
+                          "km":  null
+                      },
+                      {
+                          "nombre":  "ACCORD FARMA",
+                          "cp":  "07000",
+                          "km":  72
+                      }
+                  ],
+    "LESAFFRE":  [
+                     {
+                         "nombre":  "LESAFFRE MEXICO",
+                         "cp":  "50246",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "HITACHI P1",
+                         "cp":  "52000",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "FERMEX",
+                         "cp":  "94453",
+                         "km":  280
+                     },
+                     {
+                         "nombre":  "HITACHI P3",
+                         "cp":  "52004",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "MAHLE COMPONENTES DE MOTOR",
+                         "cp":  "52000",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "RAIMSA",
+                         "cp":  "76246",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "POLIETILENOS DEL SUR",
+                         "cp":  "62578",
+                         "km":  300
+                     },
+                     {
+                         "nombre":  "CMI GROUP HOLDINGS",
+                         "cp":  "78395",
+                         "km":  220
+                     }
+                 ],
+    "SUSTAINABLE":  [
+                        {
+                            "nombre":  "TIENDAS SORIANA",
+                            "cp":  "38090",
+                            "km":  300
+                        },
+                        {
+                            "nombre":  "ALMACEN IZTACALCO",
+                            "cp":  "81000",
+                            "km":  null
+                        }
+                    ],
+    "PARAUTOS":  [
+                     {
+                         "nombre":  "PARAUTOS",
+                         "cp":  "76246",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "AUTOPARTES WALKER",
+                         "cp":  "72990",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "CAMEN QUIMICA",
+                         "cp":  "08400",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "CMI GROUP HOLDINGS",
+                         "cp":  "78395",
+                         "km":  220
+                     },
+                     {
+                         "nombre":  "CORPORATIVO INSAIMEX",
+                         "cp":  "72990",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "DAIMLER VEHICULOS COMERCIALES MEXICO",
+                         "cp":  "05348",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "DONALDSON",
+                         "cp":  "20290",
+                         "km":  570
+                     },
+                     {
+                         "nombre":  "EFTEC MEXICO",
+                         "cp":  "62570",
+                         "km":  102
+                     },
+                     {
+                         "nombre":  "FEDERAL MOGUL",
+                         "cp":  "72210",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "FRICCION Y TECNOLOGIA",
+                         "cp":  "09570",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "FTE MEXICANA",
+                         "cp":  "72990",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "HITACHI ASTEMO",
+                         "cp":  "52000",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "HITACHI P2",
+                         "cp":  "52004",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "HITACHI P3",
+                         "cp":  "52004",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "HONDA DE MEXICO",
+                         "cp":  "38140",
+                         "km":  240
+                     },
+                     {
+                         "nombre":  "KIRIU MEXICANA",
+                         "cp":  "52000",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "POLIETILENOS DEL SUR",
+                         "cp":  "62578",
+                         "km":  300
+                     },
+                     {
+                         "nombre":  "MANUFACTURERA DE CIGUEÑALES DE MEXICO",
+                         "cp":  "52300",
+                         "km":  30
+                     },
+                     {
+                         "nombre":  "MAHLE COMPONENTES DE MOTOR",
+                         "cp":  "52000",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "MAYEKAWA DE MEXICO",
+                         "cp":  "62578",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "MCCORD PAYEN DE MEXICO",
+                         "cp":  "53560",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "RAIMSA",
+                         "cp":  "56400",
+                         "km":  200
+                     },
+                     {
+                         "nombre":  "RASSINI FRENOS",
+                         "cp":  "74129",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "ROLLOS ESPECIALES",
+                         "cp":  "08400",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "RYBISA",
+                         "cp":  "08100",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "SKF DE MEXICO",
+                         "cp":  "72104",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "SYPRIS TECHNOLOGIES MEXICO",
+                         "cp":  "50071",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "THYSSENKRUPP PRESTA DE MEXICO",
+                         "cp":  "74160",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "TRANSMISIONES Y EQUIPOS MECANICOS",
+                         "cp":  "76120",
+                         "km":  null
+                     },
+                     {
+                         "nombre":  "VC LAMINATIONS",
+                         "cp":  "76806",
+                         "km":  180
+                     },
+                     {
+                         "nombre":  "ZWISSTECH MEXICO",
+                         "cp":  "90430",
+                         "km":  null
+                     }
+                 ],
+    "LITOGRIMANN":  [
+                        {
+                            "nombre":  "LITOGRIMANN",
+                            "cp":  "50200",
+                            "km":  null
+                        },
+                        {
+                            "nombre":  "EMPACADORA THERBAL",
+                            "cp":  "09850",
+                            "km":  68
+                        },
+                        {
+                            "nombre":  "ESSITY HIGIENE Y SALUD MEXICO",
+                            "cp":  "01210",
+                            "km":  55
+                        },
+                        {
+                            "nombre":  "B BRAUN AESCULAP DE MEXICO",
+                            "cp":  "52500",
+                            "km":  32
+                        },
+                        {
+                            "nombre":  "BOTANICALS INTERNACIONAL",
+                            "cp":  "54716",
+                            "km":  90
+                        },
+                        {
+                            "nombre":  "COTSCO CULIACAN",
+                            "cp":  "80020",
+                            "km":  1.2
+                        },
+                        {
+                            "nombre":  "DOBOS",
+                            "cp":  "50200",
+                            "km":  null
+                        },
+                        {
+                            "nombre":  "GRIMANN",
+                            "cp":  "52000",
+                            "km":  17
+                        },
+                        {
+                            "nombre":  "GRUPO BOTANICO NAYEC",
+                            "cp":  "09850",
+                            "km":  68
+                        },
+                        {
+                            "nombre":  "GRUPO RODEH",
+                            "cp":  "52757",
+                            "km":  22
+                        },
+                        {
+                            "nombre":  "INDUSTRIAS PLASTICAS MARTIN",
+                            "cp":  "07510",
+                            "km":  68
+                        },
+                        {
+                            "nombre":  "FARMABIOT",
+                            "cp":  "50200",
+                            "km":  5
+                        },
+                        {
+                            "nombre":  "LESSO MEXICO",
+                            "cp":  "52004",
+                            "km":  12
+                        },
+                        {
+                            "nombre":  "PROSENTEC",
+                            "cp":  "50233",
+                            "km":  12
+                        },
+                        {
+                            "nombre":  "MERISANT US INC",
+                            "cp":  "52787",
+                            "km":  49
+                        },
+                        {
+                            "nombre":  "MAPED MEXICO",
+                            "cp":  "62790",
+                            "km":  159
+                        },
+                        {
+                            "nombre":  "PFS DE MEXICO",
+                            "cp":  "54769",
+                            "km":  78
+                        },
+                        {
+                            "nombre":  "SCHWABE MEXICO",
+                            "cp":  "62790",
+                            "km":  159
+                        }
+                    ],
+    "fortalab":  [
+
+                 ],
+    "ENVOLVEX":  [
+
+                 ],
+    "COLABORADORES":  [
+
+                      ]
+}
