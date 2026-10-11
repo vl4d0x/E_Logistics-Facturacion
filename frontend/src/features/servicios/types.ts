@@ -3,6 +3,7 @@ import type { CargaOut, Cierre, Inspeccion, MercanciaClienteResumen } from "../o
 
 export type EstadoServicio = "programado" | "en_curso" | "terminado" | "cancelado";
 export type EstadoFacturacion = "pendiente" | "facturado";
+export type TimbradoModo = "precio" | "cero";
 export type TipoViaje = "recoleccion" | "entrega" | "recoleccion_entrega";
 export type EstadoViaje = "pendiente" | "terminado";
 
@@ -89,6 +90,7 @@ export interface ServicioCreate {
   subtotal?: number | null;
   notas?: string | null;
   timbrado_anticipado?: boolean;
+  timbrado_modo?: TimbradoModo;
   viajes: ViajeIn[];
 }
 
@@ -99,6 +101,7 @@ export interface ServicioUpdate {
   subtotal?: number | null;
   notas?: string | null;
   timbrado_anticipado?: boolean;
+  timbrado_modo?: TimbradoModo;
 }
 
 export interface ServicioDetalle {
@@ -108,6 +111,7 @@ export interface ServicioDetalle {
   estado: EstadoServicio;
   estado_facturacion: EstadoFacturacion;
   timbrado_anticipado: boolean;
+  timbrado_modo: TimbradoModo;
   cliente: { id: string; nombre_comercial: string; modo_acuse: string; regimen_receptor: string };
   unidad: { id: string; apodo: string; tipo_medidor: string; num_barras: number | null };
   operador: { id: string; nombre: string };

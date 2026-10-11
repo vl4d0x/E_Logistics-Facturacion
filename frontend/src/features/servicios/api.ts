@@ -220,13 +220,15 @@ export function useAgregarAcuseArchivo(servicioId: string) {
   });
 }
 
-export function useDistanciaSugerida(origenId: string | null, destinoId: string | null) {
-  return useQuery({
-    queryKey: ["distancia-sugerida", origenId, destinoId],
-    queryFn: () =>
-      api.get<{ distancia_km: number | null; fuente: string | null }>(
-        `/api/v1/lugares/distancia-sugerida?origen_lugar_id=${origenId}&destino_lugar_id=${destinoId}`,
-      ),
-    enabled: Boolean(origenId && destinoId),
-  });
+// Km sugerido: el último capturado hacia ese destino (sin importar el origen). Ver
+// `specs/IDEAS-FUTURAS.md`.
+export async function fetchDistanciaSugerida(destinoId: string): Promise<number | null> {
+  try {
+    const res = await api.get<{ distancia_km: number | null }>(
+      `/api/v1/lugares/distancia-sugerida?destino_lugar_id=${destinoId}`,
+    );
+    return res.distancia_km;
+  } catch {
+    return null; // la sugerencia es solo una ayuda; nunca debe estorbar
+  }
 }

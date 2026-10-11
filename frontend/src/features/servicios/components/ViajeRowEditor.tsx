@@ -3,7 +3,9 @@
 // (modo "nuevo servicio") como para uno ya persistido (modo edición).
 import { ActionIcon, Badge, Group, NumberInput, SegmentedControl, Stack, Textarea } from "@mantine/core";
 import { IconLock, IconTrash } from "@tabler/icons-react";
+import { useRef } from "react";
 import { numberInputValue } from "../../../lib/numberInput";
+import { fetchDistanciaSugerida } from "../api";
 import type { TipoViaje } from "../types";
 import { LugarSelect } from "./LugarSelect";
 
@@ -32,6 +34,21 @@ export function ViajeRowEditor({
 }) {
   const requiereOrigen = viaje.tipo === "recoleccion" || viaje.tipo === "recoleccion_entrega";
   const requiereDestino = viaje.tipo === "entrega" || viaje.tipo === "recoleccion_entrega";
+
+  // Km sugerido por destino: solo pisa el campo si está vacío o si aún tiene el valor que
+  // puso la sugerencia (si el admin lo tecleó, se respeta).
+  const kmAutomatico = useRef<number | null>(null);
+
+  async function elegirDestino(destinoId: string | null) {
+    onChange({ destino_lugar_id: destinoId });
+    if (!destinoId) return;
+    const km = await fetchDistanciaSugerida(destinoId);
+    if (km == null) return;
+    if (viaje.distancia_km == null || viaje.distancia_km === kmAutomatico.current) {
+      kmAutomatico.current = km;
+      onChange({ distancia_km: km });
+    }
+  }
 
   return (
     <Stack
@@ -86,7 +103,7 @@ export function ViajeRowEditor({
             clienteId={clienteId}
             label="Destino"
             value={viaje.destino_lugar_id}
-            onChange={(v) => onChange({ destino_lugar_id: v })}
+            onChange={elegirDestino}
           />
         )}
       </Group>

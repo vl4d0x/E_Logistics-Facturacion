@@ -202,6 +202,7 @@ def create_servicio(session: Session, data: ServicioCreate, current_user: Usuari
         subtotal=data.subtotal,
         notas=data.notas,
         timbrado_anticipado=data.timbrado_anticipado,
+        timbrado_modo=data.timbrado_modo if data.timbrado_anticipado else "precio",
         created_by=current_user.id,
     )
     session.add(servicio)
@@ -311,6 +312,7 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
         estado=servicio.estado,
         estado_facturacion=servicio.estado_facturacion,
         timbrado_anticipado=servicio.timbrado_anticipado,
+        timbrado_modo=servicio.timbrado_modo,
         cliente={
             "id": cliente.id,
             "nombre_comercial": cliente.nombre_comercial,
@@ -455,7 +457,8 @@ def update_servicio(session: Session, servicio_id: uuid.UUID, data: ServicioUpda
 
     nuevo_subtotal = payload.get("subtotal", servicio.subtotal)
     nuevo_anticipado = payload.get("timbrado_anticipado", servicio.timbrado_anticipado)
-    if nuevo_anticipado and not (nuevo_subtotal and nuevo_subtotal > 0):
+    nuevo_modo = payload.get("timbrado_modo") or servicio.timbrado_modo
+    if nuevo_anticipado and nuevo_modo == "precio" and not (nuevo_subtotal and nuevo_subtotal > 0):
         raise AppError(
             "validation_error",
             "timbrado_anticipado exige subtotal > 0",
@@ -810,12 +813,14 @@ def eliminar_acuse(session: Session, acuse_id: uuid.UUID) -> None:
 
 
 def distancia_sugerida(
-    session: Session, origen_lugar_id: uuid.UUID, destino_lugar_id: uuid.UUID
+    session: Session, destino_lugar_id: uuid.UUID, origen_lugar_id: uuid.UUID | None = None
 ) -> tuple[float | None, str | None]:
+    """Último km capturado hacia ese destino, sin importar el origen (una entrega sola
+    guarda su origen como null, así que el par casi nunca existe). Es una aproximación a
+    propósito; ver `specs/IDEAS-FUTURAS.md` (km por par origen-destino)."""
     ultimo = session.exec(
         select(Viaje)
         .where(
-            Viaje.origen_lugar_id == origen_lugar_id,
             Viaje.destino_lugar_id == destino_lugar_id,
             Viaje.distancia_km.is_not(None),
         )

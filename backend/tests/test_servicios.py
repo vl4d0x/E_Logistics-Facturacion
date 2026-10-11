@@ -152,7 +152,23 @@ def test_timbrado_anticipado_exige_subtotal(client: TestClient, admin_user: Usua
     assert ok.json()["timbrado_anticipado"] is True
 
 
-def test_lista_y_conteos(client: TestClient, admin_user: Usuario):
+def test_timbrado_anticipado_en_cero_no_exige_subtotal(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    payload = _servicio_payload(cat, timbrado_anticipado=True, timbrado_modo="cero")
+    ok = client.post(f"{API}/servicios", json=payload, headers=headers)
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["timbrado_modo"] == "cero"
+
+    # sin la casilla, el modo se ignora
+    sin_casilla = client.post(
+        f"{API}/servicios", json=_servicio_payload(cat, timbrado_modo="cero"), headers=headers
+    )
+    assert sin_casilla.json()["timbrado_modo"] == "precio"
+
+
+def test_lista_y_conteos(
+client: TestClient, admin_user: Usuario):
     headers = _auth_headers(client, admin_user.email)
     cat = _setup_catalogos(client, headers)
     client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers)
@@ -322,6 +338,13 @@ def test_distancia_sugerida(client: TestClient, admin_user: Usuario):
     )
     assert sugerida.status_code == 200
     assert sugerida.json() == {"distancia_km": 70.0, "fuente": "ultimo_viaje"}
+
+    # El km también se sugiere solo por destino (una entrega sola no guarda su origen).
+    solo_destino = client.get(
+        f"{API}/lugares/distancia-sugerida?destino_lugar_id={cat['destino']['id']}", headers=headers
+    )
+    assert solo_destino.status_code == 200
+    assert solo_destino.json()["distancia_km"] == 70.0
 
 
 def test_catalogo_bloquea_archivar_con_servicio_activo(client: TestClient, admin_user: Usuario):

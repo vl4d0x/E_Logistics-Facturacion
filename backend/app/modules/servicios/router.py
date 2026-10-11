@@ -211,11 +211,11 @@ def eliminar_acuse(acuse_id: uuid.UUID, session: Session = Depends(get_session))
 
 @router.get("/lugares/distancia-sugerida", response_model=DistanciaSugeridaOut)
 def distancia_sugerida(
-    origen_lugar_id: uuid.UUID,
     destino_lugar_id: uuid.UUID,
+    origen_lugar_id: uuid.UUID | None = None,
     session: Session = Depends(get_session),
 ) -> DistanciaSugeridaOut:
-    distancia, fuente = service.distancia_sugerida(session, origen_lugar_id, destino_lugar_id)
+    distancia, fuente = service.distancia_sugerida(session, destino_lugar_id, origen_lugar_id)
     return DistanciaSugeridaOut(distancia_km=distancia, fuente=fuente)
 
 

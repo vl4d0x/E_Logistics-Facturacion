@@ -128,6 +128,7 @@ class AcuseFacturarOut(BaseModel):
 
 class FacturacionDetalleOut(BaseModel):
     modo: str  # "normal" | "anticipado"
+    timbrado_modo: str = "precio"  # "precio" | "cero" (timbra con $0.10 y se cancela sola)
     servicio_id: uuid.UUID
     receptor: ReceptorOut
     concepto: ConceptoOut

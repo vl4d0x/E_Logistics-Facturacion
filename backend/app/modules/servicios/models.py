@@ -56,6 +56,10 @@ class Servicio(TimestampMixin, table=True):
         default=EstadoFacturacion.pendiente, nullable=False
     )
     timbrado_anticipado: bool = Field(default=False, nullable=False)
+    # 'precio' = timbrar con el subtotal; 'cero' = timbrar con $0.10, dejar descargar y
+    # cancelar solo (cliente que pide la Carta Porte antes de acordar el precio). Vuelve a
+    # 'precio' al consumirse, para que el siguiente timbrado use el precio real.
+    timbrado_modo: str = Field(default="precio", nullable=False)
     subtotal: Decimal | None = Field(default=None)
     descripcion_concepto: str | None = Field(default=None)
     # Folio propio del cliente (ej. su remisión) para el concepto de la factura --

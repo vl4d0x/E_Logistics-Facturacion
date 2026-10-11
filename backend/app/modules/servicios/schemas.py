@@ -122,13 +122,18 @@ class ServicioCreate(BaseModel):
     subtotal: Decimal | None = None
     notas: str | None = None
     timbrado_anticipado: bool = False
+    timbrado_modo: Literal["precio", "cero"] = "precio"
     viajes: list[ViajeCreate]
 
     @model_validator(mode="after")
     def _check(self) -> "ServicioCreate":
         if not self.viajes:
             raise ValueError("Un servicio necesita al menos un viaje")
-        if self.timbrado_anticipado and not (self.subtotal and self.subtotal > 0):
+        if (
+            self.timbrado_anticipado
+            and self.timbrado_modo == "precio"
+            and not (self.subtotal and self.subtotal > 0)
+        ):
             raise ValueError("timbrado_anticipado exige subtotal > 0")
         return self
 
@@ -140,6 +145,7 @@ class ServicioUpdate(BaseModel):
     subtotal: Decimal | None = None
     notas: str | None = None
     timbrado_anticipado: bool | None = None
+    timbrado_modo: Literal["precio", "cero"] | None = None
 
 
 class ClienteResumen(BaseModel):
@@ -168,6 +174,7 @@ class ServicioDetalleOut(BaseModel):
     estado: EstadoServicio
     estado_facturacion: EstadoFacturacion
     timbrado_anticipado: bool
+    timbrado_modo: str = "precio"
     cliente: ClienteResumen
     unidad: UnidadResumen
     operador: OperadorResumen

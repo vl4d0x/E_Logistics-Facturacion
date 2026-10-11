@@ -17,15 +17,16 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertTriangle, IconArrowLeft, IconCheck, IconX } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowLeft, IconCheck, IconDownload, IconX } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { ApiError } from "../../lib/api";
+import { descargarFactura } from "../facturas/api";
 import { AcuseViewerSimple } from "./components/AcuseViewerSimple";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { PriceField } from "./components/PriceField";
-import { useActualizarFacturacion, useFacturacionDetalle, useFacturar } from "./api";
+import { useActualizarFacturacion, useFacturacionDetalle, useFacturar, type FacturarResultado } from "./api";
 
 const USO_CFDI_OPCIONES = [
   { value: "G03", label: "G03 · Gastos en general" },
@@ -56,6 +57,7 @@ export function FacturarPage() {
   const [confirmarAbierto, setConfirmarAbierto] = useState(false);
   const [checksAbierto, setChecksAbierto] = useState(false);
   const [cargadoPara, setCargadoPara] = useState<string | null>(null);
+  const [resultadoCero, setResultadoCero] = useState<FacturarResultado | null>(null);
 
   if (detalle && detalle.servicio_id !== cargadoPara) {
     setCargadoPara(detalle.servicio_id);
@@ -72,6 +74,7 @@ export function FacturarPage() {
 
   if (isLoading || !detalle) return <Skeleton height={400} />;
 
+  const esCero = detalle.timbrado_modo === "cero";
   const errores = detalle.validacion.checks.filter((c) => c.nivel === "error");
   const warnings = detalle.validacion.checks.filter((c) => c.nivel === "warning");
   const oks = detalle.validacion.checks.filter((c) => c.nivel === "ok");
@@ -101,10 +104,15 @@ export function FacturarPage() {
     const total = detalle!.montos?.total;
     if (!total) return;
     facturar.mutate(total, {
-      onSuccess: () => {
-        notifications.show({ color: "green", message: "Factura timbrada" });
+      onSuccess: (res) => {
         setConfirmarAbierto(false);
-        navigate(`/admin/servicios/${id}`);
+        if (esCero) {
+          // Se queda aquí para que el admin descargue el PDF y el XML antes de salir.
+          setResultadoCero(res);
+          return;
+        }
+        notifications.show({ color: "green", message: "Factura timbrada" });
+        navigate(`/admin/servicios/`);
       },
       onError: (err) => {
         setConfirmarAbierto(false);
@@ -163,6 +171,30 @@ export function FacturarPage() {
         <Grid.Col span={{ base: 12, md: 7 }}>
           <Stack gap="md">
             <Card>
+              {esCero ? (
+                <Stack gap={6}>
+                  <Text size="sm" fw={600} c="dimmed">
+                    Timbrado sin precio
+                  </Text>
+                  <Text size="sm">
+                    Se timbra con un subtotal simbólico de <strong>$0.10</strong> y la factura se
+                    cancela sola (motivo 02). Después podrás descargar el PDF y el XML. El precio real se
+                    timbra más adelante.
+                  </Text>
+                  <Group justify="space-between">
+                    <Text size="sm">Subtotal</Text>
+                    <Text size="sm" ff="monospace">
+                      ${detalle.montos?.subtotal ?? "0.10"}
+                    </Text>
+                  </Group>
+                  <Group justify="space-between">
+                    <Text size="sm">IVA 16%</Text>
+                    <Text size="sm" ff="monospace">
+                      ${detalle.montos?.iva_trasladado ?? "0.02"}
+                    </Text>
+                  </Group>
+                </Stack>
+              ) : (
               <PriceField
                 subtotal={subtotal}
                 onChange={setSubtotal}
@@ -170,6 +202,7 @@ export function FacturarPage() {
                 regimenReceptor={detalle.receptor.regimen_receptor}
                 precioSugerido={detalle.precio_sugerido}
               />
+              )}
             </Card>
 
             <CollapsibleSection
@@ -374,7 +407,7 @@ export function FacturarPage() {
                     disabled={!detalle.validacion.ok || subtotal == null}
                     onClick={() => setConfirmarAbierto(true)}
                   >
-                    Timbrar factura · ${detalle.montos?.total ?? "0.00"}
+                    {esCero ? "Timbrar con $0 y cancelar" : "Timbrar factura"} · ${detalle.montos?.total ?? "0.00"}
                   </Button>
                 </Tooltip>
                 <Button variant="default" fullWidth onClick={() => navigate(`/admin/servicios/${id}`)}>
@@ -393,6 +426,11 @@ export function FacturarPage() {
             <strong>${detalle.montos?.total}</strong> ({detalle.receptor.metodo_pago}). Para corregirla
             después habrá que cancelarla ante el SAT.
           </Text>
+          {esCero && (
+            <Text size="sm" fw={600}>
+              Es un timbrado sin precio: la factura se cancelará automáticamente al terminar.
+            </Text>
+          )}
           {detalle.modo === "anticipado" && (
             <Text size="sm" c="dimmed">
               El servicio aún no se realiza: si cambia el precio, la ruta o la mercancía habrá que
@@ -406,6 +444,47 @@ export function FacturarPage() {
             <Button loading={facturar.isPending} onClick={confirmarTimbrado}>
               Timbrar
             </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={resultadoCero !== null}
+        onClose={() => navigate(`/admin/servicios/${id}`)}
+        title="Factura timbrada"
+        closeOnClickOutside={false}
+      >
+        <Stack>
+          {resultadoCero?.cancelada_automaticamente ? (
+            <Alert color="green" icon={<IconCheck size={16} />}>
+              Se timbró con $0.10 y la factura ya se canceló. Descarga los archivos para enviarlos al
+              cliente.
+            </Alert>
+          ) : (
+            <Alert color="yellow" icon={<IconAlertTriangle size={16} />}>
+              La factura se timbró, pero no se pudo cancelar sola
+              {resultadoCero?.cancelacion_error ? `: ${resultadoCero.cancelacion_error}` : "."} Descarga los
+              archivos y cancélala desde Facturas (motivo 02).
+            </Alert>
+          )}
+          <Group>
+            <Button
+              variant="default"
+              leftSection={<IconDownload size={16} />}
+              onClick={() => resultadoCero && descargarFactura(resultadoCero.factura.id, "pdf")}
+            >
+              Descargar PDF
+            </Button>
+            <Button
+              variant="default"
+              leftSection={<IconDownload size={16} />}
+              onClick={() => resultadoCero && descargarFactura(resultadoCero.factura.id, "xml")}
+            >
+              Descargar XML
+            </Button>
+          </Group>
+          <Group justify="flex-end">
+            <Button onClick={() => navigate(`/admin/servicios/${id}`)}>Listo</Button>
           </Group>
         </Stack>
       </Modal>

@@ -32,9 +32,16 @@ export function useActualizarFacturacion(servicioId: string) {
   });
 }
 
+export interface FacturarResultado {
+  factura: { id: string; uuid_fiscal: string | null; estado: string; total: string };
+  cancelada_automaticamente: boolean;
+  cancelacion_error: string | null;
+  archivos_guardados: boolean;
+}
+
 export function useFacturar(servicioId: string) {
   return useMutation({
     mutationFn: (totalEsperado: string) =>
-      api.post(`/api/v1/servicios/${servicioId}/facturar`, { total_esperado: totalEsperado }),
+      api.post<FacturarResultado>(`/api/v1/servicios/${servicioId}/facturar`, { total_esperado: totalEsperado }),
   });
 }

@@ -40,3 +40,14 @@ def test_round_half_up_no_banker_rounding():
     # 0.125 redondeado a 2 decimales: ROUND_HALF_UP da 0.13; banker's rounding daría 0.12.
     montos = calcular_impuestos(Decimal("0.125"), RegimenReceptor.fisica)
     assert montos.subtotal == Decimal("0.13")
+
+
+def test_subtotal_simbolico_del_timbrado_en_cero():
+    from app.modules.facturacion.taxes import SUBTOTAL_SIMBOLICO, subtotal_a_timbrar
+
+    assert SUBTOTAL_SIMBOLICO == Decimal("0.10")
+    assert subtotal_a_timbrar(Decimal("1650.00"), "cero") == Decimal("0.10")
+    assert subtotal_a_timbrar(Decimal("1650.00"), "precio") == Decimal("1650.00")
+    assert subtotal_a_timbrar(None, "precio") is None
+    # persona moral: IVA 0.016 -> 0.02, retención 0.004 -> 0.00
+    assert calcular_impuestos(SUBTOTAL_SIMBOLICO, RegimenReceptor.moral).total == Decimal("0.12")

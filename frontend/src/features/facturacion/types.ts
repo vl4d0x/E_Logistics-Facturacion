@@ -116,6 +116,7 @@ export interface Validacion {
 
 export interface FacturacionDetalle {
   modo: "normal" | "anticipado";
+  timbrado_modo: "precio" | "cero";
   servicio_id: string;
   receptor: Receptor;
   concepto: Concepto;

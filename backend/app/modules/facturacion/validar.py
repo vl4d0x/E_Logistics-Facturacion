@@ -13,6 +13,7 @@ from app.core.models import utcnow
 from app.modules.catalogos.models import Cliente, Lugar, Operador, Unidad
 from app.modules.configuracion.service import get_valor
 from app.modules.facturacion.schemas import ValidacionCheck
+from app.modules.facturacion.taxes import subtotal_a_timbrar
 from app.modules.operacion.models import InspeccionSalida
 from app.modules.servicios.models import (
     EstadoServicio,
@@ -22,6 +23,18 @@ from app.modules.servicios.models import (
     ViajeMercancia,
 )
 from app.modules.servicios.service import datos_fiscales_bloqueados
+
+
+def modo_timbrado(servicio: Servicio) -> str:
+    """`cero` solo cuenta mientras el timbrado anticipado siga vigente (servicio no terminado)."""
+    if servicio.timbrado_anticipado and servicio.estado != EstadoServicio.terminado:
+        return servicio.timbrado_modo
+    return "precio"
+
+
+def subtotal_efectivo(servicio: Servicio):
+    return subtotal_a_timbrar(servicio.subtotal, modo_timbrado(servicio))
+
 
 CAMPOS_INSPECCION = (
     "unidad_limpia",
@@ -96,7 +109,8 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         checks.append(_ok("origen_destino", "viajes"))
 
     # --- Subtotal ---
-    if servicio.subtotal is None or servicio.subtotal <= 0:
+    subtotal = subtotal_efectivo(servicio)
+    if subtotal is None or subtotal <= 0:
         checks.append(_error("subtotal_presente", "Captura un subtotal mayor a cero", "subtotal"))
     else:
         checks.append(_ok("subtotal_presente", "subtotal"))

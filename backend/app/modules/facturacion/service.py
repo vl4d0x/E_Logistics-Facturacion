@@ -31,7 +31,7 @@ from app.modules.facturacion.schemas import (
     ValidacionOut,
 )
 from app.modules.facturacion.taxes import calcular_impuestos, subtotal_desde_total
-from app.modules.facturacion.validar import validar_servicio
+from app.modules.facturacion.validar import modo_timbrado, subtotal_efectivo, validar_servicio
 from app.modules.precios.service import sugerir_para_servicio
 from app.modules.servicios.models import (
     Acuse,
@@ -67,8 +67,9 @@ def validar(session: Session, servicio_id: uuid.UUID) -> ValidacionOut:
     ok = not any(c.nivel == "error" for c in checks)
 
     preview = None
-    if servicio.subtotal and servicio.subtotal > Decimal(0):
-        montos = calcular_impuestos(servicio.subtotal, cliente.regimen_receptor)
+    subtotal_timbrar = subtotal_efectivo(servicio)
+    if subtotal_timbrar and subtotal_timbrar > Decimal(0):
+        montos = calcular_impuestos(subtotal_timbrar, cliente.regimen_receptor)
         preview = MontosOut(**montos._asdict())
 
     return ValidacionOut(ok=ok, checks=checks, preview=preview)
@@ -244,8 +245,9 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
     )
 
     montos = None
-    if servicio.subtotal and servicio.subtotal > Decimal(0):
-        montos = MontosOut(**calcular_impuestos(servicio.subtotal, cliente.regimen_receptor)._asdict())
+    subtotal_timbrar = subtotal_efectivo(servicio)
+    if subtotal_timbrar and subtotal_timbrar > Decimal(0):
+        montos = MontosOut(**calcular_impuestos(subtotal_timbrar, cliente.regimen_receptor)._asdict())
 
     sugerencia = sugerir_para_servicio(session, servicio)
     precio_sugerido = PrecioSugeridoOut(
@@ -270,6 +272,7 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
 
     return FacturacionDetalleOut(
         modo="anticipado" if anticipado else "normal",
+        timbrado_modo=modo_timbrado(servicio),
         servicio_id=servicio.id,
         receptor=ReceptorOut(
             razon_social=cliente.razon_social,
@@ -395,7 +398,7 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
     cliente = session.get(Cliente, servicio.cliente_id)
     unidad = session.get(Unidad, servicio.unidad_id)
     operador = session.get(Operador, servicio.operador_id)
-    montos = calcular_impuestos(servicio.subtotal, cliente.regimen_receptor)
+    montos = calcular_impuestos(subtotal_efectivo(servicio), cliente.regimen_receptor)
     if montos.total != body.total_esperado:
         raise AppError(
             "conflict",
@@ -540,8 +543,30 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
     # R2 después del commit: si falla, la factura sigue timbrada (`reintentar-archivos`).
     from app.modules.facturacion.facturas import guardar_archivos
 
-    guardar_archivos(session, factura)
+    archivos_guardados = guardar_archivos(session, factura)
     session.refresh(factura)
+
+    # Timbrado anticipado "sin precio": con los archivos ya guardados se cancela solo
+    # (motivo 02). Si la cancelación falla, la factura queda vigente y se avisa para
+    # cancelarla a mano desde la factura; el servicio sigue en modo `cero`.
+    cancelada_automaticamente = False
+    cancelacion_error: str | None = None
+    if modo_timbrado(servicio) == "cero":
+        from app.modules.facturacion.facturas import cancelar
+
+        try:
+            cancelar(session, factura, "02")
+        except AppError as exc:
+            session.rollback()
+            cancelacion_error = exc.message
+        else:
+            session.refresh(servicio)
+            if factura.estado == EstadoFactura.cancelada:
+                cancelada_automaticamente = True
+                servicio.timbrado_modo = "precio"  # consumido: el siguiente timbrado es con precio
+                session.add(servicio)
+                session.commit()
+        session.refresh(factura)
 
     return {
         "factura": {
@@ -551,5 +576,8 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
             "total": str(factura.total),
             "pdf_url": _url_o_none(factura.pdf_key),
             "xml_url": _url_o_none(factura.xml_key),
-        }
+        },
+        "cancelada_automaticamente": cancelada_automaticamente,
+        "cancelacion_error": cancelacion_error,
+        "archivos_guardados": archivos_guardados,
     }

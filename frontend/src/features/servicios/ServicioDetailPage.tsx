@@ -27,12 +27,14 @@ import {
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { TotalConIva } from "../../components/TotalConIva";
 import {
   useAgregarAcuseArchivo,
   useAgregarAcuseReferencia,
   useAgregarViaje,
   useCancelarServicio,
   useDuplicarServicio,
+  fetchDistanciaSugerida,
   useEliminarViaje,
   useMarcarTerminado,
   useReabrirViaje,
@@ -41,6 +43,7 @@ import {
 } from "./api";
 import { LugarSelect } from "./components/LugarSelect";
 import { OperatorReportCard } from "../operacion/components/OperatorReportCard";
+import type { RegimenReceptor } from "../catalogos/types";
 import type { TipoViaje, ViajeOut } from "./types";
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -260,8 +263,19 @@ export function ServicioDetailPage() {
           </Group>
         </Group>
         {servicio.subtotal && (
-          <Text mt="sm">
-            Subtotal: <strong>${Number(servicio.subtotal).toFixed(2)}</strong>
+          <div style={{ maxWidth: 280 }}>
+            <Text mt="sm">
+              Subtotal: <strong>${Number(servicio.subtotal).toFixed(2)}</strong>
+            </Text>
+            <TotalConIva
+              subtotal={Number(servicio.subtotal)}
+              regimenReceptor={servicio.cliente.regimen_receptor as RegimenReceptor}
+            />
+          </div>
+        )}
+        {servicio.timbrado_anticipado && servicio.timbrado_modo === "cero" && (
+          <Text size="sm" c="dimmed" mt="xs">
+            Se timbrará con $0.10 y la factura se cancelará sola; el precio real se timbra después.
           </Text>
         )}
         {servicio.notas && (
@@ -317,16 +331,21 @@ export function ServicioDetailPage() {
             <Button
               leftSection={<IconPlus size={16} />}
               loading={agregarViaje.isPending}
-              onClick={() =>
+              onClick={async () => {
+                const km =
+                  tipoNuevoViaje !== "recoleccion" && lugarNuevoViaje
+                    ? await fetchDistanciaSugerida(lugarNuevoViaje)
+                    : null;
                 agregarViaje.mutate(
                   {
                     tipo: tipoNuevoViaje,
                     origen_lugar_id: tipoNuevoViaje !== "entrega" ? lugarNuevoViaje : null,
                     destino_lugar_id: tipoNuevoViaje !== "recoleccion" ? lugarNuevoViaje : null,
+                    distancia_km: km,
                   },
                   { onSuccess: () => setLugarNuevoViaje(null) },
-                )
-              }
+                );
+              }}
             >
               Agregar
             </Button>

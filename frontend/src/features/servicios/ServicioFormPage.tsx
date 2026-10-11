@@ -5,6 +5,7 @@ import {
   Button,
   Group,
   NumberInput,
+  Radio,
   Select,
   Stack,
   Switch,
@@ -16,11 +17,13 @@ import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { TotalConIva } from "../../components/TotalConIva";
+import { calcularImpuestos } from "../../lib/money";
 import { numberInputValue } from "../../lib/numberInput";
 import { clientesApi, operadoresApi, unidadesApi } from "../catalogos/api";
 import { useLugares } from "../catalogos/api";
 import { useCrearServicio } from "./api";
-import type { ViajeIn } from "./types";
+import type { TimbradoModo, ViajeIn } from "./types";
 import { ViajeRowEditor, type ViajeDraft } from "./components/ViajeRowEditor";
 
 function nuevoId(): string {
@@ -48,6 +51,7 @@ export function ServicioFormPage() {
   const [notas, setNotas] = useState("");
   const [subtotal, setSubtotal] = useState<number | null>(null);
   const [timbradoAnticipado, setTimbradoAnticipado] = useState(false);
+  const [timbradoModo, setTimbradoModo] = useState<TimbradoModo>("precio");
   const [viajes, setViajes] = useState<ViajeDraft[]>([]);
 
   const { data: clientesPage } = clientesApi.useList("true", "");
@@ -69,14 +73,6 @@ export function ServicioFormPage() {
         key: nuevoId(),
         tipo: "recoleccion",
         origen_lugar_id: origenPredeterminado?.id ?? null,
-        destino_lugar_id: null,
-        distancia_km: null,
-        notas_admin: null,
-      },
-      {
-        key: nuevoId(),
-        tipo: "entrega",
-        origen_lugar_id: null,
         destino_lugar_id: null,
         distancia_km: null,
         notas_admin: null,
@@ -110,8 +106,9 @@ export function ServicioFormPage() {
   const clienteSeleccionado = clientesPage?.items.find((c) => c.id === clienteId);
   const operadorSeleccionado = operadoresPage?.items.find((o) => o.id === operadorId);
 
+  const subtotalObligatorio = timbradoAnticipado && timbradoModo === "precio";
   const puedeGuardar =
-    clienteId && unidadId && operadorId && viajes.length > 0 && (!timbradoAnticipado || subtotal);
+    clienteId && unidadId && operadorId && viajes.length > 0 && (!subtotalObligatorio || subtotal);
 
   function handleSubmit() {
     if (!clienteId || !unidadId || !operadorId) return;
@@ -124,6 +121,7 @@ export function ServicioFormPage() {
         notas: notas || null,
         subtotal,
         timbrado_anticipado: timbradoAnticipado,
+        timbrado_modo: timbradoAnticipado ? timbradoModo : "precio",
         viajes: viajes.map(draftToViajeIn),
       },
       {
@@ -217,7 +215,7 @@ export function ServicioFormPage() {
           {clienteId && (
             <Group mt="md">
               <Button
-                variant="default"
+                color="green"
                 size="xs"
                 leftSection={<IconPlus size={14} />}
                 onClick={() => agregarViaje("recoleccion")}
@@ -225,7 +223,7 @@ export function ServicioFormPage() {
                 Recolección
               </Button>
               <Button
-                variant="default"
+                color="green"
                 size="xs"
                 leftSection={<IconPlus size={14} />}
                 onClick={() => agregarViaje("entrega")}
@@ -260,28 +258,20 @@ export function ServicioFormPage() {
             </Text>
           )}
 
-          <Text fw={600} mt="lg" mb="sm">
-            Qué se le pedirá al operador
-          </Text>
-          <Text size="sm" c="dimmed">
-            {clienteSeleccionado
-              ? {
-                  escaneo: "Inspección de salida, mercancía y el acuse escaneado por entrega.",
-                  referencia: "Inspección de salida, mercancía y el folio del acuse por entrega.",
-                  ninguno: "Inspección de salida y mercancía — este cliente no pide acuse.",
-                }[clienteSeleccionado.modo_acuse]
-              : "Elige un cliente para ver qué le pedirá la app al operador."}
-          </Text>
-
           <NumberInput
             label="Subtotal"
-            description="Opcional, salvo si timbras antes del servicio"
             mt="lg"
             prefix="$"
             decimalScale={2}
             value={subtotal ?? undefined}
             onChange={(v) => setSubtotal(numberInputValue(v))}
           />
+          {!subtotalObligatorio && (
+            <Badge color="violet" variant="light" mt={6}>
+              Opcional
+            </Badge>
+          )}
+          <TotalConIva subtotal={subtotal} regimenReceptor={clienteSeleccionado?.regimen_receptor} />
 
           <Switch
             mt="md"
@@ -290,9 +280,31 @@ export function ServicioFormPage() {
             checked={timbradoAnticipado}
             onChange={(e) => setTimbradoAnticipado(e.currentTarget.checked)}
           />
-          {timbradoAnticipado && !subtotal && (
+          {timbradoAnticipado && (
+            <Radio.Group
+              mt="sm"
+              value={timbradoModo}
+              onChange={(v) => setTimbradoModo(v as TimbradoModo)}
+            >
+              <Stack gap="xs">
+                <Radio value="precio" label="Timbrar con precio" />
+                <Radio value="cero" label="Timbrar con $0 y cancelar" />
+              </Stack>
+            </Radio.Group>
+          )}
+          {timbradoAnticipado && timbradoModo === "precio" && !subtotal && (
             <Alert color="yellow" icon={<IconAlertTriangle size={16} />} mt="sm">
-              El subtotal es obligatorio para timbrar antes del servicio.
+              El subtotal es obligatorio para timbrar con precio.
+            </Alert>
+          )}
+          {timbradoAnticipado && timbradoModo === "cero" && (
+            <Alert color="blue" icon={<IconAlertTriangle size={16} />} mt="sm">
+              Para cuando aún no se acuerda el precio: se timbra con un subtotal simbólico de $0.10
+              {clienteSeleccionado
+                ? ` (total $${calcularImpuestos(0.1, clienteSeleccionado.regimen_receptor).total.toFixed(2)} con IVA)`
+                : ""}
+              , podrás descargar el PDF y el XML para el cliente, y la factura se cancela
+              automáticamente. Después se timbra con el precio real.
             </Alert>
           )}
 

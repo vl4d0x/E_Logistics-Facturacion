@@ -36,3 +36,13 @@ def calcular_impuestos(subtotal: Decimal, regimen_receptor: RegimenReceptor) -> 
 def subtotal_desde_total(total: Decimal, regimen_receptor: RegimenReceptor) -> Decimal:
     factor = Decimal("1.12") if regimen_receptor == RegimenReceptor.moral else Decimal("1.16")
     return _redondear(total / factor)
+
+
+# Timbrado anticipado "sin precio": se timbra con este subtotal simbólico y la factura se
+# cancela sola (motivo 02). Es < $1,000, así que la cancelación no requiere aceptación.
+SUBTOTAL_SIMBOLICO = Decimal("0.10")
+
+
+def subtotal_a_timbrar(subtotal: Decimal | None, timbrado_modo: str) -> Decimal | None:
+    """Subtotal que realmente irá al CFDI: el simbólico en modo `cero`, si no el del servicio."""
+    return SUBTOTAL_SIMBOLICO if timbrado_modo == "cero" else subtotal
