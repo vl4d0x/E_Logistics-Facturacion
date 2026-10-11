@@ -96,7 +96,7 @@ def _aplicar_tarifario(session: Session, servicio: Servicio, sugerencia: Sugeren
     unidad = session.get(Unidad, servicio.unidad_id)
     viajes = session.exec(select(Viaje).where(Viaje.servicio_id == servicio.id)).all()
     cps = [
-        lugar.codigo_postal if (lugar := session.get(Lugar, v.destino_lugar_id)) else None
+        (v.destino_cp or lugar.codigo_postal) if (lugar := session.get(Lugar, v.destino_lugar_id)) else None
         for v in viajes
         if v.destino_lugar_id
     ]

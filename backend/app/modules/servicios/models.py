@@ -89,6 +89,9 @@ class Viaje(TimestampMixin, table=True):
     hora_llegada_programada: time | None = Field(default=None)
     origen_lugar_id: uuid.UUID | None = Field(default=None, foreign_key="lugar.id")
     destino_lugar_id: uuid.UUID | None = Field(default=None, foreign_key="lugar.id")
+    # CP distinto al del lugar, solo para este viaje (None = usar el del lugar).
+    origen_cp: str | None = Field(default=None)
+    destino_cp: str | None = Field(default=None)
     distancia_km: float | None = Field(default=None)
     km_reportado: float | None = Field(default=None)
     hora_llegada: time | None = Field(default=None)

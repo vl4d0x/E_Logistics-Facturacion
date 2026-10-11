@@ -217,6 +217,8 @@ def create_servicio(session: Session, data: ServicioCreate, current_user: Usuari
             origen_lugar_id=viaje_in.origen_lugar_id,
             destino_lugar_id=viaje_in.destino_lugar_id,
             distancia_km=viaje_in.distancia_km,
+            origen_cp=viaje_in.origen_cp,
+            destino_cp=viaje_in.destino_cp,
             notas_admin=viaje_in.notas_admin,
             hora_salida_programada=viaje_in.hora_salida_programada,
             hora_llegada_programada=viaje_in.hora_llegada_programada,
@@ -293,6 +295,8 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
                 "hora_salida_programada": v.hora_salida_programada,
                 "hora_llegada_programada": v.hora_llegada_programada,
                 "distancia_km": v.distancia_km,
+                "origen_cp": v.origen_cp,
+                "destino_cp": v.destino_cp,
                 "km_reportado": v.km_reportado,
                 "hora_llegada": v.hora_llegada,
                 "terminado_at": v.terminado_at,
@@ -511,6 +515,8 @@ def duplicar_servicio(
             origen_lugar_id=v.origen_lugar_id,
             destino_lugar_id=v.destino_lugar_id,
             distancia_km=v.distancia_km,
+            origen_cp=v.origen_cp,
+            destino_cp=v.destino_cp,
             notas_admin=v.notas_admin,
         )
         session.add(copia)
@@ -577,6 +583,8 @@ def add_viaje(session: Session, servicio_id: uuid.UUID, data: ViajeCreate) -> Vi
         origen_lugar_id=data.origen_lugar_id,
         destino_lugar_id=data.destino_lugar_id,
         distancia_km=data.distancia_km,
+        origen_cp=data.origen_cp,
+        destino_cp=data.destino_cp,
         notas_admin=data.notas_admin,
         hora_salida_programada=data.hora_salida_programada,
         hora_llegada_programada=data.hora_llegada_programada,
@@ -811,24 +819,19 @@ def eliminar_acuse(session: Session, acuse_id: uuid.UUID) -> None:
 
 # --- Distancia sugerida ----------------------------------------------------
 
+KM_POR_DEFECTO = 70.0
+
 
 def distancia_sugerida(
     session: Session, destino_lugar_id: uuid.UUID, origen_lugar_id: uuid.UUID | None = None
-) -> tuple[float | None, str | None]:
-    """Último km capturado hacia ese destino, sin importar el origen (una entrega sola
-    guarda su origen como null, así que el par casi nunca existe). Es una aproximación a
-    propósito; ver `specs/IDEAS-FUTURAS.md` (km por par origen-destino)."""
-    ultimo = session.exec(
-        select(Viaje)
-        .where(
-            Viaje.destino_lugar_id == destino_lugar_id,
-            Viaje.distancia_km.is_not(None),
-        )
-        .order_by(Viaje.created_at.desc())
-    ).first()
-    if ultimo is None:
-        return None, None
-    return ultimo.distancia_km, "ultimo_viaje"
+) -> tuple[float, str, bool]:
+    """Km hacia el destino: el del Excel de Carta Porte del cliente (`lugar.distancia_km`,
+    confirmado) o, si no hay, 70 km marcados como no confirmados. El origen
+    no cuenta (aproximación a propósito; ver `specs/IDEAS-FUTURAS.md`)."""
+    lugar = session.get(Lugar, destino_lugar_id)
+    if lugar is not None and lugar.km_confirmado and lugar.distancia_km:
+        return lugar.distancia_km, "cliente", True
+    return KM_POR_DEFECTO, "por_defecto", False
 
 
 # --- Hook para Fase 1: contar_uso de catálogos ------------------------------

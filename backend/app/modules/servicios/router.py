@@ -215,8 +215,8 @@ def distancia_sugerida(
     origen_lugar_id: uuid.UUID | None = None,
     session: Session = Depends(get_session),
 ) -> DistanciaSugeridaOut:
-    distancia, fuente = service.distancia_sugerida(session, destino_lugar_id, origen_lugar_id)
-    return DistanciaSugeridaOut(distancia_km=distancia, fuente=fuente)
+    distancia, fuente, confirmado = service.distancia_sugerida(session, destino_lugar_id, origen_lugar_id)
+    return DistanciaSugeridaOut(distancia_km=distancia, fuente=fuente, confirmado=confirmado)
 
 
 # --- Cargas de combustible — corrección del admin (Fase 3, `03 §6`) ----------

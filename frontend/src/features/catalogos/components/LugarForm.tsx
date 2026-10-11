@@ -10,6 +10,7 @@ import type { Cliente, Lugar, LugarPayload } from "../types";
 export function LugarForm({
   lugar,
   clienteIdFijo,
+  nombreInicial,
   clientes,
   onCancel,
   onSaved,
@@ -17,6 +18,8 @@ export function LugarForm({
   lugar: Lugar | null;
   /** Si se da (tab Lugares de un cliente), el cliente no se puede cambiar. */
   clienteIdFijo?: string;
+  /** Nombre precargado al crear un lugar nuevo (lo que el admin ya había escrito al buscar). */
+  nombreInicial?: string;
   /** Lista de clientes para el selector, solo cuando no hay `clienteIdFijo` (vista global). */
   clientes?: Cliente[];
   onCancel: () => void;
@@ -45,7 +48,7 @@ export function LugarForm({
         }
       : {
           cliente_id: clienteIdFijo ?? null,
-          nombre: "",
+          nombre: nombreInicial ?? "",
           rfc_remitente_destinatario: "XAXX010101000",
           nombre_remitente_destinatario: "",
           calle: "",

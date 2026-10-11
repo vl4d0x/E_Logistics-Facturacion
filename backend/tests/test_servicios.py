@@ -1,4 +1,7 @@
 """Tests de servicios y viajes — `fase-2-servicios §Definición de terminado`."""
+import io
+
+import openpyxl
 from fastapi.testclient import TestClient
 
 from app.modules.auth.models import Usuario
@@ -331,20 +334,61 @@ def test_distancia_sugerida(client: TestClient, admin_user: Usuario):
     )
     client.post(f"{API}/servicios", json=payload, headers=headers)
 
+    # Sin km del cliente: 70 km marcados como no confirmados (el origen no cuenta).
     sugerida = client.get(
         f"{API}/lugares/distancia-sugerida"
         f"?origen_lugar_id={cat['origen']['id']}&destino_lugar_id={cat['destino']['id']}",
         headers=headers,
     )
     assert sugerida.status_code == 200
-    assert sugerida.json() == {"distancia_km": 70.0, "fuente": "ultimo_viaje"}
+    assert sugerida.json() == {"distancia_km": 70.0, "fuente": "por_defecto", "confirmado": False}
 
-    # El km también se sugiere solo por destino (una entrega sola no guarda su origen).
-    solo_destino = client.get(
-        f"{API}/lugares/distancia-sugerida?destino_lugar_id={cat['destino']['id']}", headers=headers
+    # Con el km importado del Excel de Carta Porte: ese km, confirmado (sin origen).
+    baab = client.post(
+        f"{API}/catalogos/lugares",
+        json={
+            "cliente_id": cat["cliente"]["id"],
+            "nombre": "Alimentos BAAB",
+            "estado": "MEX",
+            "codigo_postal": "04300",
+        },
+        headers=headers,
+    ).json()
+    excel = _excel_km([["ALIMENTOS BAAB", "ABA131030NV2", "04300", "65km"], ["Sin Lugar SA", "X", "01000", 10]])
+    r = client.post(
+        f"{API}/catalogos/lugares/importar-km",
+        files={"archivo": ("CartaPorte.xlsx", excel, "application/octet-stream")},
+        headers=headers,
     )
-    assert solo_destino.status_code == 200
-    assert solo_destino.json()["distancia_km"] == 70.0
+    assert r.status_code == 200, r.text
+    hoja = r.json()["hojas"][0]
+    assert hoja["actualizados"] == 1 and hoja["sin_lugar"] == ["Sin Lugar SA"]
+    con_km = client.get(
+        f"{API}/lugares/distancia-sugerida?destino_lugar_id={baab['id']}", headers=headers
+    )
+    assert con_km.json() == {"distancia_km": 65.0, "fuente": "cliente", "confirmado": True}
+
+
+def test_viaje_con_cp_propio(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    payload = _servicio_payload(
+        cat,
+        viajes=[
+            {"tipo": "recoleccion_entrega", "origen_lugar_id": cat["origen"]["id"],
+             "destino_lugar_id": cat["destino"]["id"], "destino_cp": " 06600 "},
+        ],
+    )
+    r = client.post(f"{API}/servicios", json=payload, headers=headers)
+    assert r.status_code == 201, r.text
+    viaje = r.json()["viajes"][0]
+    assert viaje["destino_cp"] == "06600" and viaje["origen_cp"] is None
+
+    malo = _servicio_payload(
+        cat,
+        viajes=[{"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"], "destino_cp": "12"}],
+    )
+    assert client.post(f"{API}/servicios", json=malo, headers=headers).status_code == 422
 
 
 def test_catalogo_bloquea_archivar_con_servicio_activo(client: TestClient, admin_user: Usuario):
@@ -367,3 +411,15 @@ def test_catalogo_bloquea_archivar_con_servicio_activo(client: TestClient, admin
     ).json()
     assert uso_lugar["referencias"]["viajes"] == 1
     assert len(uso_lugar["bloqueos"]) == 1
+
+
+def _excel_km(filas: list[list]) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "CHEMITAL"
+    ws.append(["NOMBRE", "RFC", "CP", "KM"])
+    for fila in filas:
+        ws.append(fila)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

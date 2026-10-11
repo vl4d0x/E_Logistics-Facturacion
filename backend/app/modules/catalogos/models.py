@@ -133,4 +133,8 @@ class Lugar(TimestampMixin, table=True):
     codigo_postal: str = Field(nullable=False)
     referencia: str | None = Field(default=None)
     es_origen_predeterminado: bool = Field(default=False)
+    # Km típico hasta este lugar (importado del Excel de Carta Porte). Solo cuenta como dato
+    # del cliente cuando `km_confirmado`; si no, el sugeridor usa 70 km "no confirmado".
+    distancia_km: float | None = Field(default=None)
+    km_confirmado: bool = Field(default=False, nullable=False)
     activo: bool = Field(default=True)

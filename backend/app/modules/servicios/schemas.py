@@ -4,9 +4,20 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.modules.servicios.models import EstadoFacturacion, EstadoServicio, EstadoViaje, TipoViaje
+
+
+def _normalizar_cp(v: str | None) -> str | None:
+    if v is None:
+        return None
+    v = str(v).strip()
+    if not v:
+        return None
+    if not (len(v) == 5 and v.isdigit()):
+        raise ValueError("El código postal debe tener 5 dígitos")
+    return v
 
 
 # --- Viaje / mercancías ------------------------------------------------------
@@ -35,10 +46,17 @@ class ViajeCreate(BaseModel):
     origen_lugar_id: uuid.UUID | None = None
     destino_lugar_id: uuid.UUID | None = None
     distancia_km: float | None = None
+    origen_cp: str | None = None  # CP distinto al del lugar, solo para este viaje
+    destino_cp: str | None = None
     notas_admin: str | None = None
     hora_salida_programada: time | None = None
     hora_llegada_programada: time | None = None
     mercancias: list[ViajeMercanciaIn] | None = None
+
+    @field_validator("origen_cp", "destino_cp")
+    @classmethod
+    def _cp(cls, v: str | None) -> str | None:
+        return _normalizar_cp(v)
 
     @model_validator(mode="after")
     def _check_origen_destino(self) -> "ViajeCreate":
@@ -59,9 +77,16 @@ class ViajeUpdate(BaseModel):
     origen_lugar_id: uuid.UUID | None = None
     destino_lugar_id: uuid.UUID | None = None
     distancia_km: float | None = None
+    origen_cp: str | None = None  # CP distinto al del lugar, solo para este viaje
+    destino_cp: str | None = None
     notas_admin: str | None = None
     hora_salida_programada: time | None = None
     hora_llegada_programada: time | None = None
+
+    @field_validator("origen_cp", "destino_cp")
+    @classmethod
+    def _cp(cls, v: str | None) -> str | None:
+        return _normalizar_cp(v)
 
 
 class LugarResumen(BaseModel):
@@ -102,6 +127,8 @@ class ViajeOut(BaseModel):
     hora_salida_programada: time | None
     hora_llegada_programada: time | None
     distancia_km: float | None
+    origen_cp: str | None = None
+    destino_cp: str | None = None
     km_reportado: float | None
     hora_llegada: time | None
     terminado_at: datetime | None
@@ -247,4 +274,6 @@ class AcuseReferenciaIn(BaseModel):
 
 class DistanciaSugeridaOut(BaseModel):
     distancia_km: float | None
-    fuente: Literal["ultimo_viaje"] | None
+    fuente: Literal["cliente", "por_defecto"] | None
+    # False = estimación (70 km por defecto): la UI la marca como "no confirmado".
+    confirmado: bool = False

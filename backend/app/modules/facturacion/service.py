@@ -98,7 +98,8 @@ def _llegada_viaje(viaje: Viaje) -> tuple[datetime | None, str]:
     return None, "programada"
 
 
-def _lugar_dict(lugar: Lugar | None) -> dict:
+def _lugar_dict(lugar: Lugar | None, cp: str | None = None) -> dict:
+    """`cp`: código postal propio del viaje (si difiere del del lugar)."""
     if lugar is None:
         return {}
     return {
@@ -112,7 +113,8 @@ def _lugar_dict(lugar: Lugar | None) -> dict:
         "municipio": lugar.municipio,
         "estado": lugar.estado,
         "pais": lugar.pais,
-        "codigo_postal": lugar.codigo_postal,
+        "codigo_postal": cp or lugar.codigo_postal,
+        "cp_modificado": bool(cp and cp != lugar.codigo_postal),
     }
 
 
@@ -166,7 +168,7 @@ def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[U
                     id_ubicacion=f"OR{n_origen:06d}",
                     tipo="Origen",
                     viaje_id=v.id,
-                    lugar=_lugar_dict(lugares.get(v.origen_lugar_id)),
+                    lugar=_lugar_dict(lugares.get(v.origen_lugar_id), v.origen_cp),
                     fecha_hora=fecha_hora,
                     fecha_hora_fuente=fuente,
                     distancia_km=None,
@@ -181,7 +183,7 @@ def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[U
                     id_ubicacion=f"DE{n_destino:06d}",
                     tipo="Destino",
                     viaje_id=v.id,
-                    lugar=_lugar_dict(lugares.get(v.destino_lugar_id)),
+                    lugar=_lugar_dict(lugares.get(v.destino_lugar_id), v.destino_cp),
                     fecha_hora=fecha_hora,
                     fecha_hora_fuente=fuente,
                     distancia_km=v.distancia_km,
@@ -348,6 +350,38 @@ def _resolver_clave_municipio(client: FacturamaClient, session: Session, lugar: 
         session.flush()
 
 
+def _lugar_para_ubicacion(
+    client: FacturamaClient, session: Session, lugar: Lugar, cp: str | None
+) -> dict:
+    """Datos del lugar para la Carta Porte. Con un CP propio del viaje (distinto al del
+    lugar) se resuelven estado, municipio y localidad de ESE CP en el catálogo del SAT y se
+    omiten calle, número y colonia, que ya no corresponden."""
+    if not cp or cp == lugar.codigo_postal:
+        _resolver_clave_municipio(client, session, lugar)
+        return lugar.model_dump()
+    resultado = client.resolve_postal_code(cp)
+    if not resultado or not resultado.get("StateCode"):
+        raise AppError(
+            "validation_error",
+            f"El código postal {cp} no existe en el catálogo del SAT",
+            422,
+            details=[{"field": "codigo_postal", "issue": cp}],
+        )
+    datos = lugar.model_dump()
+    datos.update(
+        codigo_postal=cp,
+        estado=resultado["StateCode"],
+        municipio_clave=resultado.get("MunicipalityCode") or None,
+        localidad_clave=resultado.get("LocationCode") or None,
+        calle=None,
+        num_exterior=None,
+        colonia=None,
+        municipio=None,
+        localidad=None,
+    )
+    return datos
+
+
 def _ubicaciones_payload(
     client: FacturamaClient, session: Session, viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]
 ) -> list[dict]:
@@ -355,17 +389,21 @@ def _ubicaciones_payload(
     for v in viajes:
         if v.tipo in (TipoViaje.recoleccion, TipoViaje.recoleccion_entrega) and v.origen_lugar_id:
             lugar = lugares[v.origen_lugar_id]
-            _resolver_clave_municipio(client, session, lugar)
             fecha_hora, _fuente = _salida_viaje(v)
-            ubicaciones.append({"tipo": "Origen", "lugar": lugar.model_dump(), "fecha_hora": fecha_hora})
+            ubicaciones.append(
+                {
+                    "tipo": "Origen",
+                    "lugar": _lugar_para_ubicacion(client, session, lugar, v.origen_cp),
+                    "fecha_hora": fecha_hora,
+                }
+            )
         if v.tipo in (TipoViaje.entrega, TipoViaje.recoleccion_entrega) and v.destino_lugar_id:
             lugar = lugares[v.destino_lugar_id]
-            _resolver_clave_municipio(client, session, lugar)
             fecha_hora, _fuente = _llegada_viaje(v)
             ubicaciones.append(
                 {
                     "tipo": "Destino",
-                    "lugar": lugar.model_dump(),
+                    "lugar": _lugar_para_ubicacion(client, session, lugar, v.destino_cp),
                     "fecha_hora": fecha_hora,
                     "distancia_km": v.distancia_km,
                 }

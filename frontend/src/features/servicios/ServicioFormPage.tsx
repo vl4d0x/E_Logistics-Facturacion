@@ -35,6 +35,8 @@ function draftToViajeIn(d: ViajeDraft): ViajeIn {
     tipo: d.tipo,
     origen_lugar_id: d.origen_lugar_id,
     destino_lugar_id: d.destino_lugar_id,
+    origen_cp: d.origen_cp ?? null,
+    destino_cp: d.destino_cp ?? null,
     distancia_km: d.distancia_km,
     notas_admin: d.notas_admin,
   };

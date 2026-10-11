@@ -113,9 +113,9 @@ function ViajeCard({
       </Group>
 
       <Text size="sm" c="dimmed">
-        {viaje.origen ? `Origen: ${viaje.origen.nombre}` : null}
+        {viaje.origen ? `Origen: ${viaje.origen.nombre}${viaje.origen_cp ? ` (CP ${viaje.origen_cp})` : ""}` : null}
         {viaje.origen && viaje.destino ? " · " : null}
-        {viaje.destino ? `Destino: ${viaje.destino.nombre}` : null}
+        {viaje.destino ? `Destino: ${viaje.destino.nombre}${viaje.destino_cp ? ` (CP ${viaje.destino_cp})` : ""}` : null}
         {viaje.distancia_km ? ` · ${viaje.distancia_km} km` : ""}
       </Text>
 
@@ -334,7 +334,7 @@ export function ServicioDetailPage() {
               onClick={async () => {
                 const km =
                   tipoNuevoViaje !== "recoleccion" && lugarNuevoViaje
-                    ? await fetchDistanciaSugerida(lugarNuevoViaje)
+                    ? (await fetchDistanciaSugerida(lugarNuevoViaje))?.km ?? null
                     : null;
                 agregarViaje.mutate(
                   {

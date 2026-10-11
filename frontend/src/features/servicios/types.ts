@@ -53,6 +53,8 @@ export interface ViajeIn {
   fecha?: string | null;
   origen_lugar_id?: string | null;
   destino_lugar_id?: string | null;
+  origen_cp?: string | null;
+  destino_cp?: string | null;
   distancia_km?: number | null;
   notas_admin?: string | null;
   hora_salida_programada?: string | null;
@@ -70,6 +72,8 @@ export interface ViajeOut {
   destino: LugarResumen | null;
   hora_salida_programada: string | null;
   hora_llegada_programada: string | null;
+  origen_cp?: string | null;
+  destino_cp?: string | null;
   distancia_km: number | null;
   km_reportado: number | null;
   hora_llegada: string | null;

@@ -351,3 +351,22 @@ export function useActualizarAdmin() {
     onError: (err) => toastError(err, "No se pudo guardar el cambio"),
   });
 }
+
+export interface ImportarKmResultado {
+  hojas: { hoja: string; cliente: string; actualizados: number; sin_km: number; sin_lugar: string[] }[];
+  hojas_sin_cliente: string[];
+}
+
+/** Sube el Excel de Carta Porte para cargar el km de cada destino (`importar_km.py`). */
+export function useImportarKm() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (archivo: File) => {
+      const form = new FormData();
+      form.append("archivo", archivo);
+      return api.post<ImportarKmResultado>("/api/v1/catalogos/lugares/importar-km", form);
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ["lugares"] }),
+    onError: (err) => toastError(err, "No se pudo importar el Excel"),
+  });
+}

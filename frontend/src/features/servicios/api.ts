@@ -220,14 +220,16 @@ export function useAgregarAcuseArchivo(servicioId: string) {
   });
 }
 
-// Km sugerido: el último capturado hacia ese destino (sin importar el origen). Ver
-// `specs/IDEAS-FUTURAS.md`.
-export async function fetchDistanciaSugerida(destinoId: string): Promise<number | null> {
+// Km sugerido para un destino: el del Excel de Carta Porte del cliente (confirmado) o 70 km
+// "no confirmado". Ver `specs/IDEAS-FUTURAS.md`.
+export async function fetchDistanciaSugerida(
+  destinoId: string,
+): Promise<{ km: number; confirmado: boolean } | null> {
   try {
-    const res = await api.get<{ distancia_km: number | null }>(
+    const res = await api.get<{ distancia_km: number | null; confirmado: boolean }>(
       `/api/v1/lugares/distancia-sugerida?destino_lugar_id=${destinoId}`,
     );
-    return res.distancia_km;
+    return res.distancia_km == null ? null : { km: res.distancia_km, confirmado: res.confirmado };
   } catch {
     return null; // la sugerencia es solo una ayuda; nunca debe estorbar
   }
