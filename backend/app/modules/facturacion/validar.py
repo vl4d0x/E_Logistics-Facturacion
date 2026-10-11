@@ -5,6 +5,7 @@ Devuelve una lista de checks (`regla`, `nivel`, `mensaje`, `campo?`); cualquier
 ("normal" vs "anticipado") decide qué reglas aplican, según la columna
 "Aplica" de la tabla del spec.
 """
+import uuid
 from datetime import datetime
 
 from sqlmodel import Session, select
@@ -16,13 +17,32 @@ from app.modules.facturacion.schemas import ValidacionCheck
 from app.modules.facturacion.taxes import subtotal_a_timbrar
 from app.modules.operacion.models import InspeccionSalida
 from app.modules.servicios.models import (
+    Acuse,
     EstadoServicio,
     EstadoViaje,
     Servicio,
+    TipoAcuse,
     Viaje,
     ViajeMercancia,
 )
 from app.modules.servicios.service import datos_fiscales_bloqueados
+
+
+def folios_por_viaje(session: Session, servicio: Servicio, viajes: list[Viaje]) -> dict[uuid.UUID, str | None]:
+    """Folio del cliente de cada viaje con destino: la referencia de su acuse (así lo captura el
+    operador o el admin). Servicios viejos con un solo destino caen al `folio_cliente` único."""
+    folios: dict[uuid.UUID, str | None] = {}
+    destinos = [v for v in viajes if v.destino_lugar_id is not None]
+    for v in destinos:
+        acuse = session.exec(
+            select(Acuse)
+            .where(Acuse.viaje_id == v.id, Acuse.tipo == TipoAcuse.referencia, Acuse.referencia.is_not(None))
+            .order_by(Acuse.pagina)
+        ).first()
+        folios[v.id] = acuse.referencia if acuse else None
+    if len(destinos) == 1 and not folios[destinos[0].id] and servicio.folio_cliente:
+        folios[destinos[0].id] = servicio.folio_cliente
+    return folios
 
 
 def modo_timbrado(servicio: Servicio) -> str:
@@ -117,9 +137,19 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
 
     # --- Folio del cliente en el concepto (exclusivo de clientes que lo exigen) ---
     if cliente.requiere_folio_concepto:
-        if not servicio.folio_cliente:
+        folios = folios_por_viaje(session, servicio, viajes)
+        faltan = [
+            lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else "destino"
+            for v in viajes
+            if v.destino_lugar_id is not None and not folios.get(v.id)
+        ]
+        if faltan:
             checks.append(
-                _error("folio_cliente_presente", f"Captura el folio de {cliente.nombre_comercial}", "concepto")
+                _error(
+                    "folio_cliente_presente",
+                    f"Captura el folio de {cliente.nombre_comercial} para: {', '.join(faltan)}",
+                    "concepto",
+                )
             )
         else:
             checks.append(_ok("folio_cliente_presente", "concepto"))

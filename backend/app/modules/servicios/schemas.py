@@ -282,3 +282,7 @@ class DistanciaSugeridaOut(BaseModel):
     fuente: Literal["cliente", "por_defecto"] | None
     # False = estimación (70 km por defecto): la UI la marca como "no confirmado".
     confirmado: bool = False
+
+
+class FolioViajeIn(BaseModel):
+    folio: str | None = None  # vacío = quitar el folio del viaje

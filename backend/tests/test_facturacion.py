@@ -384,7 +384,7 @@ def test_facturar_error_del_pac_queda_reintentable(client: TestClient, admin_use
     assert r2.json()["factura"]["uuid_fiscal"] == "2e90e747-05f4-4acc-ab93-876f0f32458f"
 
 
-def test_folio_cliente_requerido_bloquea_timbrado(client: TestClient, admin_user: Usuario):
+def test_folio_por_viaje_en_el_concepto_y_editable(client: TestClient, admin_user: Usuario):
     headers = _auth_headers(client, admin_user.email)
     cat = _setup_catalogos(client, headers, poliza=True)
     client.patch(
@@ -394,19 +394,27 @@ def test_folio_cliente_requerido_bloquea_timbrado(client: TestClient, admin_user
     )
     servicio = client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers).json()
     viaje_recoleccion, viaje_entrega = servicio["viajes"][0]["id"], servicio["viajes"][1]["id"]
-    client.post(
-        f"{API}/viajes/{viaje_entrega}/terminar", json={"referencia_acuse": "FOLIO-2257"}, headers=headers
-    )
+    client.post(f"{API}/viajes/{viaje_entrega}/terminar", json={}, headers=headers)
     client.post(f"{API}/viajes/{viaje_recoleccion}/terminar", json={}, headers=headers)
     client.post(f"{API}/servicios/{servicio['id']}/marcar-terminado", headers=headers)
 
+    # Sin folio en el destino: la validación lo pide y el concepto lo marca vacío
     sin_folio = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
-    assert sin_folio["ok"] is False
     assert any(c["regla"] == "folio_cliente_presente" for c in sin_folio["checks"] if c["nivel"] == "error")
-
-    client.patch(f"{API}/servicios/{servicio['id']}/facturacion", json={"folio_cliente": "5318"}, headers=headers)
-    con_folio = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
-    assert all(c["nivel"] != "error" for c in con_folio["checks"] if c["regla"] == "folio_cliente_presente")
-
     detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
-    assert "FOLIO: 5318" in detalle["concepto"]["descripcion"]
+    assert detalle["concepto"]["folios"] == [{"viaje_id": viaje_entrega, "destino": "Tiendas Express", "folio": None}]
+    assert "DESTINO: Tiendas Express FOLIO: —" in detalle["concepto"]["descripcion"]
+
+    # Se captura el folio del viaje y el concepto lo lleva
+    r = client.put(f"{API}/viajes/{viaje_entrega}/folio", json={"folio": " 5318 "}, headers=headers)
+    assert r.status_code == 200, r.text
+    detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
+    assert detalle["concepto"]["folios"][0]["folio"] == "5318"
+    assert "DESTINO: Tiendas Express FOLIO: 5318" in detalle["concepto"]["descripcion"]
+    ok = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
+    assert all(c["nivel"] != "error" for c in ok["checks"] if c["regla"] == "folio_cliente_presente")
+
+    # Y se puede corregir
+    client.put(f"{API}/viajes/{viaje_entrega}/folio", json={"folio": "5319"}, headers=headers)
+    detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
+    assert "FOLIO: 5319" in detalle["concepto"]["descripcion"] and "5318" not in detalle["concepto"]["descripcion"]

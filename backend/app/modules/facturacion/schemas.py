@@ -54,6 +54,12 @@ class ReceptorOut(BaseModel):
     forma_pago: str = "99"
 
 
+class FolioViajeOut(BaseModel):
+    viaje_id: uuid.UUID
+    destino: str
+    folio: str | None = None
+
+
 class ConceptoOut(BaseModel):
     clave_prod_serv: str = "78101802"
     clave_unidad: str = "SX"
@@ -61,6 +67,7 @@ class ConceptoOut(BaseModel):
     descripcion_autogenerada: bool
     requiere_folio: bool = False
     folio_cliente: str | None = None
+    folios: list[FolioViajeOut] = []  # un folio por destino (clientes que lo exigen en el concepto)
 
 
 class UbicacionOut(BaseModel):

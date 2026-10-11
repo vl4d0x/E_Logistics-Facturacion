@@ -22,6 +22,7 @@ from app.modules.facturacion.schemas import (
     FacturacionUpdateIn,
     FacturarIn,
     FiguraOut,
+    FolioViajeOut,
     ImpuestosPreviewIn,
     MercanciaFacturarOut,
     MontosOut,
@@ -31,7 +32,7 @@ from app.modules.facturacion.schemas import (
     ValidacionOut,
 )
 from app.modules.facturacion.taxes import calcular_impuestos, subtotal_desde_total
-from app.modules.facturacion.validar import modo_timbrado, subtotal_efectivo, validar_servicio
+from app.modules.facturacion.validar import folios_por_viaje, modo_timbrado, subtotal_efectivo, validar_servicio
 from app.modules.precios.service import sugerir_para_servicio
 from app.modules.servicios.models import (
     Acuse,
@@ -134,12 +135,20 @@ def _descripcion_autogenerada(
     viajes: list[Viaje],
     lugares: dict[uuid.UUID, Lugar],
     cliente: Cliente,
-    folio_cliente: str | None,
+    folios: dict[uuid.UUID, str | None],
 ) -> str:
-    """`04-facturacion-cfdi §2`. El renglón de folio es exclusivo de clientes con
-    `requiere_folio_concepto` (caso real: Chemital)."""
+    """`04-facturacion-cfdi §2`. Los clientes con `requiere_folio_concepto` (caso real:
+    Chemital) llevan un renglón "DESTINO: X FOLIO: Y" por cada destino."""
     origenes = [lugares[v.origen_lugar_id].nombre for v in viajes if v.origen_lugar_id in lugares]
     destinos = [lugares[v.destino_lugar_id].nombre for v in viajes if v.destino_lugar_id in lugares]
+    if cliente.requiere_folio_concepto:
+        lineas_destino = [
+            f"DESTINO: {lugares[v.destino_lugar_id].nombre} FOLIO: {folios.get(v.id) or '—'}"
+            for v in viajes
+            if v.destino_lugar_id in lugares
+        ] or ["DESTINO: —"]
+    else:
+        lineas_destino = [f"DESTINO: {' / '.join(destinos) or '—'}"]
     fechas = sorted({v.fecha for v in viajes})
     if len(fechas) <= 1:
         fecha_txt = _fecha_concepto(fechas[0] if fechas else datetime.now(UTC).date())
@@ -148,11 +157,9 @@ def _descripcion_autogenerada(
     lineas = [
         f"FLETE UNIDAD {unidad.apodo}",
         f"ORIGEN: {' / '.join(origenes) or '—'}",
-        f"DESTINO: {' / '.join(destinos) or '—'}",
+        *lineas_destino,
         f"FECHA: {fecha_txt}",
     ]
-    if cliente.requiere_folio_concepto:
-        lineas.append(f"FOLIO: {folio_cliente or '—'}")
     return "\n".join(lineas)
 
 
@@ -251,7 +258,7 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
 
     descripcion_autogenerada = servicio.descripcion_concepto is None
     descripcion = servicio.descripcion_concepto or _descripcion_autogenerada(
-        unidad, viajes, lugares, cliente, servicio.folio_cliente
+        unidad, viajes, lugares, cliente, folios_por_viaje(session, servicio, viajes)
     )
 
     montos = None
@@ -301,6 +308,15 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
             descripcion_autogenerada=descripcion_autogenerada,
             requiere_folio=cliente.requiere_folio_concepto,
             folio_cliente=servicio.folio_cliente,
+            folios=[
+                FolioViajeOut(
+                    viaje_id=v.id,
+                    destino=lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else "—",
+                    folio=folios_por_viaje(session, servicio, viajes).get(v.id),
+                )
+                for v in viajes
+                if v.destino_lugar_id is not None
+            ],
         ),
         ubicaciones=_ubicaciones(viajes, lugares),
         mercancias=mercancias,
@@ -492,7 +508,7 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
         for m in session.exec(select(ViajeMercancia).where(ViajeMercancia.viaje_id == v.id)).all()
     ]
     descripcion = servicio.descripcion_concepto or _descripcion_autogenerada(
-        unidad, viajes, lugares, cliente, servicio.folio_cliente
+        unidad, viajes, lugares, cliente, folios_por_viaje(session, servicio, viajes)
     )
     total_dist_rec = sum((v.distancia_km or 0) for v in viajes if v.destino_lugar_id)
 

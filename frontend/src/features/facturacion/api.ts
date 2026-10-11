@@ -62,3 +62,14 @@ export function useGuardarMercancias(servicioId: string) {
     onError: (err) => toastError(err, "No se pudo guardar la mercancía"),
   });
 }
+
+/** Fija o corrige el folio del cliente de un viaje (se imprime en el concepto). */
+export function useGuardarFolio(_servicioId?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ viajeId, folio }: { viajeId: string; folio: string }) =>
+      api.put(`/api/v1/viajes/${viajeId}/folio`, { folio }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["servicios"] }),
+    onError: (err) => toastError(err, "No se pudo guardar el folio"),
+  });
+}

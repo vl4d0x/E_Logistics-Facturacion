@@ -27,7 +27,13 @@ import { AcuseViewerSimple } from "./components/AcuseViewerSimple";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { MercanciasEditable, RutaEditable, UnidadOperadorEditable } from "./components/EdicionFacturar";
 import { PriceField } from "./components/PriceField";
-import { useActualizarFacturacion, useFacturacionDetalle, useFacturar, type FacturarResultado } from "./api";
+import {
+  useActualizarFacturacion,
+  useFacturacionDetalle,
+  useFacturar,
+  useGuardarFolio,
+  type FacturarResultado,
+} from "./api";
 
 const USO_CFDI_OPCIONES = [
   { value: "G03", label: "G03 · Gastos en general" },
@@ -48,13 +54,13 @@ function NivelIcon({ nivel }: { nivel: "ok" | "warning" | "error" }) {
 export function FacturarPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: detalle, isLoading } = useFacturacionDetalle(id ?? "");
+  const { data: detalle, isLoading, refetch } = useFacturacionDetalle(id ?? "");
   const actualizar = useActualizarFacturacion(id ?? "");
   const facturar = useFacturar(id ?? "");
+  const guardarFolioViaje = useGuardarFolio(id ?? "");
 
   const [subtotal, setSubtotal] = useState<number | null>(null);
   const [descripcion, setDescripcion] = useState("");
-  const [folioCliente, setFolioCliente] = useState("");
   const [confirmarAbierto, setConfirmarAbierto] = useState(false);
   const [checksAbierto, setChecksAbierto] = useState(false);
   const [cargadoPara, setCargadoPara] = useState<string | null>(null);
@@ -70,7 +76,6 @@ export function FacturarPage() {
           : null,
     );
     setDescripcion(detalle.concepto.descripcion);
-    setFolioCliente(detalle.concepto.folio_cliente ?? "");
   }
 
   if (isLoading || !detalle) return <Skeleton height={400} />;
@@ -90,12 +95,15 @@ export function FacturarPage() {
     actualizar.mutate({ descripcion_concepto: valor });
   }
 
-  function guardarFolioCliente() {
-    actualizar.mutate(
-      { folio_cliente: folioCliente || null },
+  // Folio del cliente por destino: se guarda y, si el concepto es el autogenerado, se refresca.
+  function guardarFolio(viajeId: string, folio: string, anterior: string | null) {
+    if (folio.trim() === (anterior ?? "")) return;
+    guardarFolioViaje.mutate(
+      { viajeId, folio },
       {
-        onSuccess: (data) => {
-          if (data.concepto.descripcion_autogenerada) setDescripcion(data.concepto.descripcion);
+        onSuccess: async () => {
+          const { data } = await refetch();
+          if (data?.concepto.descripcion_autogenerada) setDescripcion(data.concepto.descripcion);
         },
       },
     );
@@ -247,18 +255,33 @@ export function FacturarPage() {
             >
               <Stack gap="xs">
                 {detalle.concepto.requiere_folio && (
-                  <TextInput
-                    label={`Folio de ${detalle.receptor.razon_social}`}
-                    description="Este cliente exige su propio folio dentro del concepto de la factura"
-                    value={folioCliente}
-                    onChange={(e) => setFolioCliente(e.currentTarget.value)}
-                    onBlur={guardarFolioCliente}
-                    error={
-                      errores.some((c) => c.regla === "folio_cliente_presente")
-                        ? "Falta el folio"
-                        : undefined
-                    }
-                  />
+                  <Stack gap={6}>
+                    <Text size="sm" fw={600}>
+                      Folios de {detalle.receptor.razon_social} por destino
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Cada destino lleva su folio en el concepto (Destino X Folio Y). Corrígelo aquí si está mal.
+                    </Text>
+                    {detalle.concepto.folios.map((f) => (
+                      <Group key={`${f.viaje_id}-${f.folio}`} gap="xs" wrap="nowrap" align="center">
+                        <Text size="sm" w={200} truncate>
+                          Destino {f.destino}
+                        </Text>
+                        <TextInput
+                          size="xs"
+                          placeholder="Folio"
+                          defaultValue={f.folio ?? ""}
+                          error={!f.folio && errores.some((c) => c.regla === "folio_cliente_presente") ? "Falta el folio" : undefined}
+                          onBlur={(e) => guardarFolio(f.viaje_id, e.currentTarget.value, f.folio)}
+                        />
+                      </Group>
+                    ))}
+                    {detalle.concepto.folios.length === 0 && (
+                      <Text size="sm" c="dimmed">
+                        El servicio no tiene destinos.
+                      </Text>
+                    )}
+                  </Stack>
                 )}
                 <Textarea
                   autosize

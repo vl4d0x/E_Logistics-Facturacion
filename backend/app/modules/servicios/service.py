@@ -816,6 +816,40 @@ def agregar_acuse_referencia(
     return acuse
 
 
+def set_folio_viaje(
+    session: Session, viaje_id: uuid.UUID, folio: str | None, current_user: Usuario
+) -> dict:
+    """Fija o corrige el folio del cliente de un viaje (clientes que lo llevan en el concepto):
+    es la referencia de su acuse. Vacío = se quita. Con factura vigente no se puede (409)."""
+    viaje = get_viaje(session, viaje_id)
+    servicio = get_servicio(session, viaje.servicio_id)
+    _check_editable(session, servicio)
+    folio = (folio or "").strip() or None
+    existentes = session.exec(
+        select(Acuse).where(Acuse.viaje_id == viaje_id, Acuse.tipo == TipoAcuse.referencia).order_by(Acuse.pagina)
+    ).all()
+    if folio is None:
+        for a in existentes:
+            session.delete(a)
+    elif existentes:
+        existentes[0].referencia = folio
+        session.add(existentes[0])
+        for sobrante in existentes[1:]:
+            session.delete(sobrante)
+    else:
+        session.add(
+            Acuse(
+                viaje_id=viaje_id,
+                tipo=TipoAcuse.referencia,
+                referencia=folio,
+                subido_por=current_user.id,
+                subido_at=utcnow(),
+            )
+        )
+    session.commit()
+    return {"viaje_id": viaje_id, "folio": folio}
+
+
 def agregar_acuse_archivo(
     session: Session,
     viaje_id: uuid.UUID,

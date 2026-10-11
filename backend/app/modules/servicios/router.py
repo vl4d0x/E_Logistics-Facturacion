@@ -18,6 +18,7 @@ from app.modules.servicios.schemas import (
     CancelarServicioIn,
     ConteosOut,
     DistanciaSugeridaOut,
+    FolioViajeIn,
     DuplicarServicioIn,
     OrdenViajesIn,
     ServicioCreate,
@@ -169,6 +170,16 @@ def set_mercancias(
     viaje_id: uuid.UUID, body: list[ViajeMercanciaIn], session: Session = Depends(get_session)
 ):
     return service.set_mercancias_viaje(session, viaje_id, body)
+
+
+@router.put("/viajes/{viaje_id}/folio")
+def set_folio(
+    viaje_id: uuid.UUID,
+    body: FolioViajeIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> dict:
+    return service.set_folio_viaje(session, viaje_id, body.folio, user)
 
 
 @router.post("/viajes/{viaje_id}/acuses", response_model=AcuseOut, status_code=201)

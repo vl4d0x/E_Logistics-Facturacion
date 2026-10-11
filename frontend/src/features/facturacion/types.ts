@@ -20,6 +20,7 @@ export interface Concepto {
   descripcion_autogenerada: boolean;
   requiere_folio: boolean;
   folio_cliente: string | null;
+  folios: { viaje_id: string; destino: string; folio: string | null }[];
 }
 
 export interface Ubicacion {
