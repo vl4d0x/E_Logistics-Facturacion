@@ -8,7 +8,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt": al haber deploy nuevo se avisa con un botón "Actualizar" (`UpdatePrompt`) en vez de
+      // recargar solo (podía tirar un formulario a medio llenar) o quedarse con la versión vieja.
+      registerType: "prompt",
       // El SW/offline solo importan para el operador (`01-architecture §4`); el shell
       // básico se cachea para toda la app, las features de sync offline llegan en Fase 2.
       includeAssets: ["favicon.svg"],
@@ -33,6 +35,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        cleanupOutdatedCaches: true,
       },
       devOptions: {
         enabled: false,
