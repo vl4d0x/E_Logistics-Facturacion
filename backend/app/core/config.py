@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     email_from: str = Field(default="Elogistics <facturacion@dominio.mx>", alias="EMAIL_FROM")
     # Las respuestas de los clientes llegan a este buzón, no al remitente de Resend.
     email_reply_to: str = Field(default="e_logistics@outlook.com", alias="EMAIL_REPLY_TO")
+    # Modo prueba (por defecto ENCENDIDO, a prueba de descuidos): ningún correo sale a un cliente;
+    # todo va a `EMAIL_PRUEBA_DESTINO` (o, si no se define, a `EMAIL_REPLY_TO`) con asunto
+    # "[PRUEBA]". Para enviar a clientes de verdad hay que poner EMAIL_MODO_PRUEBA=false.
+    email_modo_prueba: bool = Field(default=True, alias="EMAIL_MODO_PRUEBA")
+    email_prueba_destino: str | None = Field(default=None, alias="EMAIL_PRUEBA_DESTINO")
 
     # --- CORS ---
     cors_origins: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")

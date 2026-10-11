@@ -279,13 +279,27 @@ def _cuerpo_correo(session: Session, factura: Factura, servicio: Servicio, clien
     return "<p>" + "<br>".join(lineas) + "</p>"
 
 
-def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos: list[dict]) -> None:
-    """Envío por Resend con `reply_to` al buzón de Elogistics. Lanza `AppError` si falla."""
+def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos: list[dict]) -> list[str]:
+    """Envío por Resend con `reply_to` al buzón de Elogistics. Lanza `AppError` si falla.
+
+    En modo prueba (`EMAIL_MODO_PRUEBA`) el correo NO sale a los destinatarios reales: va al
+    correo de prueba, con "[PRUEBA]" en el asunto y un aviso de a quién iba dirigido.
+    Devuelve los destinatarios a los que realmente se envió.
+    """
     settings = get_settings()
     if not settings.resend_api_key:
         raise AppError("internal_error", "El correo (Resend) no está configurado en este entorno.", 500)
     if not destinatarios:
         raise AppError("validation_error", "No hay destinatarios: el cliente no tiene correos de facturación", 422)
+    if getattr(settings, "email_modo_prueba", False):
+        prueba = getattr(settings, "email_prueba_destino", None) or settings.email_reply_to
+        aviso = (
+            '<p style="background:#fff3cd;padding:8px"><strong>MODO PRUEBA</strong> — este correo iba '
+            f"dirigido a: {', '.join(destinatarios)}. No se envió al cliente.</p>"
+        )
+        html = aviso + html
+        asunto = f"[PRUEBA] {asunto}"
+        destinatarios = [prueba]
     import resend
 
     resend.api_key = settings.resend_api_key
@@ -302,6 +316,7 @@ def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos:
         )
     except Exception as exc:
         raise AppError("internal_error", f"No se pudo enviar el correo: {exc}", 502) from exc
+    return destinatarios
 
 
 
@@ -341,7 +356,7 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
         folios = [a.referencia for a in acuses if a.referencia]
 
     try:
-        enviar_correo(
+        enviados = enviar_correo(
             destinatarios=destinatarios,
             asunto=f"Factura {factura.serie or ''}{factura.folio or ''} · Servicio #{servicio.numero} · Elogistics",
             html=_cuerpo_correo(session, factura, servicio, cliente, folios),
@@ -354,7 +369,7 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
         raise
 
     factura.enviado_at = utcnow()
-    factura.envio_destinatarios = destinatarios
+    factura.envio_destinatarios = enviados or destinatarios  # en modo prueba: el correo de prueba
     factura.envio_error = None
     session.add(factura)
     session.commit()

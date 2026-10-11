@@ -158,6 +158,38 @@ def test_enviar_correo_con_adjuntos(client: TestClient, admin_user: Usuario, mon
     assert r.json()["enviado_at"] is not None and r.json()["envio_destinatarios"] == ["cliente@x.mx"]
 
 
+def test_modo_prueba_redirige_el_correo_al_buzon_de_prueba(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, _ = _timbrar(client, h, monkeypatch)
+    enviado = MagicMock()
+    monkeypatch.setattr(
+        facturas_service, "get_settings", lambda: types.SimpleNamespace(
+            resend_api_key="k", email_from="Elogistics <a@b.mx>", email_reply_to="e_logistics@outlook.com",
+            email_modo_prueba=True, email_prueba_destino="prueba@elogistics.mx",
+        )
+    )
+    import resend
+
+    monkeypatch.setattr(resend.Emails, "send", enviado)
+    r = client.post(f"{API}/facturas/{factura['id']}/enviar", json={"to": ["cliente@x.mx"]}, headers=h)
+    assert r.status_code == 200, r.text
+    msg = enviado.call_args.args[0]
+    assert msg["to"] == ["prueba@elogistics.mx"]  # nunca al cliente
+    assert msg["subject"].startswith("[PRUEBA] Factura ELG7")
+    assert "cliente@x.mx" in msg["html"] and "MODO PRUEBA" in msg["html"]
+    assert r.json()["envio_destinatarios"] == ["prueba@elogistics.mx"]
+
+    # sin EMAIL_PRUEBA_DESTINO cae al buzón de respuestas de Elogistics
+    monkeypatch.setattr(
+        facturas_service, "get_settings", lambda: types.SimpleNamespace(
+            resend_api_key="k", email_from="x", email_reply_to="e_logistics@outlook.com",
+            email_modo_prueba=True, email_prueba_destino=None,
+        )
+    )
+    client.post(f"{API}/facturas/{factura['id']}/enviar", json={"to": ["cliente@x.mx"]}, headers=h)
+    assert enviado.call_args.args[0]["to"] == ["e_logistics@outlook.com"]
+
+
 def test_enviar_sin_destinatarios_422_y_error_de_resend_se_registra(client: TestClient, admin_user: Usuario, monkeypatch):
     h = _auth_headers(client, admin_user.email)
     _, factura, _ = _timbrar(client, h, monkeypatch)
