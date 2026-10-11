@@ -51,6 +51,8 @@ export function LugarSelect({
   return (
     <>
       <Combobox
+        width="max-content"
+        position="bottom-start"
         store={combobox}
         onOptionSubmit={(id) => {
           onChange(id);
@@ -74,7 +76,7 @@ export function LugarSelect({
             onBlur={() => combobox.closeDropdown()}
           />
         </Combobox.Target>
-        <Combobox.Dropdown>
+        <Combobox.Dropdown miw={260}>
           <Combobox.Options>
             <ScrollArea.Autosize mah={220} type="scroll">
               {filtrados.map((l) => (
