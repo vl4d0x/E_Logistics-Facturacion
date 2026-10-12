@@ -69,7 +69,7 @@ export function TerminarViajeOperadorPage() {
   const CHECKS_ACUSE = [
     "Se ve todo CLARO",
     "Está ESCANEADO (no es una foto)",
-    `Corresponde al SERVICIO #${servicio.numero}`,
+    `Corresponde a ${(viaje.destino?.nombre ?? "este destino").toUpperCase()}`,
     "Está SELLADO o FIRMADO",
   ];
 
