@@ -210,6 +210,9 @@ def create_servicio(session: Session, data: ServicioCreate, current_user: Usuari
     session.flush()  # asigna servicio.id sin cerrar la transacción
 
     for orden, viaje_in in enumerate(data.viajes, start=1):
+        for lugar_id in (viaje_in.origen_lugar_id, viaje_in.destino_lugar_id):
+            if lugar_id:
+                _validar_lugar_del_cliente(session, lugar_id, data.cliente_id)
         viaje = Viaje(
             servicio_id=servicio.id,
             orden=orden,
@@ -628,8 +631,10 @@ def add_viaje(session: Session, servicio_id: uuid.UUID, data: ViajeCreate) -> Vi
 
 
 def _validar_lugar_del_cliente(session: Session, lugar_id: uuid.UUID, cliente_id: uuid.UUID) -> None:
+    from app.modules.catalogos.service import clientes_del_catalogo
+
     lugar = _get_or_404(session, Lugar, lugar_id, "Lugar")
-    if lugar.cliente_id is not None and lugar.cliente_id != cliente_id:
+    if lugar.cliente_id is not None and lugar.cliente_id not in clientes_del_catalogo(session, cliente_id):
         raise AppError(
             "validation_error",
             "Ese lugar pertenece a otro cliente",
@@ -936,10 +941,12 @@ def asegurar_mercancia_default(session: Session, servicio: Servicio) -> bool:
     destino = next((v for v in viajes if v.destino_lugar_id), None)
     if hay is not None or destino is None:
         return False
+    from app.modules.catalogos.service import clientes_del_catalogo
+
     nombre = MERCANCIA_DEFAULT["nombre"]
     catalogo = session.exec(
         select(MercanciaFrecuente).where(
-            MercanciaFrecuente.cliente_id == servicio.cliente_id,
+            MercanciaFrecuente.cliente_id.in_(clientes_del_catalogo(session, servicio.cliente_id)),
             func.lower(MercanciaFrecuente.nombre_humano) == nombre.lower(),
         )
     ).first()

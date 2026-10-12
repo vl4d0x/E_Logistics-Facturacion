@@ -42,6 +42,11 @@ export function ClienteFiscalForm({
   onSaved: (cliente: Cliente) => void;
 }) {
   const crear = clientesApi.useCreate();
+  const { data: clientesPage } = clientesApi.useList("true", "");
+  // Solo se puede heredar de un cliente que no herede a su vez (un nivel).
+  const posiblesPadres = (clientesPage?.items ?? [])
+    .filter((c) => c.id !== cliente?.id && !c.hereda_de_id)
+    .map((c) => ({ value: c.id, label: c.nombre_comercial }));
   const editar = clientesApi.useUpdate();
 
   const form = useForm<ClientePayload>({
@@ -60,6 +65,7 @@ export function ClienteFiscalForm({
           dias_credito: cliente.dias_credito,
           requiere_folio_concepto: cliente.requiere_folio_concepto,
           plantilla_correo: cliente.plantilla_correo,
+          hereda_de_id: cliente.hereda_de_id,
         }
       : {
           razon_social: "",
@@ -75,6 +81,7 @@ export function ClienteFiscalForm({
           dias_credito: 30,
           requiere_folio_concepto: false,
           plantilla_correo: null,
+          hereda_de_id: null,
         },
     validate: {
       razon_social: (v) => (v.trim() ? null : "Requerido"),
@@ -182,6 +189,16 @@ export function ClienteFiscalForm({
           description="Ej. Chemital: pide su número de remisión dentro del concepto"
           checked={form.values.requiere_folio_concepto}
           onChange={(e) => form.setFieldValue("requiere_folio_concepto", e.currentTarget.checked)}
+        />
+        <Select
+          label="Usa los lugares y mercancías de"
+          description="Para otra razón social del mismo cliente (ej. AERZEN RENTAL → AERZEN): comparte sus lugares, mercancías y, si este cliente no tiene uno propio, su texto de correo. Los datos fiscales siguen siendo de este cliente."
+          placeholder="Ninguno (catálogo propio)"
+          clearable
+          searchable
+          data={posiblesPadres}
+          value={form.values.hereda_de_id}
+          onChange={(v) => form.setFieldValue("hereda_de_id", v)}
         />
         <Textarea
           label="Texto del correo de factura"

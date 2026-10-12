@@ -78,6 +78,7 @@ export interface Cliente {
   dias_credito: number;
   requiere_folio_concepto: boolean;
   plantilla_correo: string | null;
+  hereda_de_id: string | null;
   activo: boolean;
 }
 

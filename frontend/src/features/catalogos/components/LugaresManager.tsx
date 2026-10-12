@@ -26,6 +26,7 @@ export function LugaresManager({ clienteIdFijo }: { clienteIdFijo?: string }) {
   const eliminar = useDeleteLugar();
   const restaurar = useRestoreLugar();
 
+  const padreId = clienteIdFijo ? (clientesPage?.items.find((c) => c.id === clienteIdFijo)?.hereda_de_id ?? null) : null;
   const clientesPorId = useMemo(() => {
     const map = new Map<string, Cliente>();
     for (const c of clientesPage?.items ?? []) map.set(c.id, c);
@@ -33,7 +34,8 @@ export function LugaresManager({ clienteIdFijo }: { clienteIdFijo?: string }) {
   }, [clientesPage]);
 
   const visibles = (lugares ?? []).filter((l) => {
-    if (!esGlobal && l.cliente_id !== clienteIdFijo) return false; // tab de cliente: solo lo suyo
+    // Tab de cliente: lo suyo y lo que hereda de otro cliente (ej. AERZEN RENTAL → AERZEN), sin globales.
+    if (!esGlobal && l.cliente_id !== clienteIdFijo && (!padreId || l.cliente_id !== padreId)) return false;
     if (activo === "true") return l.activo;
     if (activo === "false") return !l.activo;
     return true;
@@ -92,6 +94,11 @@ export function LugaresManager({ clienteIdFijo }: { clienteIdFijo?: string }) {
                 <Text span>{lugar.nombre}</Text>
                 {lugar.es_origen_predeterminado && (
                   <IconStar size={14} style={{ marginLeft: 6, verticalAlign: "middle" }} />
+                )}
+                {!esGlobal && lugar.cliente_id && lugar.cliente_id !== clienteIdFijo && (
+                  <Badge size="xs" variant="light" color="gray" ml={6}>
+                    De {clientesPorId.get(lugar.cliente_id)?.nombre_comercial ?? "otro cliente"}
+                  </Badge>
                 )}
               </Table.Td>
               {esGlobal && (

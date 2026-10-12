@@ -95,6 +95,9 @@ class Cliente(TimestampMixin, table=True):
     # Texto del correo de factura con marcadores ({folio}, {dia}, {mes}, {anio}, {operador},
     # {unidad}, {origen}, {destinos}); None = el texto general (`facturas.PLANTILLA_CORREO_DEFAULT`).
     plantilla_correo: str | None = Field(default=None)
+    # Otra razón social del mismo cliente (ej. AERZEN RENTAL → AERZEN): usa los lugares y las
+    # mercancías de ese cliente (y su texto de correo si no tiene uno propio). Un solo nivel.
+    hereda_de_id: uuid.UUID | None = Field(default=None, foreign_key="cliente.id")
     activo: bool = Field(default=True)
 
 

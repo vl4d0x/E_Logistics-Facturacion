@@ -68,9 +68,11 @@ export function ServicioFormPage() {
       setViajes([]);
       return;
     }
-    const origenPredeterminado = lugaresCliente?.find(
-      (l) => l.cliente_id === id && l.es_origen_predeterminado,
-    );
+    // El del propio cliente o, si usa los lugares de otro (ej. AERZEN RENTAL), el de ese.
+    const padreId = clientesPage?.items.find((c) => c.id === id)?.hereda_de_id ?? null;
+    const origenPredeterminado =
+      lugaresCliente?.find((l) => l.cliente_id === id && l.es_origen_predeterminado) ??
+      lugaresCliente?.find((l) => padreId !== null && l.cliente_id === padreId && l.es_origen_predeterminado);
     // Todo servicio lleva un origen y al menos un destino: ambos ya vienen en pantalla.
     setViajes([
       {

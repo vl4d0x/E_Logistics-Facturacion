@@ -342,7 +342,32 @@ def get_cliente(session: Session, cliente_id: uuid.UUID) -> Cliente:
     return _get_or_404(session, Cliente, cliente_id, "Cliente")
 
 
+def clientes_del_catalogo(session: Session, cliente_id: uuid.UUID) -> list[uuid.UUID]:
+    """El cliente y, si hereda, el cliente del que toma lugares y mercancías."""
+    cliente = session.get(Cliente, cliente_id)
+    if cliente is not None and cliente.hereda_de_id:
+        return [cliente_id, cliente.hereda_de_id]
+    return [cliente_id]
+
+
+def _validar_herencia(session: Session, cliente_id: uuid.UUID | None, hereda_de_id: uuid.UUID | None) -> None:
+    if hereda_de_id is None:
+        return
+    def _error(msg: str) -> AppError:
+        return AppError("validation_error", msg, 422, details=[{"field": "hereda_de_id", "issue": msg}])
+    if hereda_de_id == cliente_id:
+        raise _error("Un cliente no puede heredar de sí mismo")
+    padre = session.get(Cliente, hereda_de_id)
+    if padre is None:
+        raise _error("Cliente no encontrado")
+    if padre.hereda_de_id is not None:
+        raise _error(f"{padre.nombre_comercial} ya usa los datos de otro cliente; elige ese directamente")
+    if cliente_id is not None and session.exec(select(Cliente).where(Cliente.hereda_de_id == cliente_id)).first():
+        raise _error("Otros clientes usan los lugares y mercancías de este; no puede heredar a su vez")
+
+
 def create_cliente(session: Session, data: ClienteCreate) -> Cliente:
+    _validar_herencia(session, None, data.hereda_de_id)
     cliente = Cliente(**data.model_dump())
     session.add(cliente)
     session.commit()
@@ -352,7 +377,10 @@ def create_cliente(session: Session, data: ClienteCreate) -> Cliente:
 
 def update_cliente(session: Session, cliente_id: uuid.UUID, data: ClienteUpdate) -> Cliente:
     cliente = get_cliente(session, cliente_id)
-    _apply_patch(cliente, data.model_dump(exclude_unset=True))
+    cambios = data.model_dump(exclude_unset=True)
+    if "hereda_de_id" in cambios:
+        _validar_herencia(session, cliente_id, cambios["hereda_de_id"])
+    _apply_patch(cliente, cambios)
     session.add(cliente)
     session.commit()
     session.refresh(cliente)
@@ -398,7 +426,8 @@ def restaurar_cliente(session: Session, cliente_id: uuid.UUID) -> Cliente:
 
 def list_mercancias(session: Session, cliente_id: uuid.UUID) -> list[MercanciaFrecuente]:
     get_cliente(session, cliente_id)
-    stmt = select(MercanciaFrecuente).where(MercanciaFrecuente.cliente_id == cliente_id)
+    ids = clientes_del_catalogo(session, cliente_id)  # incluye las heredadas
+    stmt = select(MercanciaFrecuente).where(MercanciaFrecuente.cliente_id.in_(ids))
     return session.exec(stmt.order_by(MercanciaFrecuente.nombre_humano)).all()
 
 
@@ -465,10 +494,11 @@ def list_lugares(
     session: Session, cliente_id: uuid.UUID | None, incluir_globales: bool, q: str | None
 ) -> list[Lugar]:
     stmt = select(Lugar)
+    ids = clientes_del_catalogo(session, cliente_id) if cliente_id is not None else []
     if cliente_id is not None and incluir_globales:
-        stmt = stmt.where((Lugar.cliente_id == cliente_id) | (Lugar.cliente_id == None))
+        stmt = stmt.where(Lugar.cliente_id.in_(ids) | (Lugar.cliente_id == None))
     elif cliente_id is not None:
-        stmt = stmt.where(Lugar.cliente_id == cliente_id)
+        stmt = stmt.where(Lugar.cliente_id.in_(ids))
     if q:
         stmt = stmt.where(Lugar.nombre.ilike(f"%{q}%"))  # type: ignore[attr-defined]
     return session.exec(stmt.order_by(Lugar.nombre)).all()

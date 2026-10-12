@@ -327,7 +327,10 @@ def _cuerpo_correo(session: Session, factura: Factura, servicio: Servicio, clien
             nombre_lugar[v.destino_lugar_id] for v in viajes if v.destino_lugar_id in nombre_lugar
         ).upper(),
     }
-    texto = texto_correo(cliente.plantilla_correo, valores)
+    plantilla = cliente.plantilla_correo
+    if not plantilla and cliente.hereda_de_id and (padre := session.get(Cliente, cliente.hereda_de_id)):
+        plantilla = padre.plantilla_correo
+    texto = texto_correo(plantilla, valores)
     cuerpo = "<p>" + html.escape(texto).replace("\n", "<br>") + "</p>"
 
     desglose = desglose_por_destino(viajes, Decimal(factura.subtotal))

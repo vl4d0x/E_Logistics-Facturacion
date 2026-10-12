@@ -4,6 +4,7 @@ import { useForm } from "@mantine/form";
 import { IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import {
+  clientesApi,
   useCreateMercancia,
   useDeleteMercancia,
   useMercanciaUso,
@@ -95,6 +96,9 @@ function MercanciaForm({
 
 export function MercanciasManager({ clienteId }: { clienteId: string }) {
   const { data: mercancias, isLoading } = useMercancias(clienteId);
+  // Mercancías heredadas (cliente que usa las de otro, ej. AERZEN RENTAL → AERZEN).
+  const { data: clientesPage } = clientesApi.useList("todos", "");
+  const nombreCliente = (id: string) => clientesPage?.items.find((c) => c.id === id)?.nombre_comercial ?? "otro cliente";
   const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [editando, setEditando] = useState<Mercancia | null>(null);
   const [eliminando, setEliminando] = useState<Mercancia | null>(null);
@@ -131,7 +135,14 @@ export function MercanciasManager({ clienteId }: { clienteId: string }) {
         <Table.Tbody>
           {mercancias?.map((m) => (
             <Table.Tr key={m.id}>
-              <Table.Td>{m.nombre_humano}</Table.Td>
+              <Table.Td>
+                {m.nombre_humano}
+                {m.cliente_id !== clienteId && (
+                  <Badge size="xs" variant="light" color="gray" ml={6}>
+                    De {nombreCliente(m.cliente_id)}
+                  </Badge>
+                )}
+              </Table.Td>
               <Table.Td>{m.bienes_transp}</Table.Td>
               <Table.Td>{m.clave_unidad}</Table.Td>
               <Table.Td>{m.peso_kg_sugerido ? `${m.peso_kg_sugerido} kg` : "—"}</Table.Td>

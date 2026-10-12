@@ -2,7 +2,7 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
 
 from app.modules.catalogos.models import MetodoPago, ModoAcuse, RegimenReceptor, TipoMedidor
 from app.modules.catalogos.validators import validate_rfc, validate_rfc_lugar
@@ -96,6 +96,8 @@ class OperadorOut(OperadorBase):
 
 # --- Cliente ---------------------------------------------------------------
 class ClienteBase(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)  # "AERZEN " → "AERZEN"
+
     razon_social: str
     nombre_comercial: str
     rfc: str
@@ -109,6 +111,7 @@ class ClienteBase(BaseModel):
     dias_credito: int = 30
     requiere_folio_concepto: bool = False
     plantilla_correo: str | None = None
+    hereda_de_id: uuid.UUID | None = None
 
     @field_validator("rfc")
     @classmethod
@@ -121,6 +124,8 @@ class ClienteCreate(ClienteBase):
 
 
 class ClienteUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     razon_social: str | None = None
     nombre_comercial: str | None = None
     rfc: str | None = None
@@ -134,6 +139,7 @@ class ClienteUpdate(BaseModel):
     dias_credito: int | None = None
     requiere_folio_concepto: bool | None = None
     plantilla_correo: str | None = None
+    hereda_de_id: uuid.UUID | None = None
 
     @field_validator("rfc")
     @classmethod

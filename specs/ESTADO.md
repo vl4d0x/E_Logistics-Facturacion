@@ -78,6 +78,11 @@ Estas mandan sobre los specs numerados cuando difieran.
 - Correo de factura: XML + PDF + **un solo PDF de evidencia** con todos los acuses unidos
   (`pypdf`), nombre `FACT #<folio>-<NOMBRE COMERCIAL>_EVIDENCIA.pdf`.
 
+**Otra razón social del mismo cliente** (`cliente.hereda_de_id`, "Usa los lugares y mercancías de"
+en la ficha del cliente): AERZEN RENTAL MEXICO usa los lugares (incluido el origen predeterminado) y
+las mercancías de AERZEN, en vivo; si no tiene texto de correo propio usa el de AERZEN. Sus datos
+fiscales son propios. Un solo nivel. La migración `0014` los ligó por RFC.
+
 **Catálogos y Carta Porte (11 oct 2026, prueba de punta a punta)**
 - RFC de lugar `XEXX010101000` (extranjeros) **no se acepta**: el transporte es nacional y el SAT lo
   rechaza. La migración `0012` pasó los 3 lugares que lo traían a `XAXX010101000`.
@@ -94,11 +99,9 @@ Estas mandan sobre los specs numerados cuando difieran.
 
 ## 3. Pendientes conocidos
 
-- 🔴 **Datos fiscales de clientes que el SAT rechaza** (probado en sandbox con CSD real, 11 oct 2026).
-  Solo se corrigen con la **Constancia de Situación Fiscal** de cada uno (Catálogos → Clientes):
-  - AERZEN DE MEXICO y LESAFFRE MEXICO: la razón social no coincide con la registrada para su RFC.
-  - PARAUTOS y FARMABIOT: el CP fiscal no coincide con el registrado para su RFC.
-  - CHEMITAL timbra bien (facturas, REP, anticipado con precio y con $0).
+- ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
+  Farmabiot (11 oct 2026). Los 6 clientes (incluido AERZEN RENTAL) timbran en sandbox con CSD real.
+- FARMABIOT sigue sin lugares ni mercancías en producción (se dan de alta desde la app).
 
 - **Cancelación en el sandbox no funciona**: Facturama responde 500 ("Ups! Ocurrió un problema
   al cancelar…") con cualquier motivo/ruta. Probablemente porque el sandbox no registra en el
@@ -155,7 +158,8 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 `0008` servicio.timbrado_modo · `0009` lugar.distancia_km/km_confirmado + viaje.origen_cp/destino_cp ·
 `0010` carga de km por destino desde `alembic/data/km_lugares.json` · `0011` viaje.monto_desglose +
 cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAXX en lugares ·
-`0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia).
+`0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia) · `0014`
+cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes.
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

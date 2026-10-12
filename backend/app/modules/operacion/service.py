@@ -10,6 +10,7 @@ from app.core.models import utcnow
 from app.core.tiempo import hoy_mx
 from app.modules.auth.models import Usuario
 from app.modules.catalogos.models import MercanciaFrecuente, Unidad
+from app.modules.catalogos.service import clientes_del_catalogo
 from app.modules.operacion.models import CargaCombustible, InspeccionSalida, ReporteCierre
 from app.modules.operacion.schemas import (
     CerrarServicioIn,
@@ -57,7 +58,8 @@ def listar_servicios_operador(
         detalle = enriquecer_detalle_con_operacion(session, s.id, detalle)
         mercancias = session.exec(
             select(MercanciaFrecuente).where(
-                MercanciaFrecuente.cliente_id == s.cliente_id, MercanciaFrecuente.activo == True
+                MercanciaFrecuente.cliente_id.in_(clientes_del_catalogo(session, s.cliente_id)),
+                MercanciaFrecuente.activo == True
             )
         ).all()
         detalle.mercancias_cliente = [
