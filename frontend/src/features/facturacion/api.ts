@@ -73,3 +73,14 @@ export function useGuardarFolio(_servicioId?: string) {
     onError: (err) => toastError(err, "No se pudo guardar el folio"),
   });
 }
+
+/** Monto de cada destino del desglose de precio (`PUT /servicios/{id}/desglose-precio`). */
+export function useGuardarDesglose(servicioId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (items: { viaje_id: string; monto: number | null }[]) =>
+      api.put<FacturacionDetalle>(`/api/v1/servicios/${servicioId}/desglose-precio`, items),
+    onSuccess: (data) => client.setQueryData(queryKey(servicioId), data),
+    onError: (err) => toastError(err, "No se pudo guardar el desglose"),
+  });
+}

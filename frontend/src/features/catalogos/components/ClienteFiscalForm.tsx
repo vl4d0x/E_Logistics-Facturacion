@@ -1,5 +1,17 @@
 // `fase-1-catalogos.md` H1.3 — datos fiscales y de acuse del cliente.
-import { Button, Group, NumberInput, Pill, PillsInput, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
+import {
+  Button,
+  Group,
+  NumberInput,
+  Pill,
+  PillsInput,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+  TextInput,
+} from "@mantine/core";
 import { useForm, type UseFormReturnType } from "@mantine/form";
 import { useState } from "react";
 import { clientesApi } from "../api";
@@ -9,6 +21,10 @@ const AYUDA_REGIMEN: Record<string, string> = {
   fisica: "Persona física: no se retiene IVA.",
   moral: "Persona moral: se retiene 4% de IVA.",
 };
+
+// Debe coincidir con `PLANTILLA_CORREO_DEFAULT` del backend (facturacion/facturas.py).
+const PLANTILLA_CORREO_DEFAULT =
+  "Buen día, envío la factura #{folio}, correspondiente al día {dia} de {mes} del {anio}.";
 
 const AYUDA_ACUSE: Record<string, string> = {
   escaneo: "El operador sube foto del acuse sellado.",
@@ -43,6 +59,7 @@ export function ClienteFiscalForm({
           emails_facturacion: cliente.emails_facturacion,
           dias_credito: cliente.dias_credito,
           requiere_folio_concepto: cliente.requiere_folio_concepto,
+          plantilla_correo: cliente.plantilla_correo,
         }
       : {
           razon_social: "",
@@ -57,6 +74,7 @@ export function ClienteFiscalForm({
           emails_facturacion: [],
           dias_credito: 30,
           requiere_folio_concepto: false,
+          plantilla_correo: null,
         },
     validate: {
       razon_social: (v) => (v.trim() ? null : "Requerido"),
@@ -164,6 +182,15 @@ export function ClienteFiscalForm({
           description="Ej. Chemital: pide su número de remisión dentro del concepto"
           checked={form.values.requiere_folio_concepto}
           onChange={(e) => form.setFieldValue("requiere_folio_concepto", e.currentTarget.checked)}
+        />
+        <Textarea
+          label="Texto del correo de factura"
+          description="Vacío = texto general. Se reemplazan: {folio}, {dia}, {mes}, {anio} (fecha del servicio), {operador}, {unidad}, {origen}, {destinos}. Debajo se agrega la tabla del desglose de precio."
+          placeholder={PLANTILLA_CORREO_DEFAULT}
+          autosize
+          minRows={3}
+          value={form.values.plantilla_correo ?? ""}
+          onChange={(e) => form.setFieldValue("plantilla_correo", e.currentTarget.value.trim() ? e.currentTarget.value : null)}
         />
 
         <Group justify="flex-end" mt="md">

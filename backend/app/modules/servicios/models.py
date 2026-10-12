@@ -93,6 +93,9 @@ class Viaje(TimestampMixin, table=True):
     origen_cp: str | None = Field(default=None)
     destino_cp: str | None = Field(default=None)
     distancia_km: float | None = Field(default=None)
+    # Parte del subtotal que corresponde a este destino ("desglose de precio" de Facturar).
+    # No va al CFDI: se manda al cliente como tabla en el correo de la factura.
+    monto_desglose: Decimal | None = Field(default=None, max_digits=12, decimal_places=2)
     km_reportado: float | None = Field(default=None)
     hora_llegada: time | None = Field(default=None)
     terminado_at: datetime | None = Field(default=None)

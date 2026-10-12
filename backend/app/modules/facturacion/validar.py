@@ -7,6 +7,7 @@ Devuelve una lista de checks (`regla`, `nivel`, `mensaje`, `campo?`); cualquier
 """
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlmodel import Session, select
 
@@ -43,6 +44,18 @@ def folios_por_viaje(session: Session, servicio: Servicio, viajes: list[Viaje]) 
     if len(destinos) == 1 and not folios[destinos[0].id] and servicio.folio_cliente:
         folios[destinos[0].id] = servicio.folio_cliente
     return folios
+
+
+def desglose_por_destino(viajes: list[Viaje], subtotal: Decimal | None) -> list[tuple[Viaje, Decimal | None]]:
+    """Monto de cada viaje con destino (desglose de precio). Con un solo destino sin monto
+    capturado, ese destino se lleva todo el subtotal."""
+    def _2d(monto) -> Decimal | None:
+        return None if monto is None else Decimal(monto).quantize(Decimal("0.01"))
+
+    destinos = [v for v in viajes if v.destino_lugar_id is not None]
+    if len(destinos) == 1 and destinos[0].monto_desglose is None:
+        return [(destinos[0], _2d(subtotal))]
+    return [(v, _2d(v.monto_desglose)) for v in destinos]
 
 
 def modo_timbrado(servicio: Servicio) -> str:
@@ -134,6 +147,31 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         checks.append(_error("subtotal_presente", "Captura un subtotal mayor a cero", "subtotal"))
     else:
         checks.append(_ok("subtotal_presente", "subtotal"))
+
+    # --- Desglose de precio por destino (va en el correo; no aplica al timbrado con $0) ---
+    if subtotal and subtotal > 0 and modo_timbrado(servicio) != "cero":
+        desglose = desglose_por_destino(viajes, subtotal)
+        capturados = [m for _v, m in desglose if m is not None]
+        if not capturados:
+            checks.append(
+                _warning(
+                    "desglose_precio",
+                    "Sin desglose de precio por destino: el correo irá sin la tabla",
+                    "desglose",
+                )
+            )
+        elif len(capturados) < len(desglose):
+            checks.append(_error("desglose_precio", "Captura el monto de cada destino en el desglose de precio", "desglose"))
+        elif sum(capturados, Decimal(0)) != subtotal:
+            checks.append(
+                _error(
+                    "desglose_precio",
+                    f"El desglose suma ${sum(capturados, Decimal(0)):,.2f} y el subtotal es ${subtotal:,.2f}",
+                    "desglose",
+                )
+            )
+        else:
+            checks.append(_ok("desglose_precio", "desglose"))
 
     # --- Folio del cliente en el concepto (exclusivo de clientes que lo exigen) ---
     if cliente.requiere_folio_concepto:

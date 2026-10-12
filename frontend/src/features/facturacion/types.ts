@@ -119,6 +119,13 @@ export interface Validacion {
   preview: Montos | null;
 }
 
+export interface DesgloseDestino {
+  viaje_id: string;
+  destino: string;
+  monto: string | null;
+  capturado: boolean; // false = monto implícito (un solo destino se lleva todo el subtotal)
+}
+
 export interface FacturacionDetalle {
   cliente_id?: string | null;
   unidad_id?: string | null;
@@ -128,6 +135,7 @@ export interface FacturacionDetalle {
   servicio_id: string;
   receptor: Receptor;
   concepto: Concepto;
+  desglose_precio: DesgloseDestino[];
   ubicaciones: Ubicacion[];
   mercancias: MercanciaFacturar[];
   autotransporte: Autotransporte;

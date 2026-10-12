@@ -9,6 +9,7 @@ from app.core.deps import require_role
 from app.modules.auth.models import RolUsuario, Usuario
 from app.modules.facturacion import service
 from app.modules.facturacion.schemas import (
+    DesgloseDestinoIn,
     FacturacionDetalleOut,
     FacturacionUpdateIn,
     FacturarIn,
@@ -40,6 +41,13 @@ def editar_facturacion(
     servicio_id: uuid.UUID, body: FacturacionUpdateIn, session: Session = Depends(get_session)
 ) -> FacturacionDetalleOut:
     return service.actualizar_facturacion(session, servicio_id, body)
+
+
+@router.put("/servicios/{servicio_id}/desglose-precio", response_model=FacturacionDetalleOut)
+def guardar_desglose(
+    servicio_id: uuid.UUID, body: list[DesgloseDestinoIn], session: Session = Depends(get_session)
+) -> FacturacionDetalleOut:
+    return service.guardar_desglose(session, servicio_id, body)
 
 
 @router.post("/servicios/{servicio_id}/facturar")

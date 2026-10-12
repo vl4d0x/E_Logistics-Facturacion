@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, time
 from decimal import Decimal
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.modules.catalogos.models import RegimenReceptor
 
@@ -68,6 +68,18 @@ class ConceptoOut(BaseModel):
     requiere_folio: bool = False
     folio_cliente: str | None = None
     folios: list[FolioViajeOut] = []  # un folio por destino (clientes que lo exigen en el concepto)
+
+
+class DesgloseDestinoOut(BaseModel):
+    viaje_id: uuid.UUID
+    destino: str
+    monto: Decimal | None = None
+    capturado: bool  # False = monto implícito (un solo destino se lleva todo el subtotal)
+
+
+class DesgloseDestinoIn(BaseModel):
+    viaje_id: uuid.UUID
+    monto: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
 
 
 class UbicacionOut(BaseModel):
@@ -146,6 +158,7 @@ class FacturacionDetalleOut(BaseModel):
     servicio_id: uuid.UUID
     receptor: ReceptorOut
     concepto: ConceptoOut
+    desglose_precio: list[DesgloseDestinoOut] = []
     ubicaciones: list[UbicacionOut]
     mercancias: list[MercanciaFacturarOut]
     autotransporte: AutotransporteOut

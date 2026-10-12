@@ -108,6 +108,7 @@ class ClienteBase(BaseModel):
     emails_facturacion: list[EmailStr] = []
     dias_credito: int = 30
     requiere_folio_concepto: bool = False
+    plantilla_correo: str | None = None
 
     @field_validator("rfc")
     @classmethod
@@ -132,6 +133,7 @@ class ClienteUpdate(BaseModel):
     emails_facturacion: list[EmailStr] | None = None
     dias_credito: int | None = None
     requiere_folio_concepto: bool | None = None
+    plantilla_correo: str | None = None
 
     @field_validator("rfc")
     @classmethod

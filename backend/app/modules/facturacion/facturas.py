@@ -1,5 +1,6 @@
 """Facturas ya timbradas: archivos, lista, descarga, correo y cancelación — `04 §8-9`, H4.7-H4.10."""
 import base64
+import html
 import io
 import logging
 import re
@@ -13,8 +14,9 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.models import utcnow
 from app.integrations.facturama import FacturamaClient, FacturamaError
-from app.modules.catalogos.models import Cliente, Lugar, ModoAcuse
+from app.modules.catalogos.models import Cliente, Lugar, ModoAcuse, Operador, Unidad
 from app.modules.facturacion.models import EstadoFactura, Factura
+from app.modules.facturacion.validar import desglose_por_destino
 from app.modules.servicios.models import Acuse, EstadoFacturacion, Servicio, Viaje
 
 log = logging.getLogger(__name__)
@@ -265,20 +267,70 @@ def _marcar_cancelada(session: Session, factura: Factura) -> None:
 # --- Correo ------------------------------------------------------------------
 
 
-def _cuerpo_correo(session: Session, factura: Factura, servicio: Servicio, cliente: Cliente, folios: list[str]) -> str:
+# Texto general del correo (Parautos y cualquier cliente sin plantilla propia).
+PLANTILLA_CORREO_DEFAULT = "Buen día, envío la factura #{folio}, correspondiente al día {dia} de {mes} del {anio}."
+_MESES = (
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+)
+
+
+class _Marcadores(dict):
+    """Un marcador desconocido ({algo}) se deja tal cual en vez de romper el correo."""
+
+    def __missing__(self, clave: str) -> str:
+        return "{" + clave + "}"
+
+
+def texto_correo(plantilla: str | None, valores: dict[str, str]) -> str:
+    return (plantilla or PLANTILLA_CORREO_DEFAULT).format_map(_Marcadores(valores))
+
+
+def tabla_desglose_html(filas: list[tuple[str, Decimal]], subtotal: Decimal) -> str:
+    celda = 'style="border:1px solid #ccc;padding:6px 10px"'
+    derecha = 'style="border:1px solid #ccc;padding:6px 10px;text-align:right"'
+    cuerpo = "".join(
+        f"<tr><td {celda}>{html.escape(destino)}</td><td {derecha}>${monto:,.2f}</td></tr>" for destino, monto in filas
+    )
+    return (
+        '<table style="border-collapse:collapse;margin-top:12px">'
+        f"<thead><tr><th {celda}>Destino</th><th {celda}>Monto</th></tr></thead>"
+        f"<tbody>{cuerpo}</tbody>"
+        f"<tfoot><tr><th {celda}>Subtotal</th><th {derecha}>${subtotal:,.2f}</th></tr></tfoot>"
+        "</table>"
+    )
+
+
+def _cuerpo_correo(session: Session, factura: Factura, servicio: Servicio, cliente: Cliente) -> str:
+    """Texto de la plantilla del cliente + la tabla del desglose de precio (si está completo)."""
     viajes = session.exec(select(Viaje).where(Viaje.servicio_id == servicio.id).order_by(Viaje.orden)).all()
-    ids = [v.destino_lugar_id for v in viajes if v.destino_lugar_id]
-    destinos = [lugar.nombre for i in ids if (lugar := session.get(Lugar, i))]
-    lineas = [
-        f"Cliente: {cliente.nombre_comercial}",
-        f"Servicio #{servicio.numero}",
-        f"Destino(s): {', '.join(destinos) or '—'}",
-        f"Total: ${Decimal(factura.total):,.2f}",
-        f"UUID: {factura.uuid_fiscal}",
-    ]
-    if folios:
-        lineas.append(f"Folio(s) de acuse: {', '.join(folios)}")
-    return "<p>" + "<br>".join(lineas) + "</p>"
+    nombre_lugar = {}
+    for v in viajes:
+        for lugar_id in (v.origen_lugar_id, v.destino_lugar_id):
+            if lugar_id and lugar_id not in nombre_lugar and (lugar := session.get(Lugar, lugar_id)):
+                nombre_lugar[lugar_id] = lugar.nombre
+    operador = session.get(Operador, servicio.operador_id)
+    unidad = session.get(Unidad, servicio.unidad_id)
+    valores = {
+        "folio": factura.folio or "",
+        "dia": str(servicio.fecha.day),
+        "mes": _MESES[servicio.fecha.month - 1],
+        "anio": str(servicio.fecha.year),
+        "operador": (operador.nombre if operador else "").upper(),
+        "unidad": (unidad.apodo if unidad else "").upper(),
+        "origen": " / ".join(nombre_lugar[v.origen_lugar_id] for v in viajes if v.origen_lugar_id in nombre_lugar).upper(),
+        "destinos": " / ".join(
+            nombre_lugar[v.destino_lugar_id] for v in viajes if v.destino_lugar_id in nombre_lugar
+        ).upper(),
+    }
+    texto = texto_correo(cliente.plantilla_correo, valores)
+    cuerpo = "<p>" + html.escape(texto).replace("\n", "<br>") + "</p>"
+
+    desglose = desglose_por_destino(viajes, Decimal(factura.subtotal))
+    if desglose and all(m is not None for _v, m in desglose):
+        filas = [(nombre_lugar.get(v.destino_lugar_id, "—"), m) for v, m in desglose]
+        cuerpo += tabla_desglose_html(filas, Decimal(factura.subtotal))
+    return cuerpo
 
 
 def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos: list[dict]) -> list[str]:
@@ -385,17 +437,14 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
     ]
     viajes_ids = [v.id for v in session.exec(select(Viaje).where(Viaje.servicio_id == servicio.id)).all()]
     acuses = session.exec(select(Acuse).where(Acuse.viaje_id.in_(viajes_ids))).all() if viajes_ids else []
-    folios: list[str] = []
     if cliente.modo_acuse == ModoAcuse.escaneo:
         adjuntos.extend(_adjuntos_evidencia(session, factura, servicio, cliente, acuses))
-    elif cliente.modo_acuse == ModoAcuse.referencia:
-        folios = [a.referencia for a in acuses if a.referencia]
 
     try:
         enviados = enviar_correo(
             destinatarios=destinatarios,
             asunto=f"Factura {factura.serie or ''}{factura.folio or ''} · Servicio #{servicio.numero} · Elogistics",
-            html=_cuerpo_correo(session, factura, servicio, cliente, folios),
+            html=_cuerpo_correo(session, factura, servicio, cliente),
             adjuntos=adjuntos,
         )
     except AppError as exc:

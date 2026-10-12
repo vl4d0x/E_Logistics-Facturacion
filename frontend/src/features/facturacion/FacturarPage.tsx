@@ -25,6 +25,7 @@ import { ApiError } from "../../lib/api";
 import { descargarFactura } from "../facturas/api";
 import { AcuseViewerSimple } from "./components/AcuseViewerSimple";
 import { CollapsibleSection } from "./components/CollapsibleSection";
+import { DesglosePrecio } from "./components/DesglosePrecio";
 import { MercanciasEditable, RutaEditable, UnidadOperadorEditable } from "./components/EdicionFacturar";
 import { PriceField } from "./components/PriceField";
 import {
@@ -213,6 +214,30 @@ export function FacturarPage() {
               />
               )}
             </Card>
+
+            {!esCero && (
+              <CollapsibleSection
+                title="Desglose de precio"
+                summary={
+                  detalle.desglose_precio.length === 1
+                    ? `1 destino · ${detalle.desglose_precio[0].destino}`
+                    : `${detalle.desglose_precio.length} destinos · ${
+                        detalle.desglose_precio.every((d) => d.monto != null) ? "capturado" : "sin capturar"
+                      }`
+                }
+                forceOpen={campoConError(["desglose"])}
+              >
+                <DesglosePrecio
+                  servicioId={detalle.servicio_id}
+                  items={detalle.desglose_precio}
+                  subtotal={subtotal}
+                  onUsarSuma={(suma) => {
+                    setSubtotal(suma);
+                    actualizar.mutate({ subtotal: suma });
+                  }}
+                />
+              </CollapsibleSection>
+            )}
 
             <CollapsibleSection
               title="Receptor y pago"

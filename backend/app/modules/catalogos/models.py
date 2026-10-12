@@ -92,6 +92,9 @@ class Cliente(TimestampMixin, table=True):
     # Caso real: Chemital exige su propio folio de remisión dentro del concepto de
     # la factura; es exclusivo de ese cliente, confirmado por Vlad (04 §2).
     requiere_folio_concepto: bool = Field(default=False, nullable=False)
+    # Texto del correo de factura con marcadores ({folio}, {dia}, {mes}, {anio}, {operador},
+    # {unidad}, {origen}, {destinos}); None = el texto general (`facturas.PLANTILLA_CORREO_DEFAULT`).
+    plantilla_correo: str | None = Field(default=None)
     activo: bool = Field(default=True)
 
 

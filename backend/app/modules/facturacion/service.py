@@ -17,6 +17,8 @@ from app.modules.facturacion.schemas import (
     AcuseFacturarOut,
     AutotransporteOut,
     ConceptoOut,
+    DesgloseDestinoIn,
+    DesgloseDestinoOut,
     DesgloseLineaOut,
     FacturacionDetalleOut,
     FacturacionUpdateIn,
@@ -32,7 +34,13 @@ from app.modules.facturacion.schemas import (
     ValidacionOut,
 )
 from app.modules.facturacion.taxes import calcular_impuestos, subtotal_desde_total
-from app.modules.facturacion.validar import folios_por_viaje, modo_timbrado, subtotal_efectivo, validar_servicio
+from app.modules.facturacion.validar import (
+    desglose_por_destino,
+    folios_por_viaje,
+    modo_timbrado,
+    subtotal_efectivo,
+    validar_servicio,
+)
 from app.modules.precios.service import sugerir_para_servicio
 from app.modules.servicios.models import (
     Acuse,
@@ -42,7 +50,11 @@ from app.modules.servicios.models import (
     Viaje,
     ViajeMercancia,
 )
-from app.modules.servicios.service import asegurar_mercancia_default, datos_fiscales_bloqueados, get_servicio
+from app.modules.servicios.service import (
+    asegurar_mercancia_default,
+    datos_fiscales_bloqueados,
+    get_servicio,
+)
 
 
 def _url_o_none(key: str | None) -> str | None:
@@ -322,6 +334,15 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
                 if v.destino_lugar_id is not None
             ],
         ),
+        desglose_precio=[
+            DesgloseDestinoOut(
+                viaje_id=v.id,
+                destino=lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else "—",
+                monto=monto,
+                capturado=v.monto_desglose is not None,
+            )
+            for v, monto in desglose_por_destino(viajes, servicio.subtotal)
+        ],
         ubicaciones=_ubicaciones(viajes, lugares),
         mercancias=mercancias,
         autotransporte=AutotransporteOut(
@@ -359,6 +380,41 @@ def actualizar_facturacion(
     for campo, valor in datos.items():
         setattr(servicio, campo, valor)
     session.add(servicio)
+    session.commit()
+    return construir_detalle_facturacion(session, servicio_id)
+
+
+def guardar_desglose(
+    session: Session, servicio_id: uuid.UUID, items: list[DesgloseDestinoIn]
+) -> FacturacionDetalleOut:
+    """Monto de cada destino. No es dato fiscal (no va al CFDI), así que se puede corregir
+    aun con factura vigente, siempre que cuadre con el subtotal ya timbrado."""
+    servicio = get_servicio(session, servicio_id)
+    if servicio.estado == EstadoServicio.cancelado:
+        raise AppError("conflict", "El servicio está cancelado", 409)
+    viajes = {v.id: v for v in session.exec(select(Viaje).where(Viaje.servicio_id == servicio.id)).all()}
+    for item in items:
+        viaje = viajes.get(item.viaje_id)
+        if viaje is None or viaje.destino_lugar_id is None:
+            raise AppError(
+                "validation_error",
+                "El viaje no es un destino de este servicio",
+                422,
+                details=[{"field": "viaje_id", "issue": str(item.viaje_id)}],
+            )
+        viaje.monto_desglose = item.monto
+        session.add(viaje)
+    if datos_fiscales_bloqueados(session, servicio):
+        montos = [m for _v, m in desglose_por_destino(list(viajes.values()), servicio.subtotal)]
+        if any(m is not None for m in montos) and (
+            None in montos or sum(montos, Decimal(0)) != servicio.subtotal
+        ):
+            raise AppError(
+                "validation_error",
+                f"La factura ya está timbrada: el desglose debe sumar ${servicio.subtotal:,.2f}",
+                422,
+                details=[{"field": "desglose", "issue": "no_cuadra"}],
+            )
     session.commit()
     return construir_detalle_facturacion(session, servicio_id)
 

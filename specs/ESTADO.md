@@ -65,6 +65,16 @@ Estas mandan sobre los specs numerados cuando difieran.
   con motivo 02). Si el servicio no tiene mercancías se agrega 1 kg de "Preservativos de
   alimentos" (12164501 / X4G, del catálogo del cliente o se crea ahí).
 - Total con IVA (y retención 4% si es persona moral) visible bajo cualquier subtotal.
+- **Desglose de precio** (sección en Facturar): monto por destino (`viaje.monto_desglose`,
+  `PUT /servicios/{id}/desglose-precio`). No va al CFDI. Si se captura, debe cubrir todos los
+  destinos y sumar el subtotal (error de validación); sin capturar con varios destinos = warning.
+  Con un solo destino sin monto, ese destino se lleva todo el subtotal. Se puede corregir con
+  factura vigente si cuadra con el subtotal timbrado.
+- **Texto del correo por cliente** (`cliente.plantilla_correo`, editable en la ficha del cliente):
+  marcadores `{folio} {dia} {mes} {anio}` (fecha del servicio) `{operador} {unidad} {origen}
+  {destinos}`. Sin plantilla = "Buen día, envío la factura #{folio}, correspondiente al día {dia}
+  de {mes} del {anio}." (el de Parautos). La migración `0011` cargó los de Aerzen, Chemital,
+  Farmabiot y Lesaffre. Debajo del texto va la tabla del desglose (si está completo).
 - Correo de factura: XML + PDF + **un solo PDF de evidencia** con todos los acuses unidos
   (`pypdf`), nombre `FACT #<folio>-<NOMBRE COMERCIAL>_EVIDENCIA.pdf`.
 
@@ -123,4 +133,5 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 ## 7. Migraciones agregadas en esta sesión
 
 `0008` servicio.timbrado_modo · `0009` lugar.distancia_km/km_confirmado + viaje.origen_cp/destino_cp ·
-`0010` carga de km por destino desde `alembic/data/km_lugares.json`.
+`0010` carga de km por destino desde `alembic/data/km_lugares.json` · `0011` viaje.monto_desglose +
+cliente.plantilla_correo (con los textos por cliente).

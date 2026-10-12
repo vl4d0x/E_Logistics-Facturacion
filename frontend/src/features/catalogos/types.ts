@@ -77,6 +77,7 @@ export interface Cliente {
   emails_facturacion: string[];
   dias_credito: number;
   requiere_folio_concepto: boolean;
+  plantilla_correo: string | null;
   activo: boolean;
 }
 
