@@ -1,6 +1,6 @@
 // `fase-2-servicios.md` H2.2 — lista de servicios por estado y fecha.
 import { pesos } from "../../lib/money";
-import { Alert, Badge, Button, Group, Select, Table, Tabs, Text, TextInput } from "@mantine/core";
+import { Alert, Badge, Button, Group, Select, Table, Tabs, Text, TextInput, Chip } from "@mantine/core";
 import { IconAlertTriangle, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -52,6 +52,9 @@ export function ServiciosPage() {
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [operadorId, setOperadorId] = useState<string | null>(null);
   const [unidadId, setUnidadId] = useState<string | null>(null);
+  // Filtros que abre el dashboard ("Acuses faltantes", "Inspecciones con fallas").
+  const [acusesPendientes, setAcusesPendientes] = useState(params.get("acuses_pendientes") === "true");
+  const [inspeccionFallas, setInspeccionFallas] = useState(params.get("inspeccion_fallas") === "true");
 
   const filtros: FiltrosServicios = useMemo(
     () => ({
@@ -60,8 +63,10 @@ export function ServiciosPage() {
       operador_id: operadorId,
       unidad_id: unidadId,
       q,
+      acuses_pendientes: acusesPendientes,
+      inspeccion_fallas: inspeccionFallas,
     }),
-    [vista, clienteId, operadorId, unidadId, q],
+    [vista, clienteId, operadorId, unidadId, q, acusesPendientes, inspeccionFallas],
   );
 
   const { data, isLoading, isError } = useServicios(filtros);
@@ -113,6 +118,12 @@ export function ServiciosPage() {
           onChange={(e) => setQ(e.currentTarget.value)}
           w={260}
         />
+        <Chip checked={acusesPendientes} onChange={setAcusesPendientes} color="orange" variant="light">
+          Acuses pendientes / re-escaneo
+        </Chip>
+        <Chip checked={inspeccionFallas} onChange={setInspeccionFallas} color="yellow" variant="light">
+          Inspección con fallas
+        </Chip>
         <Select
           placeholder="Cliente"
           clearable
@@ -181,6 +192,11 @@ export function ServiciosPage() {
                     >
                       {s.acuses_completos}/{s.acuses_requeridos} acuses
                     </Badge>
+                    {(s.reescaneos ?? 0) > 0 && (
+                      <Badge variant="light" color="orange" ml={4}>
+                        Re-escaneo
+                      </Badge>
+                    )}
                   </Table.Td>
                   <Table.Td ta="right">{s.subtotal ? pesos(s.subtotal) : "—"}</Table.Td>
                   <Table.Td>

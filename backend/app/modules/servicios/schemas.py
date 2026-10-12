@@ -119,6 +119,16 @@ class AcuseOut(BaseModel):
     subido_at: datetime
 
 
+class ReescaneoOut(BaseModel):
+    motivo: str | None
+    solicitado_at: datetime
+    solicitado_por: str | None  # nombre del usuario
+
+
+class ReescaneoIn(BaseModel):
+    motivo: str | None = None
+
+
 class ViajeOut(BaseModel):
     id: uuid.UUID
     orden: int
@@ -141,6 +151,8 @@ class ViajeOut(BaseModel):
     acuses: list[AcuseOut]
     acuse_requerido: bool
     acuse_completo: bool
+    reescaneo: ReescaneoOut | None = None
+
 
 
 # --- Servicio ----------------------------------------------------------------
@@ -242,6 +254,7 @@ class ServicioListItemOut(BaseModel):
     viajes_terminados: int
     acuses_requeridos: int
     acuses_completos: int
+    reescaneos: int = 0  # entregas con la etiqueta "Re-escaneo"
     subtotal: Decimal | None
 
 
@@ -271,6 +284,7 @@ class TerminarViajeIn(BaseModel):
     notas_operador: str | None = None
     referencia_acuse: str | None = None
     client_action_id: uuid.UUID | None = None
+    acuse_omitido: bool = False  # el operador terminó sin escanear: la entrega queda en "Re-escaneo"
 
 
 class AcuseReferenciaIn(BaseModel):

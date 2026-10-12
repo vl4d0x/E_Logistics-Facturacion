@@ -40,6 +40,7 @@ import {
 } from "./api";
 import { descargarFactura } from "../facturas/api";
 import { OperatorReportCard } from "../operacion/components/OperatorReportCard";
+import { ReescaneoControl } from "./components/ReescaneoControl";
 import type { RegimenReceptor } from "../catalogos/types";
 import type { FacturaVigente, ViajeOut } from "./types";
 
@@ -166,9 +167,27 @@ function ViajeCard({
 
       {viaje.acuse_requerido && (
         <Stack gap={4} mt="sm">
-          <Text size="xs" fw={600} c="dimmed">
-            Acuse
-          </Text>
+          <Group justify="space-between">
+            <Text size="xs" fw={600} c="dimmed">
+              Acuse
+            </Text>
+            {modoAcuse === "escaneo" && !viaje.reescaneo && viaje.estado === "terminado" && (
+              <ReescaneoControl
+                servicioId={servicioId}
+                viajeId={viaje.id}
+                destino={viaje.destino?.nombre ?? "este destino"}
+                reescaneo={null}
+              />
+            )}
+          </Group>
+          {viaje.reescaneo && (
+            <ReescaneoControl
+              servicioId={servicioId}
+              viajeId={viaje.id}
+              destino={viaje.destino?.nombre ?? "este destino"}
+              reescaneo={viaje.reescaneo}
+            />
+          )}
           {viaje.acuse_completo ? (
             <Group gap="xs">
               <Badge color="green" variant="light">
@@ -207,7 +226,7 @@ function ViajeCard({
                 Guardar folio
               </Button>
             </Group>
-          ) : (
+          ) : viaje.reescaneo ? null : (
             <FileButton
               onChange={(file) => file && acuseArchivo.mutate({ viajeId: viaje.id, file })}
               accept="application/pdf"

@@ -55,6 +55,7 @@ from app.modules.servicios.service import (
     asegurar_mercancia_default,
     datos_fiscales_bloqueados,
     get_servicio,
+    reescaneo_out,
 )
 
 
@@ -180,7 +181,10 @@ def _descripcion_autogenerada(
     return "\n".join(lineas)
 
 
-def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[UbicacionOut]:
+def _ubicaciones(
+    viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar], reescaneos: dict[uuid.UUID, dict] | None = None
+) -> list[UbicacionOut]:
+    reescaneos = reescaneos or {}
     ubicaciones = []
     n_origen = n_destino = 0
     for v in viajes:
@@ -216,6 +220,7 @@ def _ubicaciones(viajes: list[Viaje], lugares: dict[uuid.UUID, Lugar]) -> list[U
                     hora_programada=v.hora_llegada_programada,
                     distancia_km=v.distancia_km,
                     km_reportado=v.km_reportado,
+                    reescaneo=reescaneos.get(v.id),
                 )
             )
     return ubicaciones
@@ -311,6 +316,7 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
         operador_id=operador.id,
         modo="anticipado" if anticipado else "normal",
         timbrado_modo=modo_timbrado(servicio),
+        modo_acuse=cliente.modo_acuse.value,
         servicio_id=servicio.id,
         receptor=ReceptorOut(
             razon_social=cliente.razon_social,
@@ -345,7 +351,9 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
             )
             for v, monto in desglose_por_destino(viajes, servicio.subtotal)
         ],
-        ubicaciones=_ubicaciones(viajes, lugares),
+        ubicaciones=_ubicaciones(
+            viajes, lugares, {v.id: r for v in viajes if (r := reescaneo_out(session, v))}
+        ),
         mercancias=mercancias,
         autotransporte=AutotransporteOut(
             apodo=unidad.apodo,

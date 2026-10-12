@@ -84,6 +84,7 @@ export interface ViajeOut {
   acuses: AcuseOut[];
   acuse_requerido: boolean;
   acuse_completo: boolean;
+  reescaneo?: Reescaneo | null;
 }
 
 export interface ServicioCreate {
@@ -147,6 +148,7 @@ export interface ServicioListItem {
   viajes_terminados: number;
   acuses_requeridos: number;
   acuses_completos: number;
+  reescaneos?: number;
   subtotal: number | null;
 }
 
@@ -168,4 +170,11 @@ export interface FacturaVigente {
   folio: string | null;
   total: string;
   estado_cobro: string;
+}
+
+/** Etiqueta "Re-escaneo" de una entrega: el acuse falta o está mal tomado. */
+export interface Reescaneo {
+  motivo: string | null;
+  solicitado_at: string;
+  solicitado_por: string | null;
 }

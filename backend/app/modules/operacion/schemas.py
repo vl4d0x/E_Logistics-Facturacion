@@ -35,6 +35,7 @@ class TerminarViajeOperadorIn(BaseModel):
     notas: str | None = None
     mercancias: list[ViajeMercanciaIn] = []
     referencia_acuse: str | None = None
+    acuse_omitido: bool = False  # "No pude escanear": la entrega queda marcada para re-escaneo
 
 
 class KmPorViajeIn(BaseModel):

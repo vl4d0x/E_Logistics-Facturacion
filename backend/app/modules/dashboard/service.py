@@ -9,20 +9,16 @@ from sqlmodel import Session, select
 from app.core.errors import AppError
 from app.core.models import utcnow
 from app.core.tiempo import a_hora_mx
-from app.modules.catalogos.models import Cliente, ModoAcuse
+from app.modules.catalogos.models import Cliente
 from app.modules.cobranza import service as cobranza
 from app.modules.cobranza.models import EstadoPago, EstadoRep, Pago, Rep
 from app.modules.facturacion import facturas as facturas_service
 from app.modules.facturacion.models import EstadoFactura, Factura
 from app.modules.operacion.models import InspeccionSalida
 from app.modules.servicios.models import (
-    Acuse,
     EstadoFacturacion,
     EstadoServicio,
-    EstadoViaje,
     Servicio,
-    TipoViaje,
-    Viaje,
 )
 
 _VIGENTES = (EstadoFactura.timbrada, EstadoFactura.cancelacion_pendiente)  # pendiente cuenta como vigente
@@ -45,23 +41,11 @@ def pendientes(session: Session) -> dict[str, Any]:
     por_facturar = [s for s in servicios if s.estado == EstadoServicio.terminado or s.timbrado_anticipado]
     anticipados = [s for s in por_facturar if s.timbrado_anticipado and s.estado != EstadoServicio.terminado]
 
-    # Acuses faltantes: entregas terminadas de clientes que los exigen y todavía sin acuse (`00 §5.1`).
-    faltantes = 0
-    viajes = session.exec(
-        select(Viaje, Servicio, Cliente)
-        .join(Servicio, Viaje.servicio_id == Servicio.id)
-        .join(Cliente, Servicio.cliente_id == Cliente.id)
-        .where(
-            Viaje.estado == EstadoViaje.terminado,
-            Viaje.tipo.in_([TipoViaje.entrega, TipoViaje.recoleccion_entrega]),
-            Servicio.estado != EstadoServicio.cancelado,
-            Cliente.modo_acuse != ModoAcuse.ninguno,
-        )
-    ).all()
-    for v, _s, c in viajes:
-        acuses = session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
-        ok = any(a.archivo_key for a in acuses) if c.modo_acuse == ModoAcuse.escaneo else any(a.referencia for a in acuses)
-        faltantes += 0 if ok else 1
+    # Acuses faltantes: entregas terminadas sin el acuse que exige el cliente, más las marcadas
+    # para re-escaneo (`00 §5.1`). Mismo criterio que `/servicios?acuses_pendientes=true`.
+    from app.modules.servicios.service import viajes_con_acuse_pendiente
+
+    faltantes = len(viajes_con_acuse_pendiente(session))
 
     fallas = len(session.exec(select(InspeccionSalida).where(InspeccionSalida.todo_ok == False)).all())
 

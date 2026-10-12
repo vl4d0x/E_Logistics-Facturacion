@@ -83,6 +83,13 @@ en la ficha del cliente): AERZEN RENTAL MEXICO usa los lugares (incluido el orig
 las mercancías de AERZEN, en vivo; si no tiene texto de correo propio usa el de AERZEN. Sus datos
 fiscales son propios. Un solo nivel. La migración `0014` los ligó por RFC.
 
+**Re-escaneo del acuse** (`viaje.reescaneo_*`, migración `0015`): desde Facturar o el detalle del
+servicio un admin pide "Solicitar re-escaneo" (con motivo); el operador puede "No pude escanear el
+acuse" (con advertencia) y la entrega queda igual. La etiqueta aparece en la lista (filtro "Acuses
+pendientes / re-escaneo", que también usa el dashboard), **bloquea el timbrado** y se quita sola al
+subir un escaneo nuevo. `POST/DELETE /viajes/{id}/reescaneo`. El buscador de servicios (`q`) y los
+filtros `acuses_pendientes` / `inspeccion_fallas` ya funcionan (antes se ignoraban).
+
 **Catálogos y Carta Porte (11 oct 2026, prueba de punta a punta)**
 - RFC de lugar `XEXX010101000` (extranjeros) **no se acepta**: el transporte es nacional y el SAT lo
   rechaza. La migración `0012` pasó los 3 lugares que lo traían a `XAXX010101000`.
@@ -159,7 +166,8 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 `0010` carga de km por destino desde `alembic/data/km_lugares.json` · `0011` viaje.monto_desglose +
 cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAXX en lugares ·
 `0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia) · `0014`
-cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes.
+cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes. · `0015`
+viaje.reescaneo_motivo/_solicitado_at/_solicitado_por.
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

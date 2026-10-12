@@ -27,6 +27,8 @@ export interface FiltrosServicios {
   operador_id?: string | null;
   unidad_id?: string | null;
   q?: string;
+  acuses_pendientes?: boolean;
+  inspeccion_fallas?: boolean;
 }
 
 function buildParams(filtros: FiltrosServicios, extra: Record<string, string> = {}): string {
@@ -36,6 +38,8 @@ function buildParams(filtros: FiltrosServicios, extra: Record<string, string> = 
   if (filtros.operador_id) params.set("operador_id", filtros.operador_id);
   if (filtros.unidad_id) params.set("unidad_id", filtros.unidad_id);
   if (filtros.q) params.set("q", filtros.q);
+  if (filtros.acuses_pendientes) params.set("acuses_pendientes", "true");
+  if (filtros.inspeccion_fallas) params.set("inspeccion_fallas", "true");
   return params.toString();
 }
 
@@ -233,4 +237,23 @@ export async function fetchDistanciaSugerida(
   } catch {
     return null; // la sugerencia es solo una ayuda; nunca debe estorbar
   }
+}
+
+/** Marca la entrega para re-escaneo (el acuse falta o está mal tomado) o quita la marca. */
+export function useReescaneo(servicioId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ viajeId, motivo, quitar }: { viajeId: string; motivo?: string | null; quitar?: boolean }) =>
+      quitar
+        ? api.delete(`/api/v1/viajes/${viajeId}/reescaneo`)
+        : api.post(`/api/v1/viajes/${viajeId}/reescaneo`, { motivo: motivo ?? null }),
+    onSuccess: (_d, vars) => {
+      invalidarServicios(client, servicioId);
+      notifications.show({
+        color: vars.quitar ? "gray" : "yellow",
+        message: vars.quitar ? "Se quitó la solicitud de re-escaneo" : "Entrega marcada para re-escaneo",
+      });
+    },
+    onError: (err) => toastError(err, "No se pudo actualizar el re-escaneo"),
+  });
 }

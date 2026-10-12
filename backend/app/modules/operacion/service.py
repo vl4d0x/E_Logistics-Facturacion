@@ -228,6 +228,7 @@ def terminar_viaje_operador(
         notas_operador=data.notas,
         referencia_acuse=data.referencia_acuse,
         client_action_id=data.client_action_id,
+        acuse_omitido=data.acuse_omitido,
     )
     return servicios_service.terminar_viaje(session, viaje_id, payload, current_user)
 

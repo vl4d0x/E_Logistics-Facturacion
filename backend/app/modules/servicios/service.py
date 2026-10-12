@@ -7,7 +7,14 @@ from sqlmodel import Session, func, select
 from app.core.errors import AppError
 from app.core.models import utcnow
 from app.modules.auth.models import Usuario
-from app.modules.catalogos.models import Cliente, Lugar, MercanciaFrecuente, Operador, Unidad
+from app.modules.catalogos.models import (
+    Cliente,
+    Lugar,
+    MercanciaFrecuente,
+    ModoAcuse,
+    Operador,
+    Unidad,
+)
 from app.modules.facturacion.models import EstadoFactura, Factura
 from app.modules.servicios.models import (
     Acuse,
@@ -313,6 +320,7 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
                 "acuses": [acuse_out(a) for a in acuses],
                 "acuse_requerido": requiere_acuse,
                 "acuse_completo": completo if requiere_acuse else True,
+                "reescaneo": reescaneo_out(session, v),
             }
         )
 
@@ -357,9 +365,12 @@ def list_servicios(
     q: str | None,
     page: int,
     size: int,
+    acuses_pendientes: bool = False,
+    inspeccion_fallas: bool = False,
 ) -> tuple[list[ServicioListItemOut], int]:
     stmt = _filtrar_servicios(
-        select(Servicio), vista, cliente_id, operador_id, unidad_id, fecha_desde, fecha_hasta, q
+        select(Servicio), vista, cliente_id, operador_id, unidad_id, fecha_desde, fecha_hasta, q,
+        session=session, acuses_pendientes=acuses_pendientes, inspeccion_fallas=inspeccion_fallas,
     )
     total = len(session.exec(stmt).all())
     servicios = session.exec(
@@ -388,6 +399,7 @@ def list_servicios(
                         a.referencia for a in acuses
                     ):
                         acuses_comp += 1
+        reescaneos = sum(1 for v in viajes if v.reescaneo_solicitado_at is not None)
         items.append(
             ServicioListItemOut(
                 id=s.id,
@@ -404,14 +416,43 @@ def list_servicios(
                 viajes_terminados=terminados,
                 acuses_requeridos=acuses_req,
                 acuses_completos=acuses_comp,
+                reescaneos=reescaneos,
                 subtotal=s.subtotal,
             )
         )
     return items, total
 
 
+def viajes_con_acuse_pendiente(session: Session) -> list[Viaje]:
+    """Entregas terminadas de clientes que exigen acuse y no lo tienen, más las marcadas para
+    re-escaneo. Lo usan la lista de servicios (`?acuses_pendientes=true`) y el dashboard."""
+    filas = session.exec(
+        select(Viaje, Cliente)
+        .join(Servicio, Viaje.servicio_id == Servicio.id)
+        .join(Cliente, Servicio.cliente_id == Cliente.id)
+        .where(
+            Viaje.tipo.in_([TipoViaje.entrega, TipoViaje.recoleccion_entrega]),
+            Servicio.estado != EstadoServicio.cancelado,
+            Cliente.modo_acuse != ModoAcuse.ninguno,
+        )
+    ).all()
+    pendientes = []
+    for v, c in filas:
+        if v.reescaneo_solicitado_at is not None:
+            pendientes.append(v)
+            continue
+        if v.estado != EstadoViaje.terminado:
+            continue
+        acuses = session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
+        ok = any(a.archivo_key for a in acuses) if c.modo_acuse == ModoAcuse.escaneo else any(a.referencia for a in acuses)
+        if not ok:
+            pendientes.append(v)
+    return pendientes
+
+
 def _filtrar_servicios(
-    stmt, vista, cliente_id, operador_id, unidad_id, fecha_desde, fecha_hasta, q
+    stmt, vista, cliente_id, operador_id, unidad_id, fecha_desde, fecha_hasta, q,
+    session: Session | None = None, acuses_pendientes: bool = False, inspeccion_fallas: bool = False,
 ):
     if vista == "programados":
         stmt = stmt.where(Servicio.estado == EstadoServicio.programado)
@@ -438,6 +479,25 @@ def _filtrar_servicios(
         stmt = stmt.where(Servicio.fecha >= fecha_desde)
     if fecha_hasta:
         stmt = stmt.where(Servicio.fecha <= fecha_hasta)
+    texto = (q or "").strip().lstrip("#")
+    if texto:  # número de servicio, cliente o lugar de la ruta (`03 §6`)
+        if texto.isdigit():
+            stmt = stmt.where(Servicio.numero == int(texto))
+        else:
+            patron = f"%{texto}%"
+            clientes = select(Cliente.id).where(Cliente.nombre_comercial.ilike(patron) | Cliente.razon_social.ilike(patron))
+            lugares = select(Lugar.id).where(Lugar.nombre.ilike(patron))
+            con_lugar = select(Viaje.servicio_id).where(
+                Viaje.origen_lugar_id.in_(lugares) | Viaje.destino_lugar_id.in_(lugares)
+            )
+            stmt = stmt.where(Servicio.cliente_id.in_(clientes) | Servicio.id.in_(con_lugar))
+    if inspeccion_fallas:
+        from app.modules.operacion.models import InspeccionSalida
+
+        stmt = stmt.where(Servicio.id.in_(select(InspeccionSalida.servicio_id).where(InspeccionSalida.todo_ok == False)))
+    if acuses_pendientes and session is not None:
+        ids = {v.servicio_id for v in viajes_con_acuse_pendiente(session)}
+        stmt = stmt.where(Servicio.id.in_(ids))
     return stmt
 
 
@@ -741,6 +801,8 @@ def terminar_viaje(
                 subido_at=utcnow(),
             )
         )
+    if data.acuse_omitido and viaje.destino_lugar_id is not None:
+        _marcar_reescaneo(viaje, MOTIVO_OPERADOR_SIN_ESCANEO, current_user)
     viaje.estado = EstadoViaje.terminado
     viaje.terminado_at = utcnow()
     viaje.terminado_por = current_user.id
@@ -875,7 +937,72 @@ def reemplazar_acuses_escaneo(session: Session, viaje_id: uuid.UUID, nuevo_id: u
         )
     ).all():
         session.delete(viejo)
+    viaje = session.get(Viaje, viaje_id)
+    if viaje is not None and viaje.reescaneo_solicitado_at is not None:
+        _limpiar_reescaneo(viaje)  # ya se subió el escaneo que faltaba
+        session.add(viaje)
     session.commit()
+
+
+# --- Re-escaneo del acuse ------------------------------------------------------
+
+MOTIVO_OPERADOR_SIN_ESCANEO = "El operador terminó la entrega sin escanear el acuse"
+
+
+def _limpiar_reescaneo(viaje: Viaje) -> None:
+    viaje.reescaneo_motivo = None
+    viaje.reescaneo_solicitado_at = None
+    viaje.reescaneo_solicitado_por = None
+
+
+def _marcar_reescaneo(viaje: Viaje, motivo: str | None, usuario: Usuario) -> None:
+    viaje.reescaneo_motivo = (motivo or "").strip() or None
+    viaje.reescaneo_solicitado_at = utcnow()
+    viaje.reescaneo_solicitado_por = usuario.id
+
+
+def reescaneo_out(session: Session, viaje: Viaje) -> dict | None:
+    if viaje.reescaneo_solicitado_at is None:
+        return None
+    from app.modules.auth.models import Usuario as _Usuario
+
+    quien = session.get(_Usuario, viaje.reescaneo_solicitado_por) if viaje.reescaneo_solicitado_por else None
+    return {
+        "motivo": viaje.reescaneo_motivo,
+        "solicitado_at": viaje.reescaneo_solicitado_at,
+        "solicitado_por": quien.nombre if quien else None,
+    }
+
+
+def solicitar_reescaneo(session: Session, viaje_id: uuid.UUID, motivo: str | None, usuario: Usuario) -> Viaje:
+    """Marca la entrega para que otro admin suba (de nuevo) el acuse escaneado. Es un dato
+    operativo: se puede pedir aunque la factura ya esté timbrada (p. ej. para reenviarla)."""
+    viaje = get_viaje(session, viaje_id)
+    servicio = get_servicio(session, viaje.servicio_id)
+    if servicio.estado == EstadoServicio.cancelado:
+        raise AppError("conflict", "El servicio está cancelado", 409)
+    cliente = session.get(Cliente, servicio.cliente_id)
+    if viaje.destino_lugar_id is None or cliente.modo_acuse != ModoAcuse.escaneo:
+        raise AppError(
+            "validation_error",
+            "El re-escaneo solo aplica a entregas de clientes con acuse escaneado",
+            422,
+            details=[{"field": "viaje_id", "issue": "sin_acuse_escaneado"}],
+        )
+    _marcar_reescaneo(viaje, motivo, usuario)
+    session.add(viaje)
+    session.commit()
+    session.refresh(viaje)
+    return viaje
+
+
+def quitar_reescaneo(session: Session, viaje_id: uuid.UUID) -> Viaje:
+    viaje = get_viaje(session, viaje_id)
+    _limpiar_reescaneo(viaje)
+    session.add(viaje)
+    session.commit()
+    session.refresh(viaje)
+    return viaje
 
 
 def agregar_acuse_archivo(

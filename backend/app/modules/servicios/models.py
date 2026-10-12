@@ -103,6 +103,12 @@ class Viaje(TimestampMixin, table=True):
     notas_admin: str | None = Field(default=None)
     notas_operador: str | None = Field(default=None)
     client_action_id: uuid.UUID | None = Field(default=None, unique=True)
+    # Etiqueta "Re-escaneo": el acuse de esta entrega falta o está mal tomado y otro admin lo
+    # tiene que subir. Se pide desde Facturar o cuando el operador termina sin escanear; se quita
+    # sola al subir un escaneo nuevo.
+    reescaneo_motivo: str | None = Field(default=None)
+    reescaneo_solicitado_at: datetime | None = Field(default=None)
+    reescaneo_solicitado_por: uuid.UUID | None = Field(default=None, foreign_key="usuario.id")
 
 
 class ViajeMercancia(TimestampMixin, table=True):

@@ -45,6 +45,7 @@ export interface TerminarViajeOperadorPayload {
   notas?: string | null;
   mercancias?: { mercancia_frecuente_id: string; cantidad: number; peso_kg: number }[];
   referencia_acuse?: string | null;
+  acuse_omitido?: boolean; // "No pude escanear": la entrega queda marcada para re-escaneo
 }
 
 export interface KmPorViaje {

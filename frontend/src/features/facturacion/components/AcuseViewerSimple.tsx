@@ -1,13 +1,18 @@
 // `05-ui-spec §5 AcuseViewer` — versión simplificada para la primera entrega de H4.4
 // (zoom/rotar/miniaturas de varias páginas quedan para una siguiente pasada).
-import { Anchor, Badge, Image, Stack, Tabs, Text } from "@mantine/core";
+import { Anchor, Badge, Group, Image, Stack, Tabs, Text } from "@mantine/core";
+import { ReescaneoControl } from "../../servicios/components/ReescaneoControl";
 import type { AcuseFacturar, Ubicacion } from "../types";
 
 export function AcuseViewerSimple({
+  servicioId,
+  modoAcuse,
   acuses,
   ubicaciones,
   modoAnticipado,
 }: {
+  servicioId: string;
+  modoAcuse: string;
   acuses: AcuseFacturar[];
   ubicaciones: Ubicacion[];
   modoAnticipado: boolean;
@@ -36,6 +41,7 @@ export function AcuseViewerSimple({
         {destinos.map((d, i) => (
           <Tabs.Tab key={d.viaje_id} value={d.viaje_id}>
             Entrega {i + 1} · {d.lugar.nombre ?? "—"}
+            {d.reescaneo ? " ⚠" : ""}
           </Tabs.Tab>
         ))}
       </Tabs.List>
@@ -43,6 +49,16 @@ export function AcuseViewerSimple({
         const propios = acuses.filter((a) => a.viaje_id === d.viaje_id);
         return (
           <Tabs.Panel key={d.viaje_id} value={d.viaje_id} pt="sm">
+            {modoAcuse === "escaneo" && (
+              <Group justify="flex-end" mb="xs">
+                <ReescaneoControl
+                  servicioId={servicioId}
+                  viajeId={d.viaje_id}
+                  destino={d.lugar.nombre ?? "este destino"}
+                  reescaneo={d.reescaneo}
+                />
+              </Group>
+            )}
             {propios.length === 0 ? (
               <Text size="sm" c="dimmed">
                 Sin acuse todavía.

@@ -173,6 +173,19 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         else:
             checks.append(_ok("desglose_precio", "desglose"))
 
+    # --- Re-escaneo pendiente (el acuse falta o está mal tomado; otro admin lo tiene que subir) ---
+    if not anticipado:
+        reescaneo = [v for v in viajes if v.reescaneo_solicitado_at is not None]
+        if reescaneo:
+            detalle = "; ".join(
+                f"{lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else f'viaje {v.orden}'}"
+                + (f" ({v.reescaneo_motivo})" if v.reescaneo_motivo else "")
+                for v in reescaneo
+            )
+            checks.append(_error("reescaneo_pendiente", f"Falta subir el re-escaneo del acuse: {detalle}", "acuses"))
+        else:
+            checks.append(_ok("reescaneo_pendiente", "acuses"))
+
     # --- Folio del cliente en el concepto (exclusivo de clientes que lo exigen) ---
     if cliente.requiere_folio_concepto:
         folios = folios_por_viaje(session, servicio, viajes)

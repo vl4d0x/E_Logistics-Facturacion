@@ -364,6 +364,8 @@ export function FacturarPage() {
                 Acuses
               </Text>
               <AcuseViewerSimple
+                servicioId={detalle.servicio_id}
+                modoAcuse={detalle.modo_acuse ?? "escaneo"}
                 acuses={detalle.acuses}
                 ubicaciones={detalle.ubicaciones}
                 modoAnticipado={detalle.modo === "anticipado"}

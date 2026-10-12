@@ -21,6 +21,7 @@ from app.modules.servicios.schemas import (
     FolioViajeIn,
     DuplicarServicioIn,
     OrdenViajesIn,
+    ReescaneoIn,
     ServicioCreate,
     ServicioDetalleOut,
     ServicioListItemOut,
@@ -53,12 +54,15 @@ def listar_servicios(
     fecha_desde: date | None = Query(default=None),
     fecha_hasta: date | None = Query(default=None),
     q: str | None = Query(default=None),
+    acuses_pendientes: bool = Query(default=False),
+    inspeccion_fallas: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=200),
     session: Session = Depends(get_session),
 ) -> Page[ServicioListItemOut]:
     items, total = service.list_servicios(
-        session, vista, cliente_id, operador_id, unidad_id, fecha_desde, fecha_hasta, q, page, size
+        session, vista, cliente_id, operador_id, unidad_id, fecha_desde, fecha_hasta, q, page, size,
+        acuses_pendientes=acuses_pendientes, inspeccion_fallas=inspeccion_fallas,
     )
     return Page(items=items, total=total, page=page, size=size)
 
@@ -170,6 +174,23 @@ def set_mercancias(
     viaje_id: uuid.UUID, body: list[ViajeMercanciaIn], session: Session = Depends(get_session)
 ):
     return service.set_mercancias_viaje(session, viaje_id, body)
+
+
+@router.post("/viajes/{viaje_id}/reescaneo")
+def solicitar_reescaneo(
+    viaje_id: uuid.UUID,
+    body: ReescaneoIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> dict:
+    viaje = service.solicitar_reescaneo(session, viaje_id, body.motivo, user)
+    return {"viaje_id": viaje.id, "reescaneo": service.reescaneo_out(session, viaje)}
+
+
+@router.delete("/viajes/{viaje_id}/reescaneo")
+def quitar_reescaneo(viaje_id: uuid.UUID, session: Session = Depends(get_session)) -> dict:
+    viaje = service.quitar_reescaneo(session, viaje_id)
+    return {"viaje_id": viaje.id, "reescaneo": None}
 
 
 @router.put("/viajes/{viaje_id}/folio")

@@ -93,6 +93,7 @@ class UbicacionOut(BaseModel):
     hora_programada: time | None = None  # editable en la pantalla Facturar
     distancia_km: float | None
     km_reportado: float | None
+    reescaneo: dict | None = None  # {motivo, solicitado_at, solicitado_por} en destinos marcados
 
 
 class MercanciaFacturarOut(BaseModel):
@@ -155,6 +156,7 @@ class FacturacionDetalleOut(BaseModel):
     unidad_id: uuid.UUID | None = None
     operador_id: uuid.UUID | None = None
     modo: str  # "normal" | "anticipado"
+    modo_acuse: str = "escaneo"  # del cliente: escaneo | referencia | ninguno
     timbrado_modo: str = "precio"  # "precio" | "cero" (timbra con $0.10 y se cancela sola)
     servicio_id: uuid.UUID
     receptor: ReceptorOut

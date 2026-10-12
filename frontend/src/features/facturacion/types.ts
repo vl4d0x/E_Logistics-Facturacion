@@ -43,6 +43,7 @@ export interface Ubicacion {
   hora_programada?: string | null; // "HH:MM:SS"
   viaje_tipo?: "recoleccion" | "entrega" | "recoleccion_entrega" | null;
   distancia_km: number | null;
+  reescaneo?: import("../servicios/types").Reescaneo | null;
   km_reportado: number | null;
 }
 
@@ -133,6 +134,7 @@ export interface FacturacionDetalle {
   operador_id?: string | null;
   modo: "normal" | "anticipado";
   timbrado_modo: "precio" | "cero";
+  modo_acuse?: "escaneo" | "referencia" | "ninguno";
   servicio_id: string;
   receptor: Receptor;
   concepto: Concepto;

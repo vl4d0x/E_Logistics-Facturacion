@@ -6,6 +6,7 @@ import {
   Checkbox,
   FileButton,
   Group,
+  Modal,
   NumberInput,
   Select,
   Skeleton,
@@ -57,6 +58,9 @@ export function TerminarViajeOperadorPage() {
   const [revisado, setRevisado] = useState<string[]>([]);
   const [hora, setHora] = useState(horaActual());
   const [notas, setNotas] = useState("");
+  // "No pude escanear": se confirma con una advertencia y la entrega queda para re-escaneo.
+  const [sinEscaneo, setSinEscaneo] = useState(false);
+  const [confirmarSinEscaneo, setConfirmarSinEscaneo] = useState(false);
 
   if (!encontrado) return <Skeleton height={200} />;
   const { servicio, viaje } = encontrado;
@@ -93,7 +97,7 @@ export function TerminarViajeOperadorPage() {
     setFilas(filasIniciales.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   }
 
-  async function enviar() {
+  async function enviar(omitirAcuse = false) {
     const clientActionId = crypto.randomUUID();
     await terminar.mutateAsync({
       viajeId: viaje.id,
@@ -112,10 +116,11 @@ export function TerminarViajeOperadorPage() {
               }))
           : [],
         referencia_acuse: modoAcuse === "referencia" ? folio : null,
+        acuse_omitido: omitirAcuse,
       },
     });
 
-    if (modoAcuse === "escaneo" && archivo) {
+    if (modoAcuse === "escaneo" && archivo && !omitirAcuse) {
       await agregarAcuse.mutateAsync({
         viajeId: viaje.id,
         file: archivo,
@@ -129,7 +134,7 @@ export function TerminarViajeOperadorPage() {
   const enviando = terminar.isPending || agregarAcuse.isPending;
   const puedeEnviar =
     (modoAcuse !== "referencia" || folio.trim().length > 0) &&
-    (modoAcuse !== "escaneo" || (archivo !== null && revisado.length === CHECKS_ACUSE.length));
+    (modoAcuse !== "escaneo" || sinEscaneo || (archivo !== null && revisado.length === CHECKS_ACUSE.length));
 
   return (
     <Stack gap="lg">
@@ -254,7 +259,13 @@ export function TerminarViajeOperadorPage() {
                 ))}
               </Stack>
             </Alert>
-            <FileButton onChange={(f) => setArchivo(f)} accept="application/pdf">
+            <FileButton
+              onChange={(f) => {
+                setArchivo(f);
+                if (f) setSinEscaneo(false); // si al final sí lo escaneó, se sube normal
+              }}
+              accept="application/pdf"
+            >
               {(props) => (
                 <Button variant="default" leftSection={<IconUpload size={16} />} {...props}>
                   {archivo ? "Cambiar PDF" : "Subir acuse (PDF)"}
@@ -277,6 +288,18 @@ export function TerminarViajeOperadorPage() {
             <Text size="xs" c="dimmed">
               Solo un archivo PDF por entrega.
             </Text>
+            {sinEscaneo ? (
+              <Alert color="orange" variant="light" icon={<IconAlertTriangle size={18} />} title="Sin escanear">
+                El viaje se terminará sin acuse y la oficina tendrá que subirlo.{" "}
+                <Button variant="subtle" size="compact-xs" onClick={() => setSinEscaneo(false)}>
+                  Mejor sí lo escaneo
+                </Button>
+              </Alert>
+            ) : (
+              <Button variant="subtle" color="gray" size="sm" onClick={() => setConfirmarSinEscaneo(true)}>
+                No pude escanear el acuse
+              </Button>
+            )}
           </Stack>
         )}
         {modoAcuse === "ninguno" && <Text c="dimmed">Este cliente no requiere acuse.</Text>}
@@ -295,9 +318,45 @@ export function TerminarViajeOperadorPage() {
         </Stack>
       </Card>
 
-      <Button size="lg" fullWidth disabled={!puedeEnviar} loading={enviando} onClick={enviar}>
+      <Button
+        size="lg"
+        fullWidth
+        disabled={!puedeEnviar}
+        loading={enviando}
+        onClick={() => enviar(modoAcuse === "escaneo" && sinEscaneo)}
+      >
         Viaje terminado
       </Button>
+
+      <Modal
+        opened={confirmarSinEscaneo}
+        onClose={() => setConfirmarSinEscaneo(false)}
+        title="¿Seguro que no vas a escanear el acuse?"
+        centered
+      >
+        <Stack gap="sm">
+          <Alert color="orange" variant="light" icon={<IconAlertTriangle size={18} />}>
+            Sin el acuse escaneado <b>no se puede facturar</b> este servicio. La entrega quedará marcada como
+            "Re-escaneo" y alguien de la oficina tendrá que conseguirlo y subirlo.
+          </Alert>
+          <Text size="sm">Si puedes, escanéalo ahora: es más rápido para todos.</Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setConfirmarSinEscaneo(false)}>
+              Volver y escanear
+            </Button>
+            <Button
+              color="orange"
+              onClick={() => {
+                setSinEscaneo(true);
+                setArchivo(null);
+                setConfirmarSinEscaneo(false);
+              }}
+            >
+              Sí, terminar sin escanear
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }
