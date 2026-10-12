@@ -156,6 +156,7 @@ export function FuelGaugeBarras({
     <div>
       <Group
         gap={4}
+        wrap="nowrap"
         role="slider"
         aria-label="Nivel de gasolina"
         aria-valuemin={0}
@@ -181,8 +182,10 @@ export function FuelGaugeBarras({
               tabIndex={-1}
               onClick={() => onChange?.(numero)}
               style={{
-                width: 20,
-                height: 36,
+                // Al capturar, las barras llenan el ancho y miden ≥ 44 px de alto (objetivo táctil, `05 §3.1`).
+                ...(readonly || !onChange
+                  ? { width: 20, height: 36 }
+                  : { flex: 1, minWidth: 0, maxWidth: 56, height: 48 }),
                 borderRadius: 4,
                 border: "1px solid var(--el-line)",
                 background: llena ? "var(--el-red)" : "var(--el-surface-2)",

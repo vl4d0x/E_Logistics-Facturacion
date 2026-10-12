@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from sqlmodel import Session, select
 
-from app.core.models import utcnow
+from app.core.tiempo import ahora_mx, hoy_mx
 from app.modules.catalogos.models import Cliente, Lugar, Operador, Unidad
 from app.modules.configuracion.service import get_valor
 from app.modules.facturacion.schemas import ValidacionCheck
@@ -107,7 +107,7 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
 
     anticipado = servicio.timbrado_anticipado and servicio.estado != EstadoServicio.terminado
     checks: list[ValidacionCheck] = []
-    hoy = utcnow().date()
+    hoy = hoy_mx()
 
     # --- Estado del servicio ---
     if anticipado:
@@ -301,7 +301,7 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
             for v in viajes
             if v.estado != EstadoViaje.terminado
             and v.hora_salida_programada
-            and datetime.combine(v.fecha, v.hora_salida_programada) < utcnow().replace(tzinfo=None)
+            and datetime.combine(v.fecha, v.hora_salida_programada) < ahora_mx()
         ]
         if vencidas:
             checks.append(
@@ -332,9 +332,9 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         (m.peso_kg for ms in mercancias_por_viaje.values() for m in ms), 0.0
     )
     if peso_total <= 0:
-        checks.append(_error("mercancias_peso", "Captura al menos una mercancía con peso mayor a cero"))
+        checks.append(_error("mercancias_peso", "Captura al menos una mercancía con peso mayor a cero", "mercancias"))
     else:
-        checks.append(_ok("mercancias_peso"))
+        checks.append(_ok("mercancias_peso", "mercancias"))
 
     entregas_sin_mercancias = [
         v.orden for v in viajes if v.destino_lugar_id is not None and not mercancias_por_viaje.get(v.id)
@@ -344,11 +344,11 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
             _warning(
                 "entrega_sin_mercancias",
                 f"La entrega del viaje {', '.join(str(o) for o in entregas_sin_mercancias)} no tiene mercancías",
-                "viajes",
+                "mercancias",
             )
         )
     else:
-        checks.append(_ok("entrega_sin_mercancias", "viajes"))
+        checks.append(_ok("entrega_sin_mercancias", "mercancias"))
 
     if unidad.capacidad_carga_kg:
         if peso_total > unidad.capacidad_carga_kg:
@@ -401,6 +401,19 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         )
     else:
         checks.append(_ok("lugares_completos", "viajes"))
+
+    rfc_extranjero = [l.nombre for l in lugares.values() if (l.rfc_remitente_destinatario or "").strip().upper() == "XEXX010101000"]
+    if rfc_extranjero:
+        checks.append(
+            _error(
+                "rfc_lugar_nacional",
+                f"{', '.join(rfc_extranjero)}: el RFC XEXX010101000 es de extranjeros y el SAT lo rechaza. "
+                "Corrígelo en Catálogos → Lugares (RFC real o XAXX010101000)",
+                "viajes",
+            )
+        )
+    else:
+        checks.append(_ok("rfc_lugar_nacional", "viajes"))
 
     # --- Datos fiscales del cliente, operador y unidad ---
     if not (cliente.rfc and cliente.cp_fiscal and cliente.regimen_fiscal):

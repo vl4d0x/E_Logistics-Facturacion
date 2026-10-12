@@ -78,7 +78,27 @@ Estas mandan sobre los specs numerados cuando difieran.
 - Correo de factura: XML + PDF + **un solo PDF de evidencia** con todos los acuses unidos
   (`pypdf`), nombre `FACT #<folio>-<NOMBRE COMERCIAL>_EVIDENCIA.pdf`.
 
+**Catálogos y Carta Porte (11 oct 2026, prueba de punta a punta)**
+- RFC de lugar `XEXX010101000` (extranjeros) **no se acepta**: el transporte es nacional y el SAT lo
+  rechaza. La migración `0012` pasó los 3 lugares que lo traían a `XAXX010101000`.
+- Lugar nuevo: al escribir el CP se llena solo el estado (`GET /catalogos/codigos-postales/{cp}`, vía
+  Facturama). La colonia solo se manda a la Carta Porte si es clave SAT de 4 dígitos.
+- Mercancía: casilla "Declarar material peligroso: No" para claves de `c_ClaveProdServCP` que lo exigen
+  (p. ej. medicamentos 51111617). Se copia al viaje como el resto de las claves (`0013`).
+- **Hora de México en todo lo fiscal**: la fecha/hora real de la Carta Porte (`terminado_at`, en UTC)
+  se convierte a hora de México (`app/core/tiempo.py`); los meses del dashboard, filtros por mes y
+  "hoy" de los formularios también. Antes, después de las 18:00 todo caía en el día siguiente.
+- Si el REP falla al timbrar en "Aplicar y generar REP", el pago queda aplicado y la respuesta es OK con
+  `rep_error` (antes respondía error y el admin podía capturar el pago dos veces).
+- Los errores de Facturama traen el detalle de `ModelState` y una pista de dónde corregir.
+
 ## 3. Pendientes conocidos
+
+- 🔴 **Datos fiscales de clientes que el SAT rechaza** (probado en sandbox con CSD real, 11 oct 2026).
+  Solo se corrigen con la **Constancia de Situación Fiscal** de cada uno (Catálogos → Clientes):
+  - AERZEN DE MEXICO y LESAFFRE MEXICO: la razón social no coincide con la registrada para su RFC.
+  - PARAUTOS y FARMABIOT: el CP fiscal no coincide con el registrado para su RFC.
+  - CHEMITAL timbra bien (facturas, REP, anticipado con precio y con $0).
 
 - **Cancelación en el sandbox no funciona**: Facturama responde 500 ("Ups! Ocurrió un problema
   al cancelar…") con cualquier motivo/ruta. Probablemente porque el sandbox no registra en el
@@ -134,4 +154,12 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 
 `0008` servicio.timbrado_modo · `0009` lugar.distancia_km/km_confirmado + viaje.origen_cp/destino_cp ·
 `0010` carga de km por destino desde `alembic/data/km_lugares.json` · `0011` viaje.monto_desglose +
-cliente.plantilla_correo (con los textos por cliente).
+cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAXX en lugares ·
+`0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia).
+
+## 8. Cómo se probó de punta a punta sin tocar producción
+
+Base SQLite local con los catálogos **copiados de producción por API (solo GET)**, sandbox de Facturama
+(el mismo de producción), R2 simulado en disco y correo en modo prueba forzado; la UI se recorrió con
+Playwright como admin (1280 px) y como operador (390 px). Así se pueden crear servicios y timbrar sin
+dejar datos de prueba en la base real.

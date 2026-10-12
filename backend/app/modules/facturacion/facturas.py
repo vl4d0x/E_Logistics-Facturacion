@@ -13,6 +13,7 @@ from sqlmodel import Session, select
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.models import utcnow
+from app.core.tiempo import MX
 from app.integrations.facturama import FacturamaClient, FacturamaError
 from app.modules.catalogos.models import Cliente, Lugar, ModoAcuse, Operador, Unidad
 from app.modules.facturacion.models import EstadoFactura, Factura
@@ -108,14 +109,17 @@ def listar(
     )
     if estado:
         stmt = stmt.where(Factura.estado == estado)
+    else:  # un intento de timbrado rechazado no es una factura: solo con el filtro "Error"
+        stmt = stmt.where(Factura.estado != EstadoFactura.error)
     if cliente_id:
         stmt = stmt.where(Servicio.cliente_id == cliente_id)
     if mes:
         try:
-            inicio = datetime.strptime(mes, "%Y-%m").replace(tzinfo=UTC)
+            inicio = datetime.strptime(mes, "%Y-%m").replace(tzinfo=MX)  # el mes es de México
         except ValueError as exc:
             raise AppError("validation_error", "mes debe tener formato YYYY-MM", 422) from exc
         fin = inicio.replace(year=inicio.year + (inicio.month == 12), month=inicio.month % 12 + 1)
+        inicio, fin = inicio.astimezone(UTC), fin.astimezone(UTC)
         stmt = stmt.where(Factura.fecha_emision >= inicio, Factura.fecha_emision < fin)
     filas = session.exec(stmt.order_by(Factura.created_at.desc())).all()
     return [_resumen(f, s, c) for f, s, c in filas]

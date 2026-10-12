@@ -6,6 +6,7 @@ from datetime import date
 from openpyxl import Workbook
 from sqlmodel import Session, select
 
+from app.core.tiempo import a_hora_mx
 from app.modules.catalogos.models import Cliente, Lugar, Operador, Unidad
 from app.modules.cobranza.models import Pago, PagoAplicacion, Rep
 from app.modules.facturacion.models import EstadoFactura, Factura
@@ -58,7 +59,7 @@ def servicios_xlsx(
         if f:
             for a in session.exec(select(PagoAplicacion).where(PagoAplicacion.factura_id == f.id)).all():
                 pago = session.get(Pago, a.pago_id)
-                pagos.append(pago.fecha_pago.strftime("%Y-%m-%d"))
+                pagos.append(a_hora_mx(pago.fecha_pago).strftime("%Y-%m-%d"))
                 reps += [r.uuid_fiscal for r in session.exec(select(Rep).where(Rep.pago_id == pago.id)).all() if r.uuid_fiscal]
         ws.append(
             [

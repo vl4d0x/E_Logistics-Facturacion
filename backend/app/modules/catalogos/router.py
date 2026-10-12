@@ -255,6 +255,35 @@ def restaurar_mercancia(
 
 # --- Lugares ----------------------------------------------------------------
 
+@router.get("/catalogos/codigos-postales/{cp}")
+def resolver_codigo_postal(cp: str) -> dict:
+    """Estado (clave SAT) y claves de municipio/localidad de un CP, del catálogo del SAT vía
+    Facturama: así el admin no tiene que saber las claves al dar de alta un lugar."""
+    from app.integrations.facturama import FacturamaClient, FacturamaError
+
+    cp = cp.strip()
+    if not (len(cp) == 5 and cp.isdigit()):
+        raise AppError("validation_error", "El código postal debe tener 5 dígitos", 422, details=[{"field": "codigo_postal"}])
+    try:
+        client = FacturamaClient()
+    except FacturamaError as exc:
+        raise AppError("facturama_no_configurado", "No se pudo consultar el catálogo de códigos postales", 503) from exc
+    try:
+        resultado = client.resolve_postal_code(cp)
+    except FacturamaError as exc:
+        raise AppError("facturama_error", str(exc), 502) from exc
+    finally:
+        client.close()
+    if not resultado or not resultado.get("StateCode"):
+        raise AppError("not_found", f"El código postal {cp} no existe en el catálogo del SAT", 404)
+    return {
+        "codigo_postal": cp,
+        "estado": resultado["StateCode"],
+        "municipio_clave": resultado.get("MunicipalityCode") or None,
+        "localidad_clave": resultado.get("LocationCode") or None,
+    }
+
+
 @router.get("/catalogos/lugares", response_model=list[LugarOut])
 def listar_lugares(
     cliente_id: uuid.UUID | None = Query(default=None),

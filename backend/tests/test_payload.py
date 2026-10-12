@@ -284,3 +284,25 @@ def test_equivalencia_contra_cfdi_real_de_chemital():
         == autotransporte_xml.find("cp:IdentificacionVehicular", _NS).attrib["PlacaVM"]
     )
     assert cp_payload["FiguraTransporte"][0]["RFCFigura"] == figura_xml.attrib["RFCFigura"]
+
+
+def test_material_peligroso_no_y_colonia_solo_como_clave():
+    from app.modules.facturacion.payload import _domicilio
+
+    base = {"estado": "MEX", "pais": "MEX", "codigo_postal": "52000"}
+    assert "Colonia" not in _domicilio({**base, "colonia": "Centro"})  # un nombre lo rechaza el SAT
+    assert _domicilio({**base, "colonia": "0412"})["Colonia"] == "0412"
+
+    merc = {"bienes_transp": "51111617", "descripcion": "Medicamento", "cantidad": Decimal(1),
+            "clave_unidad": "H87", "unidad_desc": None, "peso_kg": 3.0}
+    payload = construir_payload_cfdi(
+        serie="ELG", expedition_place="52176", receptor=_receptor(), concepto={"descripcion": "x"},
+        montos=_montos(), ubicaciones=[], total_dist_rec=0,
+        mercancias=[merc, {**merc, "declarar_material_peligroso": True}],
+        autotransporte={"perm_sct": "TPAF01", "num_permiso_sct": "X", "config_vehicular": "VL",
+                        "peso_bruto_vehicular": 1, "placa": "A", "anio_modelo": 2019, "aseguradora": "S", "poliza": "P"},
+        figura={"nombre": "E", "rfc": "ZACE880207MC7", "num_licencia": "L"},
+    )
+    m1, m2 = payload["Complemento"]["CartaPorte31"]["Mercancias"]["Mercancia"]
+    assert "MaterialPeligroso" not in m1
+    assert m2["MaterialPeligroso"] == "No"

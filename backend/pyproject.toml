@@ -20,6 +20,7 @@ dependencies = [
     "pypdf>=5",
     "pyyaml>=6",
     "resend>=2.4",
+    "tzdata>=2024.1",  # zona horaria de México aunque la imagen no traiga /usr/share/zoneinfo
 ]
 
 [project.optional-dependencies]

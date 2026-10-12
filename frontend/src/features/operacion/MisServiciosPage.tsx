@@ -1,4 +1,5 @@
 // `05-ui-spec §8 Mis servicios` — secciones Hoy / Próximos / Terminados (7 días).
+import { hoyMexico } from "../../lib/fecha";
 import { Badge, Group, Skeleton, Stack, Text } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../../components/Card";
@@ -61,7 +62,7 @@ export function MisServiciosPage() {
 
   if (isLoading) return <Skeleton height={200} />;
 
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = hoyMexico();
   const todos = servicios ?? [];
   const terminados = todos.filter((s) => s.estado === "terminado");
   const hoy = todos.filter((s) => s.estado !== "terminado" && s.fecha <= hoyStr);

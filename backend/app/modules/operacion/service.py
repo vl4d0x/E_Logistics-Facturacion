@@ -1,12 +1,13 @@
 """Lógica de operación en campo — `fase-3`, `02 §3.11-3.13`."""
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlmodel import Session, select
 
 from app.core.errors import AppError
 from app.core.models import utcnow
+from app.core.tiempo import hoy_mx
 from app.modules.auth.models import Usuario
 from app.modules.catalogos.models import MercanciaFrecuente, Unidad
 from app.modules.operacion.models import CargaCombustible, InspeccionSalida, ReporteCierre
@@ -44,7 +45,7 @@ def listar_servicios_operador(
     if estados:
         stmt = stmt.where(Servicio.estado.in_(estados))
     else:
-        corte = desde or (datetime.now(UTC).date() - timedelta(days=7))
+        corte = desde or (hoy_mx() - timedelta(days=7))
         stmt = stmt.where(
             (Servicio.estado != EstadoServicio.terminado) | (Servicio.fecha >= corte)
         )

@@ -1,4 +1,5 @@
 // `fase-2-servicios.md` H2.3/H2.4 — detalle, cierre desde escritorio, duplicar, cancelar.
+import { pesos } from "../../lib/money";
 import {
   ActionIcon,
   Alert,
@@ -23,7 +24,7 @@ import {
   IconUpload,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { TotalConIva } from "../../components/TotalConIva";
 import {
@@ -37,9 +38,10 @@ import {
   useServicio,
   useTerminarViaje,
 } from "./api";
+import { descargarFactura } from "../facturas/api";
 import { OperatorReportCard } from "../operacion/components/OperatorReportCard";
 import type { RegimenReceptor } from "../catalogos/types";
-import type { ViajeOut } from "./types";
+import type { FacturaVigente, ViajeOut } from "./types";
 
 const ESTADO_LABEL: Record<string, string> = {
   programado: "Programado",
@@ -47,6 +49,54 @@ const ESTADO_LABEL: Record<string, string> = {
   terminado: "Terminado",
   cancelado: "Cancelado",
 };
+
+// `05-ui-spec §5 StatusBadge`: operación en neutral, salvo "En curso" (info).
+const ESTADO_COLOR: Record<string, string> = {
+  programado: "gray",
+  en_curso: "blue",
+  terminado: "gray",
+  cancelado: "gray",
+};
+
+const COBRO_LABEL: Record<string, string> = { pendiente: "Por cobrar", parcial: "Parcial", pagada: "Pagada" };
+
+// `05-ui-spec §7.1` — la factura vigente del servicio, con descargas y acceso al envío.
+function FacturaVigenteCard({ factura }: { factura: FacturaVigente }) {
+  return (
+    <Card>
+      <Group justify="space-between" mb={4}>
+        <Text fw={600}>
+          Factura {factura.serie}
+          {factura.folio} · {pesos(factura.total)}
+        </Text>
+        <Group gap={6}>
+          <Badge variant="light" color={factura.estado === "timbrada" ? "green" : "yellow"}>
+            {factura.estado === "timbrada" ? "Timbrada" : "En espera de cancelación"}
+          </Badge>
+          <Badge variant="light" color={factura.estado_cobro === "pagada" ? "green" : "red"}>
+            {COBRO_LABEL[factura.estado_cobro] ?? factura.estado_cobro}
+          </Badge>
+        </Group>
+      </Group>
+      {factura.uuid_fiscal && (
+        <Text size="xs" c="dimmed">
+          UUID {factura.uuid_fiscal}
+        </Text>
+      )}
+      <Group mt="sm" gap="xs">
+        <Button size="xs" variant="default" onClick={() => descargarFactura(factura.id, "pdf")}>
+          Descargar PDF
+        </Button>
+        <Button size="xs" variant="default" onClick={() => descargarFactura(factura.id, "xml")}>
+          Descargar XML
+        </Button>
+        <Button size="xs" variant="light" component={Link} to={`/admin/facturas/${factura.id}`}>
+          Enviar o ver factura
+        </Button>
+      </Group>
+    </Card>
+  );
+}
 
 function ViajeCard({
   servicioId,
@@ -207,6 +257,16 @@ export function ServicioDetailPage() {
           Servicios
         </Button>
         <Group gap="xs">
+          {/* Con todos los viajes terminados, el siguiente paso queda a la vista (no solo en el menú). */}
+          {servicio.acciones_permitidas.includes("marcar_terminado") && (
+            <Button
+              variant={servicio.acciones_permitidas.includes("facturar") ? "default" : "filled"}
+              loading={marcarTerminado.isPending}
+              onClick={() => marcarTerminado.mutate()}
+            >
+              Marcar terminado
+            </Button>
+          )}
           {servicio.acciones_permitidas.includes("facturar") && (
             <Button onClick={() => navigate(`/admin/servicios/${servicio.id}/facturar`)}>Facturar</Button>
           )}
@@ -243,10 +303,21 @@ export function ServicioDetailPage() {
             </Text>
           </div>
           <Group gap="xs">
-            <Badge variant="light">{ESTADO_LABEL[servicio.estado]}</Badge>
-            <Badge variant="light" color={servicio.estado_facturacion === "facturado" ? "green" : "yellow"}>
-              {servicio.estado_facturacion === "facturado" ? "Facturado" : "Por facturar"}
+            <Badge variant="light" color={ESTADO_COLOR[servicio.estado]}>
+              {ESTADO_LABEL[servicio.estado]}
             </Badge>
+            {servicio.estado_facturacion === "facturado" ? (
+              <Badge variant="light" color="green">
+                Facturado
+              </Badge>
+            ) : (
+              servicio.estado !== "cancelado" &&
+              (servicio.estado === "terminado" || servicio.timbrado_anticipado) && (
+                <Badge variant="light" color="yellow">
+                  Por facturar
+                </Badge>
+              )
+            )}
             {servicio.timbrado_anticipado && (
               <Badge variant="light" color="blue">
                 Anticipada
@@ -257,7 +328,7 @@ export function ServicioDetailPage() {
         {servicio.subtotal && (
           <div style={{ maxWidth: 280 }}>
             <Text mt="sm">
-              Subtotal: <strong>${Number(servicio.subtotal).toFixed(2)}</strong>
+              Subtotal: <strong>{pesos(servicio.subtotal)}</strong>
             </Text>
             <TotalConIva
               subtotal={Number(servicio.subtotal)}
@@ -281,6 +352,8 @@ export function ServicioDetailPage() {
           </Alert>
         )}
       </Card>
+
+      {servicio.factura_vigente && <FacturaVigenteCard factura={servicio.factura_vigente} />}
 
       <OperatorReportCard servicio={servicio} />
 

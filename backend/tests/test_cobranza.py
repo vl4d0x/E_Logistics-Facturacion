@@ -162,7 +162,10 @@ def test_error_del_pac_deja_pago_aplicado_y_rep_reintentable(client: TestClient,
     pac = _mock_pac(monkeypatch)
     pac.create_cfdi.side_effect = FacturamaError("RFC inválido")
     r = client.post(f"{API}/pagos", json=_pago_json(c, "1848.00", emitir_rep=True, aplicaciones=[{"factura_id": str(f1.id), "monto": "1848.00"}]), headers=h)
-    assert r.status_code == 502
+    # El pago ya quedó registrado y aplicado: se responde OK con el aviso, no un error (si no,
+    # el admin creería que no se guardó y lo capturaría otra vez).
+    assert r.status_code == 201
+    assert "RFC inválido" in r.json()["rep_error"]
     pago = client.get(f"{API}/pagos?cliente_id={c.id}", headers=h).json()[0]
     assert pago["estado"] == "aplicado" and pago["rep_pendiente"] is True
     pac.create_cfdi.side_effect = None

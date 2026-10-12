@@ -11,3 +11,16 @@ def validate_rfc(rfc: str) -> str:
     if not _RFC_RE.match(rfc):
         raise ValueError("RFC inválido: debe tener el formato de 12 o 13 caracteres del SAT")
     return rfc
+
+
+RFC_GENERICO_NACIONAL = "XAXX010101000"
+RFC_GENERICO_EXTRANJERO = "XEXX010101000"
+
+
+def validate_rfc_lugar(rfc: str) -> str:
+    """RFC del remitente/destinatario de la Carta Porte. Todo el transporte es nacional, así
+    que el genérico de extranjeros (XEXX…) no se acepta: el SAT lo rechaza al timbrar."""
+    rfc = validate_rfc(rfc)
+    if rfc == RFC_GENERICO_EXTRANJERO:
+        raise ValueError(f"XEXX010101000 es para extranjeros; usa el RFC real o el genérico {RFC_GENERICO_NACIONAL}")
+    return rfc

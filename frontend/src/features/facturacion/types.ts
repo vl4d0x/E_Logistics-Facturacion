@@ -102,6 +102,7 @@ export interface AcuseFacturar {
   viaje_id: string;
   tipo: string;
   url: string | null;
+  mime?: string | null;
   referencia: string | null;
   pagina: number;
 }

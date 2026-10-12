@@ -1,5 +1,6 @@
 // `05-ui-spec §7.2 Facturar` — pantalla clave: revisar todo precargado, ajustar el
 // subtotal en segundos y timbrar con confianza.
+import { pesos } from "../../lib/money";
 import {
   Alert,
   Anchor,
@@ -122,7 +123,8 @@ export function FacturarPage() {
           return;
         }
         notifications.show({ color: "green", message: "Factura timbrada" });
-        navigate(`/admin/servicios/`);
+        // Lo siguiente es descargar o enviar: el detalle de la factura tiene ambas cosas.
+        navigate(`/admin/facturas/${res.factura.id}`);
       },
       onError: (err) => {
         setConfirmarAbierto(false);
@@ -148,6 +150,7 @@ export function FacturarPage() {
           color: "red",
           title: "No se pudo timbrar",
           message: err instanceof ApiError ? err.message : "Error inesperado",
+          autoClose: false, // el admin necesita leer qué corregir
         });
       },
     });
@@ -194,13 +197,13 @@ export function FacturarPage() {
                   <Group justify="space-between">
                     <Text size="sm">Subtotal</Text>
                     <Text size="sm" ff="monospace">
-                      ${detalle.montos?.subtotal ?? "0.10"}
+                      {pesos(detalle.montos?.subtotal ?? "0.10")}
                     </Text>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">IVA 16%</Text>
                     <Text size="sm" ff="monospace">
-                      ${detalle.montos?.iva_trasladado ?? "0.02"}
+                      {pesos(detalle.montos?.iva_trasladado ?? "0.02")}
                     </Text>
                   </Group>
                 </Stack>
@@ -334,7 +337,7 @@ export function FacturarPage() {
             <CollapsibleSection
               title="Mercancías"
               summary={`${detalle.mercancias.length} partidas · ${detalle.mercancias.reduce((a, m) => a + m.peso_kg, 0)} kg`}
-              forceOpen={campoConError(["viajes"])}
+              forceOpen={campoConError(["mercancias"])}
             >
               <MercanciasEditable
                 servicioId={detalle.servicio_id}
@@ -372,7 +375,7 @@ export function FacturarPage() {
                 <Group justify="space-between">
                   <Text fw={600}>Total</Text>
                   <Text fw={700} size="lg">
-                    ${detalle.montos?.total ?? "0.00"}
+                    {pesos(detalle.montos?.total)}
                   </Text>
                 </Group>
 
@@ -400,7 +403,7 @@ export function FacturarPage() {
                     disabled={!detalle.validacion.ok || subtotal == null}
                     onClick={() => setConfirmarAbierto(true)}
                   >
-                    {esCero ? "Timbrar con $0 y cancelar" : "Timbrar factura"} · ${detalle.montos?.total ?? "0.00"}
+                    {esCero ? "Timbrar con $0 y cancelar" : "Timbrar factura"} · {pesos(detalle.montos?.total)}
                   </Button>
                 </Tooltip>
                 <Button variant="default" fullWidth onClick={() => navigate(`/admin/servicios/${id}`)}>
@@ -416,7 +419,7 @@ export function FacturarPage() {
         <Stack>
           <Text size="sm">
             Vas a timbrar una factura a <strong>{detalle.receptor.razon_social}</strong> por{" "}
-            <strong>${detalle.montos?.total}</strong> ({detalle.receptor.metodo_pago}). Para corregirla
+            <strong>{pesos(detalle.montos?.total)}</strong> ({detalle.receptor.metodo_pago}). Para corregirla
             después habrá que cancelarla ante el SAT.
           </Text>
           {esCero && (

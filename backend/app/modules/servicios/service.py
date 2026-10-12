@@ -178,6 +178,7 @@ def _build_viaje_mercancias(
                 bienes_transp=catalogo.bienes_transp,
                 clave_unidad=catalogo.clave_unidad,
                 unidad_desc=catalogo.unidad_desc,
+            declarar_material_peligroso=catalogo.declarar_material_peligroso,
                 cantidad=item.cantidad,
                 peso_kg=item.peso_kg,
             )
@@ -959,6 +960,7 @@ def asegurar_mercancia_default(session: Session, servicio: Servicio) -> bool:
             bienes_transp=catalogo.bienes_transp,
             clave_unidad=catalogo.clave_unidad,
             unidad_desc=catalogo.unidad_desc,
+            declarar_material_peligroso=catalogo.declarar_material_peligroso,
             cantidad=1,
             peso_kg=1.0,
         )

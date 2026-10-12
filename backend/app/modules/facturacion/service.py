@@ -1,6 +1,6 @@
 """Orquesta impuestos, validación y la pantalla "Facturar" — `04 §3,§5,§6`."""
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.models import utcnow
+from app.core.tiempo import a_hora_mx, hoy_mx
 from app.integrations.facturama import FacturamaClient, FacturamaError
 from app.modules.auth.models import Usuario
 from app.modules.catalogos.models import Cliente, Lugar, Operador, Unidad
@@ -94,7 +95,7 @@ def validar(session: Session, servicio_id: uuid.UUID) -> ValidacionOut:
 def _salida_viaje(viaje: Viaje) -> tuple[datetime | None, str]:
     """`04-facturacion-cfdi §4.2` — fuente de la fecha/hora de salida de un origen."""
     if viaje.terminado_at is not None:
-        return viaje.terminado_at, "real"
+        return a_hora_mx(viaje.terminado_at), "real"
     if viaje.hora_salida_programada is not None:
         return datetime.combine(viaje.fecha, viaje.hora_salida_programada), "programada"
     return None, "programada"
@@ -105,7 +106,7 @@ def _llegada_viaje(viaje: Viaje) -> tuple[datetime | None, str]:
     if viaje.terminado_at is not None:
         if viaje.hora_llegada is not None:
             return datetime.combine(viaje.fecha, viaje.hora_llegada), "real"
-        return viaje.terminado_at, "real"
+        return a_hora_mx(viaje.terminado_at), "real"
     if viaje.hora_llegada_programada is not None:
         return datetime.combine(viaje.fecha, viaje.hora_llegada_programada), "programada"
     return None, "programada"
@@ -166,7 +167,7 @@ def _descripcion_autogenerada(
         lineas_ref = [f"REF: {', '.join(refs) or '—'}"]
     fechas = sorted({v.fecha for v in viajes})
     if len(fechas) <= 1:
-        fecha_txt = _fecha_concepto(fechas[0] if fechas else datetime.now(UTC).date())
+        fecha_txt = _fecha_concepto(fechas[0] if fechas else hoy_mx())
     else:
         fecha_txt = f"{_fecha_concepto(fechas[0])} – {_fecha_concepto(fechas[-1])}"
     lineas = [
@@ -265,6 +266,7 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
             viaje_id=a.viaje_id,
             tipo=a.tipo.value,
             url=_acuse_url(a.archivo_key),
+            mime=a.mime,
             referencia=a.referencia,
             pagina=a.pagina,
         )
@@ -498,6 +500,41 @@ def _ubicaciones_payload(
     return ubicaciones
 
 
+# Errores frecuentes del PAC → dónde lo corrige el admin (el texto de Facturama no lo dice).
+_PISTAS_PAC = (
+    (
+        "nombre del receptor",
+        (
+            "Corrige la razón social del cliente en Catálogos → Clientes: debe ser idéntica a su "
+            'Constancia de Situación Fiscal, en mayúsculas y sin el régimen societario (sin "SA DE CV").'
+        ),
+    ),
+    ("domiciliofiscalreceptor", "Corrige el CP fiscal del cliente en Catálogos → Clientes (el de su Constancia)."),
+    ("regimenfiscalreceptor", "Corrige el régimen fiscal del cliente en Catálogos → Clientes."),
+    (
+        "materialpeligroso",
+        (
+            "La clave SAT de una mercancía pide declarar si es material peligroso: en Catálogos → Clientes → "
+            'Mercancías activa "Declarar material peligroso: No" (o corrige la clave). Luego vuelve a '
+            "elegir la mercancía en Facturar."
+        ),
+    ),
+    ("rfcfigura", "El RFC del operador no está inscrito ante el SAT: corrígelo en Catálogos → Operadores."),
+    ("l_rfc", "Algún RFC no está inscrito ante el SAT (cliente, operador o destinatario de un lugar): revísalo en Catálogos."),
+    ("numlicencia", "Corrige el número de licencia del operador en Catálogos → Operadores."),
+    ("placavm", "Corrige la placa de la unidad en Catálogos → Unidades."),
+    ("codigopostal", "Algún código postal de la ruta no existe en el catálogo del SAT: corrígelo en Ruta y ubicaciones."),
+)
+
+
+def mensaje_error_pac(mensaje: str) -> str:
+    texto = mensaje.lower().replace(" ", "")
+    for clave, pista in _PISTAS_PAC:
+        if clave.replace(" ", "") in texto:
+            return f"{mensaje} — {pista}"
+    return mensaje
+
+
 def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current_user: Usuario) -> dict:
     """`04-facturacion-cfdi §6`."""
     servicio = get_servicio(session, servicio_id)
@@ -563,6 +600,7 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
             "clave_unidad": m.clave_unidad,
             "unidad_desc": m.unidad_desc,
             "peso_kg": m.peso_kg,
+            "declarar_material_peligroso": m.declarar_material_peligroso,
         }
         for v in viajes
         for m in session.exec(select(ViajeMercancia).where(ViajeMercancia.viaje_id == v.id)).all()
@@ -642,9 +680,9 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
             factura.error_detalle = str(exc)
             session.add(factura)
             session.commit()
-            raise AppError("facturama_error", str(exc), 502) from exc
+            raise AppError("facturama_error", mensaje_error_pac(str(exc)), 502) from exc
     except FacturamaError as exc:  # p. ej. credenciales inválidas al resolver un CP
-        raise AppError("facturama_error", str(exc), 502) from exc
+        raise AppError("facturama_error", mensaje_error_pac(str(exc)), 502) from exc
     finally:
         client.close()
 

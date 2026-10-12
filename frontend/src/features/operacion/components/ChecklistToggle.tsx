@@ -13,6 +13,7 @@ export function ChecklistToggle({
   return (
     <Group
       justify="space-between"
+      wrap="nowrap"
       py="xs"
       px="sm"
       style={{
@@ -20,8 +21,10 @@ export function ChecklistToggle({
         background: value === false ? "var(--el-warning-bg)" : "transparent",
       }}
     >
-      <Text size="sm">{label}</Text>
-      <Group gap="xs">
+      <Text size="sm" style={{ flex: 1, minWidth: 0 }}>
+        {label}
+      </Text>
+      <Group gap="xs" wrap="nowrap">
         <Button
           variant={value === true ? "filled" : "default"}
           color={value === true ? undefined : "gray"}

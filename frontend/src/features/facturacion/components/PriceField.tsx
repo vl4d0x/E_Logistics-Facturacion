@@ -1,8 +1,9 @@
 // `05-ui-spec §5 PriceField/SuggestionBreakdown/MoneyBreakdown` — el subtotal es lo
 // que más se edita, va primero y más grande; debajo, por qué ese número y el total.
+import { fechaCorta } from "../../../lib/fecha";
 import { Badge, Button, Divider, Group, NumberInput, Stack, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
-import { calcularImpuestos, subtotalDesdeTotal } from "../../../lib/money";
+import { calcularImpuestos, subtotalDesdeTotal, pesos } from "../../../lib/money";
 import { numberInputValue } from "../../../lib/numberInput";
 import type { RegimenReceptor } from "../../catalogos/types";
 import type { PrecioSugerido } from "../types";
@@ -50,6 +51,7 @@ export function PriceField({
           ref={inputRef}
           size="xl"
           prefix="$"
+          thousandSeparator=","
           decimalScale={2}
           fixedDecimalScale
           value={montos?.total ?? undefined}
@@ -62,6 +64,7 @@ export function PriceField({
           ref={inputRef}
           size="xl"
           prefix="$"
+          thousandSeparator=","
           decimalScale={2}
           fixedDecimalScale
           value={subtotal ?? undefined}
@@ -83,7 +86,7 @@ export function PriceField({
                 <Text size="sm" c="dimmed">
                   {l.concepto}
                 </Text>
-                <Text size="sm">${l.monto}</Text>
+                <Text size="sm">{pesos(l.monto)}</Text>
               </Group>
             ))}
             <Group justify="space-between">
@@ -98,7 +101,7 @@ export function PriceField({
                 )}
               </Group>
               <Text size="sm" fw={600}>
-                ${precioSugerido.monto}
+                {pesos(precioSugerido.monto)}
               </Text>
             </Group>
             {difiereDeSugerido && (
@@ -108,7 +111,7 @@ export function PriceField({
                 onClick={() => onChange(sugeridoMonto)}
                 style={{ alignSelf: "flex-start" }}
               >
-                Usar sugerido (${precioSugerido.monto})
+                Usar sugerido ({pesos(precioSugerido.monto)})
               </Button>
             )}
           </>
@@ -129,7 +132,7 @@ export function PriceField({
                 size="compact-xs"
                 onClick={() => onChange(Number(p.subtotal))}
               >
-                ${p.subtotal} · {p.fecha}
+                {pesos(p.subtotal)} · {fechaCorta(p.fecha)}
               </Button>
             ))}
           </Group>
@@ -142,25 +145,25 @@ export function PriceField({
         <Group justify="space-between">
           <Text size="sm">Subtotal</Text>
           <Text size="sm" ff="monospace">
-            ${montos ? montos.subtotal.toFixed(2) : "0.00"}
+            {pesos(montos?.subtotal)}
           </Text>
         </Group>
         <Group justify="space-between">
           <Text size="sm">IVA 16%</Text>
           <Text size="sm" ff="monospace">
-            ${montos ? montos.ivaTrasladado.toFixed(2) : "0.00"}
+            {pesos(montos?.ivaTrasladado)}
           </Text>
         </Group>
         <Group justify="space-between">
           <Text size="sm">{regimenReceptor === "moral" ? "Retención IVA 4%" : "Retención"}</Text>
           <Text size="sm" ff="monospace">
-            {regimenReceptor === "moral" ? `−$${montos ? montos.ivaRetenido.toFixed(2) : "0.00"}` : "No aplica"}
+            {regimenReceptor === "moral" ? `−${pesos(montos?.ivaRetenido)}` : "No aplica"}
           </Text>
         </Group>
         <Group justify="space-between">
           <Text fw={700}>Total</Text>
           <Text fw={700} ff="monospace">
-            ${montos ? montos.total.toFixed(2) : "0.00"}
+            {pesos(montos?.total)}
           </Text>
         </Group>
       </Stack>

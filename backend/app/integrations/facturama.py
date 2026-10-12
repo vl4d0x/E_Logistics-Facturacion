@@ -103,6 +103,16 @@ class FacturamaClient:
 
         if response.is_error:
             message = data.get("Message") or data.get("message") or str(data)
+            # Los 400 de validación traen el detalle en `ModelState` ({campo: [mensajes]}); sin él,
+            # el admin solo ve "La solicitud no es válida." y no sabe qué corregir.
+            detalle = [
+                m
+                for mensajes in (data.get("ModelState") or {}).values()
+                for m in (mensajes if isinstance(mensajes, list) else [mensajes])
+                if m
+            ]
+            if detalle:
+                message = " · ".join(dict.fromkeys(str(m).strip() for m in detalle))
             if response.status_code in (401, 403) and not (data.get("Message") or data.get("message")):
                 message = (
                     f"Facturama rechazó las credenciales ({response.status_code}): revisa "

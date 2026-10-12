@@ -2,6 +2,7 @@
 // se calcula el tercero y se SIGUE recalculando si cambian los otros dos; si el operador
 // escribe el valor calculado, queda manual (el ticket puede variar por redondeos) y solo se
 // avisa si no cuadra, sin bloquear.
+import { pesos } from "../../../lib/money";
 import { ActionIcon, Alert, Button, FileButton, Group, NumberInput, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
 import { numberInputValue } from "../../../lib/numberInput";
@@ -130,7 +131,7 @@ export function FuelLoadForm({
             Total: {totalLitros.toFixed(2)} L
           </Text>
           <Text size="sm" fw={700}>
-            ${totalImporte.toFixed(2)}
+            {pesos(totalImporte)}
           </Text>
         </Group>
       )}

@@ -1,5 +1,5 @@
 // `fase-1-catalogos.md` H1.4 — mercancías frecuentes de un cliente.
-import { Badge, Button, Drawer, Group, NumberInput, Stack, Table, Text, TextInput } from "@mantine/core";
+import { Badge, Button, Drawer, Group, NumberInput, Stack, Switch, Table, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
@@ -37,8 +37,9 @@ function MercanciaForm({
           clave_unidad: mercancia.clave_unidad,
           unidad_desc: mercancia.unidad_desc ?? "",
           peso_kg_sugerido: mercancia.peso_kg_sugerido,
+          declarar_material_peligroso: mercancia.declarar_material_peligroso,
         }
-      : { nombre_humano: "", bienes_transp: "", clave_unidad: "", unidad_desc: "", peso_kg_sugerido: null },
+      : { nombre_humano: "", bienes_transp: "", clave_unidad: "", unidad_desc: "", peso_kg_sugerido: null, declarar_material_peligroso: false },
     validate: {
       nombre_humano: (v) => (v.trim() ? null : "Requerido"),
       bienes_transp: (v) => (v.trim() ? null : "Requerido (clave SAT BienesTransp)"),
@@ -73,6 +74,11 @@ function MercanciaForm({
         <Group grow>
           <TextInput label="Unidad descriptiva" placeholder="Caja de cartón" {...form.getInputProps("unidad_desc")} />
           <NumberInput label="Peso sugerido (kg)" decimalScale={2} {...form.getInputProps("peso_kg_sugerido")} />
+          <Switch
+            label='Declarar "Material peligroso: No"'
+            description="Actívalo si al timbrar Facturama pide el atributo MaterialPeligroso para esta clave (p. ej. medicamentos)"
+            {...form.getInputProps("declarar_material_peligroso", { type: "checkbox" })}
+          />
         </Group>
         <Group justify="flex-end" mt="md">
           <Button variant="default" onClick={onCancel}>

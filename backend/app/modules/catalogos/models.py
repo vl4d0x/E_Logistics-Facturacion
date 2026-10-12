@@ -108,6 +108,9 @@ class MercanciaFrecuente(TimestampMixin, table=True):
     clave_unidad: str = Field(nullable=False)
     unidad_desc: str | None = Field(default=None)
     peso_kg_sugerido: float | None = Field(default=None)
+    # Algunas claves de c_ClaveProdServCP (columna "Material peligroso" = "0,1", p. ej.
+    # medicamentos) exigen declarar el atributo aunque no lo sea: se manda "No".
+    declarar_material_peligroso: bool = Field(default=False, nullable=False)
     activo: bool = Field(default=True)
 
 

@@ -8,6 +8,7 @@ Estructura verificada contra el sandbox real de Facturama (payload de prueba
 aceptado hasta el paso de sellado) y contra un CFDI real de Chemital
 (`.misc/CME091007LG1_SS_5318_20260820.xml`, fixture del test de equivalencia).
 """
+import re
 from decimal import Decimal
 from typing import Any
 
@@ -34,8 +35,11 @@ def _domicilio(lugar: dict[str, Any]) -> dict[str, Any]:
         domicilio["Calle"] = lugar["calle"]
     if lugar.get("num_exterior"):
         domicilio["NumeroExterior"] = lugar["num_exterior"]
-    if lugar.get("colonia"):
-        domicilio["Colonia"] = lugar["colonia"]
+    # `Colonia` es la clave numérica de c_Colonia (4 dígitos); un nombre escrito a mano
+    # ("Centro") lo rechaza el SAT, así que solo se manda si es clave.
+    colonia = str(lugar.get("colonia") or "").strip()
+    if re.fullmatch(r"\d{4}", colonia):
+        domicilio["Colonia"] = colonia
     if lugar.get("municipio_clave"):
         domicilio["Municipio"] = lugar["municipio_clave"]
     if lugar.get("localidad_clave"):
@@ -122,6 +126,7 @@ def construir_carta_porte(
                     "ClaveUnidad": m["clave_unidad"],
                     "Unidad": m.get("unidad_desc") or "Unidad",
                     "PesoEnKg": _num(m["peso_kg"]),
+                    **({"MaterialPeligroso": "No"} if m.get("declarar_material_peligroso") else {}),
                 }
                 for m in mercancias
             ],

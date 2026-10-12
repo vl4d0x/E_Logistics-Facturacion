@@ -6,6 +6,6 @@
 export function numberInputValue(v: number | string): number | null {
   if (typeof v === "number") return v;
   if (v.trim() === "") return null;
-  const parsed = Number(v);
+  const parsed = Number(v.replace(/[$,\s]/g, ""));
   return Number.isNaN(parsed) ? null : parsed;
 }

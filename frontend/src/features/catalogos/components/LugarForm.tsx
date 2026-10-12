@@ -1,6 +1,8 @@
 // `fase-1-catalogos.md` H1.5 — formulario de lugar (origen/destino frecuente).
 import { Button, Group, NumberInput, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useState } from "react";
+import { api, ApiError } from "../../../lib/api";
 import {
   useCreateLugar,
   useUpdateLugar,
@@ -68,11 +70,32 @@ export function LugarForm({
     validate: {
       nombre: (v) => (v.trim() ? null : "Requerido"),
       estado: (v) => (v.trim() ? null : "Requerido"),
-      codigo_postal: (v) => (v.trim() ? null : "Requerido"),
+      codigo_postal: (v) => (/^\d{5}$/.test(v.trim()) ? null : "Debe tener 5 dígitos"),
+      rfc_remitente_destinatario: (v) =>
+        v.trim().toUpperCase() === "XEXX010101000"
+          ? "XEXX010101000 es para extranjeros: usa el RFC real o XAXX010101000"
+          : null,
     },
   });
 
   const saving = crear.isPending || editar.isPending;
+  const [buscandoCp, setBuscandoCp] = useState(false);
+
+  // Con el CP se consulta el catálogo del SAT y se llena el estado (el admin no tiene que saber las claves).
+  async function resolverCp(valor: string) {
+    const cp = valor.trim();
+    if (!/^\d{5}$/.test(cp)) return;
+    setBuscandoCp(true);
+    try {
+      const r = await api.get<{ estado: string }>(`/api/v1/catalogos/codigos-postales/${cp}`);
+      form.setFieldValue("estado", r.estado);
+      form.clearFieldError("codigo_postal");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) form.setFieldError("codigo_postal", err.message);
+    } finally {
+      setBuscandoCp(false);
+    }
+  }
   const clienteSeleccionable = clienteIdFijo === undefined;
 
   function handleSubmit(values: LugarPayload) {
@@ -110,21 +133,35 @@ export function LugarForm({
           />
         )}
 
-        <Group grow>
-          <TextInput label="Calle" {...form.getInputProps("calle")} />
-          <TextInput label="Número exterior" {...form.getInputProps("num_exterior")} />
+        <Group grow align="flex-start">
+          <TextInput
+            label="Código postal"
+            required
+            inputMode="numeric"
+            maxLength={5}
+            description={buscandoCp ? "Buscando en el catálogo del SAT…" : "El estado se llena solo"}
+            {...form.getInputProps("codigo_postal")}
+            onBlur={(e) => resolverCp(e.currentTarget.value)}
+          />
+          <TextInput
+            label="Estado (clave SAT)"
+            placeholder="MEX"
+            required
+            description="Ej. MEX, CMX, PUE"
+            {...form.getInputProps("estado")}
+          />
         </Group>
         <Group grow>
-          <TextInput label="Colonia" {...form.getInputProps("colonia")} />
-          <TextInput label="Localidad" {...form.getInputProps("localidad")} />
+          <TextInput label="Calle" description="Opcional" {...form.getInputProps("calle")} />
+          <TextInput label="Número exterior" description="Opcional" {...form.getInputProps("num_exterior")} />
         </Group>
         <Group grow>
-          <TextInput label="Municipio" {...form.getInputProps("municipio")} />
-          <TextInput label="Estado (clave SAT)" placeholder="MEX" required {...form.getInputProps("estado")} />
-        </Group>
-        <Group grow>
-          <TextInput label="País" {...form.getInputProps("pais")} />
-          <TextInput label="Código postal" required {...form.getInputProps("codigo_postal")} />
+          <TextInput
+            label="Colonia"
+            description="Opcional · clave SAT de 4 dígitos (un nombre no se manda a la Carta Porte)"
+            {...form.getInputProps("colonia")}
+          />
+          <TextInput label="Municipio" description="Opcional · solo informativo" {...form.getInputProps("municipio")} />
         </Group>
 
         <div>

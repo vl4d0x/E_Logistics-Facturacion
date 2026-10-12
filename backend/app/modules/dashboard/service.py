@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from app.core.errors import AppError
 from app.core.models import utcnow
+from app.core.tiempo import a_hora_mx
 from app.modules.catalogos.models import Cliente, ModoAcuse
 from app.modules.cobranza import service as cobranza
 from app.modules.cobranza.models import EstadoPago, EstadoRep, Pago, Rep
@@ -99,7 +100,7 @@ def ingresos(session: Session, anio: int, mes: int) -> dict[str, Any]:
     por_mes: dict[str, dict[str, Decimal]] = defaultdict(_vacio)
     facturas = session.exec(select(Factura).where(Factura.estado.in_(_VIGENTES), Factura.fecha_emision.is_not(None))).all()
     for f in facturas:
-        clave = f.fecha_emision.strftime("%Y-%m")
+        clave = a_hora_mx(f.fecha_emision).strftime("%Y-%m")  # mes de emisión en hora de México
         por_mes[clave]["facturado"] += f.total
         por_mes[clave]["por_cobrar"] += f.saldo_insoluto
         por_mes[clave]["cobrado"] += f.total - f.saldo_insoluto

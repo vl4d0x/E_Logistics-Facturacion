@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.models import utcnow
+from app.core.tiempo import a_hora_mx
 from app.integrations.facturama import FacturamaClient, FacturamaError
 from app.modules.auth.models import Usuario
 from app.modules.catalogos.models import Cliente, Lugar, RegimenReceptor
@@ -92,7 +93,7 @@ def _factura_detalle(session: Session, f: Factura) -> dict[str, Any]:
     return {
         "factura_id": f.id,
         "folio": f"{f.serie or ''}{f.folio or ''}",
-        "fecha_emision": f.fecha_emision.date().isoformat() if f.fecha_emision else None,
+        "fecha_emision": a_hora_mx(f.fecha_emision).date().isoformat() if f.fecha_emision else None,
         "total": money(f.total),
         "saldo": money(f.saldo_insoluto),
         "servicio": {
@@ -137,7 +138,7 @@ def sugerencias(session: Session, cliente_id: uuid.UUID, monto: Decimal) -> dict
     por_id = {str(f.id): f for f in abiertas}
     resultado = conciliar(
         [
-            FacturaAbierta(str(f.id), f"{f.serie or ''}{f.folio or ''}", (f.fecha_emision or utcnow()).date(), _cents(f.saldo_insoluto))
+            FacturaAbierta(str(f.id), f"{f.serie or ''}{f.folio or ''}", a_hora_mx(f.fecha_emision or utcnow()).date(), _cents(f.saldo_insoluto))
             for f in abiertas
         ],
         _cents(monto),
@@ -175,7 +176,7 @@ def resumen_clientes(session: Session, anio: int | None) -> list[dict[str, Any]]
         .where(Factura.estado == EstadoFactura.timbrada, Factura.saldo_insoluto > 0)
     )
     for f, _s, c in session.exec(stmt).all():
-        if anio and f.fecha_emision and f.fecha_emision.year != anio:
+        if anio and f.fecha_emision and a_hora_mx(f.fecha_emision).year != anio:
             continue
         fila = filas.setdefault(
             c.id,
@@ -192,7 +193,7 @@ def resumen_clientes(session: Session, anio: int | None) -> list[dict[str, Any]]
         if _vencida(f, c.dias_credito)[1]:
             fila["saldo_vencido"] += f.saldo_insoluto
         if f.fecha_emision:
-            dia = f.fecha_emision.date().isoformat()
+            dia = a_hora_mx(f.fecha_emision).date().isoformat()
             if fila["factura_mas_antigua"] is None or dia < fila["factura_mas_antigua"]:
                 fila["factura_mas_antigua"] = dia
     for fila in filas.values():
@@ -215,9 +216,9 @@ def listar_facturas(
         stmt = stmt.where(Factura.estado_cobro.in_(estados))
     filas = []
     for f, s, c in session.exec(stmt.order_by(Factura.fecha_emision)).all():
-        if mes_emision and (not f.fecha_emision or f.fecha_emision.strftime("%Y-%m") != mes_emision):
+        if mes_emision and (not f.fecha_emision or a_hora_mx(f.fecha_emision).strftime("%Y-%m") != mes_emision):
             continue
-        if anio and (not f.fecha_emision or f.fecha_emision.year != anio):
+        if anio and (not f.fecha_emision or a_hora_mx(f.fecha_emision).year != anio):
             continue
         dias, vencida = _vencida(f, c.dias_credito)
         filas.append(

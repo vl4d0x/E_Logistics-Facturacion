@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 
 from app.modules.catalogos.models import MetodoPago, ModoAcuse, RegimenReceptor, TipoMedidor
-from app.modules.catalogos.validators import validate_rfc
+from app.modules.catalogos.validators import validate_rfc, validate_rfc_lugar
 
 
 # --- Unidad ---------------------------------------------------------------
@@ -153,6 +153,7 @@ class MercanciaBase(BaseModel):
     clave_unidad: str
     unidad_desc: str | None = None
     peso_kg_sugerido: float | None = None
+    declarar_material_peligroso: bool = False
 
 
 class MercanciaCreate(MercanciaBase):
@@ -165,6 +166,7 @@ class MercanciaUpdate(BaseModel):
     clave_unidad: str | None = None
     unidad_desc: str | None = None
     peso_kg_sugerido: float | None = None
+    declarar_material_peligroso: bool | None = None
 
 
 class MercanciaOut(MercanciaBase):
@@ -191,6 +193,11 @@ class LugarBase(BaseModel):
     es_origen_predeterminado: bool = False
     distancia_km: float | None = None  # km típico hasta este lugar (sugerido al armar un servicio)
 
+    @field_validator("rfc_remitente_destinatario")
+    @classmethod
+    def _validate_rfc_lugar(cls, v: str) -> str:
+        return validate_rfc_lugar(v)
+
 
 class LugarCreate(LugarBase):
     pass
@@ -212,6 +219,11 @@ class LugarUpdate(BaseModel):
     referencia: str | None = None
     es_origen_predeterminado: bool | None = None
     distancia_km: float | None = None
+
+    @field_validator("rfc_remitente_destinatario")
+    @classmethod
+    def _validate_rfc_lugar(cls, v: str | None) -> str | None:
+        return validate_rfc_lugar(v) if v is not None else v
 
 
 class LugarOut(LugarBase):

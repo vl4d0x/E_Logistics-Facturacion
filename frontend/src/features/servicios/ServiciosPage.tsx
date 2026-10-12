@@ -1,4 +1,5 @@
 // `fase-2-servicios.md` H2.2 — lista de servicios por estado y fecha.
+import { pesos } from "../../lib/money";
 import { Alert, Badge, Button, Group, Select, Table, Tabs, Text, TextInput } from "@mantine/core";
 import { IconAlertTriangle, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
@@ -23,6 +24,14 @@ const ESTADO_LABEL: Record<string, string> = {
   en_curso: "En curso",
   terminado: "Terminado",
   cancelado: "Cancelado",
+};
+
+// `05-ui-spec §5 StatusBadge`: operación en neutral, salvo "En curso" (info).
+const ESTADO_COLOR: Record<string, string> = {
+  programado: "gray",
+  en_curso: "blue",
+  terminado: "gray",
+  cancelado: "gray",
 };
 
 function agruparPorFecha(items: ServicioListItem[]): [string, ServicioListItem[]][] {
@@ -173,10 +182,12 @@ export function ServiciosPage() {
                       {s.acuses_completos}/{s.acuses_requeridos} acuses
                     </Badge>
                   </Table.Td>
-                  <Table.Td ta="right">{s.subtotal ? `$${Number(s.subtotal).toFixed(2)}` : "—"}</Table.Td>
+                  <Table.Td ta="right">{s.subtotal ? pesos(s.subtotal) : "—"}</Table.Td>
                   <Table.Td>
                     <Group gap={4}>
-                      <Badge variant="light">{ESTADO_LABEL[s.estado]}</Badge>
+                      <Badge variant="light" color={ESTADO_COLOR[s.estado]}>
+                        {ESTADO_LABEL[s.estado]}
+                      </Badge>
                       {s.estado_facturacion === "facturado" ? (
                         <Badge color="green" variant="light">
                           Facturado

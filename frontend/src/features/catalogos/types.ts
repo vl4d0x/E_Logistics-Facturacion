@@ -92,6 +92,7 @@ export interface Mercancia {
   clave_unidad: string;
   unidad_desc: string | null;
   peso_kg_sugerido: number | null;
+  declarar_material_peligroso: boolean;
   activo: boolean;
 }
 

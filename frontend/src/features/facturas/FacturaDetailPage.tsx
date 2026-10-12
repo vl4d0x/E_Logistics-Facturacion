@@ -45,9 +45,18 @@ export function FacturaDetailPage() {
           {pesos(f.subtotal)} · IVA {pesos(f.iva_trasladado)} · Retención {pesos(f.iva_retenido)} ·{" "}
           <b>Total {pesos(f.total)}</b>
         </Text>
-        <Text size="xs" c="dimmed" mt={4}>
-          UUID {f.uuid_fiscal}
-        </Text>
+        {f.uuid_fiscal && (
+          <Text size="xs" c="dimmed" mt={4}>
+            UUID {f.uuid_fiscal}
+          </Text>
+        )}
+
+        {f.estado === "error" && (
+          <Alert color="red" mt="md" icon={<IconAlertTriangle size={18} />} title="No se timbró">
+            {f.error_detalle ?? "Facturama rechazó el timbrado."} Corrige el dato y vuelve a timbrar desde{" "}
+            <Link to={`/admin/servicios/${f.servicio_id}/facturar`}>Facturar</Link>: se reutiliza este intento.
+          </Alert>
+        )}
 
         {f.estado === "cancelacion_pendiente" && (
           <Alert color="yellow" mt="md" icon={<IconAlertTriangle size={18} />}>
@@ -71,27 +80,29 @@ export function FacturaDetailPage() {
           </Alert>
         )}
 
-        <Group mt="md">
-          <Button variant="default" onClick={() => descargarFactura(f.id, "pdf")}>
-            Descargar PDF
-          </Button>
-          <Button variant="default" onClick={() => descargarFactura(f.id, "xml")}>
-            Descargar XML
-          </Button>
-          {f.estado === "timbrada" && f.estado_cobro !== "pagada" && (
-            <Button
-              variant="light"
-              onClick={() => navigate(`/admin/cobranza?tab=por_cobrar&cliente=${f.cliente_id}&factura=${f.id}`)}
-            >
-              Registrar pago
+        {f.estado !== "error" && (
+          <Group mt="md">
+            <Button variant="default" onClick={() => descargarFactura(f.id, "pdf")}>
+              Descargar PDF
             </Button>
-          )}
-          {f.estado === "timbrada" && (
-            <Button color="red" variant="light" onClick={() => setCancelando(true)}>
-              Cancelar factura
+            <Button variant="default" onClick={() => descargarFactura(f.id, "xml")}>
+              Descargar XML
             </Button>
-          )}
-        </Group>
+            {f.estado === "timbrada" && f.estado_cobro !== "pagada" && (
+              <Button
+                variant="light"
+                onClick={() => navigate(`/admin/cobranza?tab=por_cobrar&cliente=${f.cliente_id}&factura=${f.id}`)}
+              >
+                Registrar pago
+              </Button>
+            )}
+            {f.estado === "timbrada" && (
+              <Button color="red" variant="light" onClick={() => setCancelando(true)}>
+                Cancelar factura
+              </Button>
+            )}
+          </Group>
+        )}
       </Card>
 
       {vigente && (

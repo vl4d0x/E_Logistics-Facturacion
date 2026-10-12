@@ -1,6 +1,7 @@
 // H5.2-H5.4 — panel "Registrar pago" con conciliación automática (`06 §3`).
+import { fechaCorta, hoyMexico } from "../../lib/fecha";
 import {
-  Alert, Badge, Button, Divider, Group, NumberInput, Progress, Select, Stack, Text, TextInput,
+  Alert, Anchor, Badge, Button, Divider, Group, Modal, NumberInput, Progress, Select, Stack, Text, TextInput,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { IconAlertTriangle } from "@tabler/icons-react";
@@ -9,8 +10,10 @@ import { Link } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { numberInputValue } from "../../lib/numberInput";
 import {
-  centavos, pesos, useCrearPago, useSugerencias, type Candidato, type FacturaCobranza,
+  centavos, pesos, useCrearPago, useEnviarRep, useSugerencias, type Candidato, type FacturaCobranza, type PagoDetalle,
 } from "./api";
+
+type Resultado = PagoDetalle & { rep?: PagoDetalle["rep_vigente"]; rep_error?: string };
 
 const FORMAS_PAGO = [
   { value: "03", label: "03 · Transferencia" },
@@ -35,7 +38,7 @@ function CandidatoCard({ c, titulo, color, onUsar }: { c: Candidato; titulo: str
         {c.facturas.map((f) => (
           <Text size="xs" key={f.factura_id}>
             <b>{f.folio}</b> · <Link to={`/admin/servicios/${f.servicio.id}`}>Servicio #{f.servicio.numero}</Link> ·{" "}
-            {f.fecha_emision} · {f.servicio.ruta_resumen} · {pesos(c.aplicaciones.find((a) => a.factura_id === f.factura_id)?.monto ?? f.saldo)}
+            {fechaCorta(f.fecha_emision)} · {f.servicio.ruta_resumen} · {pesos(c.aplicaciones.find((a) => a.factura_id === f.factura_id)?.monto ?? f.saldo)}
           </Text>
         ))}
       </Stack>
@@ -53,13 +56,17 @@ export function RegistrarPagoPanel({
   montoInicial?: number | null;
 }) {
   const [monto, setMonto] = useState<number | null>(montoInicial);
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(hoyMexico());
   const [forma, setForma] = useState<string | null>("03");
   const [referencia, setReferencia] = useState("");
   const [notas, setNotas] = useState("");
   const [debounced] = useDebouncedValue(monto, 300);
   const { data: sug, isFetching } = useSugerencias(clienteId, debounced);
   const crear = useCrearPago();
+  const enviarRep = useEnviarRep();
+  // Confirmación previa (`05 §6`: emitir un REP es fiscal) y resultado que se queda a la vista.
+  const [confirmar, setConfirmar] = useState<boolean | null>(null);
+  const [resultado, setResultado] = useState<Resultado | null>(null);
 
   const montoCents = monto ? centavos(monto) : 0;
   const aplicado = Object.values(seleccion).reduce((a, b) => a + b, 0);
@@ -81,7 +88,13 @@ export function RegistrarPagoPanel({
         aplicaciones: Object.entries(seleccion).map(([factura_id, c]) => ({ factura_id, monto: (c / 100).toFixed(2) })),
         emitir_rep: emitirRep,
       },
-      { onSuccess: () => { setSeleccion({}); setMonto(null); setReferencia(""); setNotas(""); } },
+      {
+        onSuccess: (pago) => {
+          setResultado(pago as Resultado);
+          setSeleccion({}); setMonto(null); setReferencia(""); setNotas("");
+        },
+        onSettled: () => setConfirmar(null),
+      },
     );
   };
 
@@ -93,6 +106,48 @@ export function RegistrarPagoPanel({
     <Card>
       <Stack gap="sm">
         <Text fw={600}>Registrar pago</Text>
+        {resultado && (
+          <Alert
+            color={resultado.rep_error ? "yellow" : "green"}
+            withCloseButton
+            onClose={() => setResultado(null)}
+            title={
+              resultado.rep ? "Pago aplicado y REP timbrado" : resultado.rep_error ? "Pago aplicado; el REP no se timbró" : "Pago aplicado"
+            }
+          >
+            <Stack gap={6}>
+              <Text size="sm">
+                {resultado.cliente.nombre_comercial} · {pesos(resultado.monto)}
+              </Text>
+              {resultado.rep && (
+                <>
+                  <Text size="xs" c="dimmed">UUID {resultado.rep.uuid_fiscal}</Text>
+                  <Group gap="sm">
+                    {resultado.rep.pdf_url && <Anchor href={resultado.rep.pdf_url} target="_blank" size="sm">PDF del REP</Anchor>}
+                    {resultado.rep.xml_url && <Anchor href={resultado.rep.xml_url} target="_blank" size="sm">XML</Anchor>}
+                    <Button
+                      size="xs"
+                      loading={enviarRep.isPending}
+                      onClick={() => enviarRep.mutate({ id: resultado.rep!.id, body: {} })}
+                    >
+                      Enviar al cliente
+                    </Button>
+                  </Group>
+                </>
+              )}
+              {resultado.rep_error && (
+                <Text size="sm">
+                  {resultado.rep_error} Reintenta el REP desde{" "}
+                  <Anchor component={Link} to={`/admin/cobranza/pagos/${resultado.id}`} size="sm">el detalle del pago</Anchor>{" "}
+                  (vence el {fechaCorta(resultado.vence_rep)}).
+                </Text>
+              )}
+              {!resultado.rep && !resultado.rep_error && (
+                <Text size="sm">Emite el REP antes del {fechaCorta(resultado.vence_rep)} desde "Pagos y REP".</Text>
+              )}
+            </Stack>
+          </Alert>
+        )}
         <NumberInput
           label="Monto recibido" prefix="$" decimalScale={2} fixedDecimalScale thousandSeparator="," min={0}
           data-autofocus autoFocus value={monto ?? ""} onChange={(v) => setMonto(numberInputValue(v))}
@@ -142,11 +197,44 @@ export function RegistrarPagoPanel({
         )}
 
         <Stack gap="xs">
-          <Button fullWidth disabled={!cuadra} loading={crear.isPending} onClick={() => enviar(true)}>Aplicar y generar REP</Button>
-          <Button fullWidth variant="default" disabled={!cuadra} loading={crear.isPending} onClick={() => enviar(false)}>Solo aplicar</Button>
+          <Button fullWidth disabled={!cuadra} loading={crear.isPending} onClick={() => setConfirmar(true)}>Aplicar y generar REP</Button>
+          <Button fullWidth variant="default" disabled={!cuadra} loading={crear.isPending} onClick={() => setConfirmar(false)}>Solo aplicar</Button>
         </Stack>
         <Text size="xs" c="dimmed">{facturas.length} facturas abiertas · marca facturas en la tabla o usa una sugerencia.</Text>
       </Stack>
+      <Modal
+        opened={confirmar !== null}
+        onClose={() => setConfirmar(null)}
+        title={confirmar ? "Aplicar el pago y timbrar el REP" : "Aplicar el pago"}
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            Pago de <b>{pesos(montoCents / 100)}</b> del {fechaCorta(fecha)} aplicado a:
+          </Text>
+          {facturas
+            .filter((f) => seleccion[f.id])
+            .map((f) => (
+              <Group key={f.id} justify="space-between" wrap="nowrap">
+                <Text size="sm">
+                  {f.folio} · Servicio #{f.servicio.numero}
+                </Text>
+                <Text size="sm">{pesos(seleccion[f.id] / 100)}</Text>
+              </Group>
+            ))}
+          {confirmar && (
+            <Text size="xs" c="dimmed">
+              Se timbra el complemento de pago (REP). Para corregirlo después habrá que cancelarlo ante el SAT.
+            </Text>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setConfirmar(null)}>Cancelar</Button>
+            <Button loading={crear.isPending} onClick={() => enviar(Boolean(confirmar))}>
+              {confirmar ? "Aplicar y timbrar REP" : "Aplicar"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Card>
   );
 }

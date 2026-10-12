@@ -1,4 +1,5 @@
 // `05-ui-spec §5 OperatorReportCard` — solo lectura, en el detalle del servicio (admin).
+import { pesos } from "../../../lib/money";
 import { Badge, Divider, Group, Image, SimpleGrid, Stack, Table, Text } from "@mantine/core";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import { Card } from "../../../components/Card";
@@ -35,11 +36,11 @@ export function OperatorReportCard({ servicio }: { servicio: ServicioDetalle }) 
             {(Object.keys(ETIQUETAS_CHECKLIST) as (keyof typeof ETIQUETAS_CHECKLIST)[]).map((key) => {
               const ok = !inspeccion.fallas.includes(key);
               return (
-                <Group key={key} gap={6}>
+                <Group key={key} gap={6} wrap="nowrap" align="flex-start">
                   {ok ? (
-                    <IconCheck size={14} color="var(--el-success-text)" />
+                    <IconCheck size={14} color="var(--el-success-text)" style={{ flexShrink: 0, marginTop: 2 }} />
                   ) : (
-                    <IconX size={14} color="var(--el-warning-text)" />
+                    <IconX size={14} color="var(--el-warning-text)" style={{ flexShrink: 0, marginTop: 2 }} />
                   )}
                   <Text size="xs" c={ok ? undefined : "var(--el-warning-text)"}>
                     {ETIQUETAS_CHECKLIST[key]}
@@ -135,18 +136,18 @@ export function OperatorReportCard({ servicio }: { servicio: ServicioDetalle }) 
                     <Image src={c.ticket_url} w={32} h={32} radius={4} fit="cover" alt="Ticket" />
                   )}
                   <Text size="sm">
-                    {Number(c.litros)} L · ${Number(c.precio_litro).toFixed(2)}/L
+                    {Number(c.litros)} L · {pesos(c.precio_litro)}/L
                   </Text>
                 </Group>
                 <Text size="sm" fw={600}>
-                  ${Number(c.importe).toFixed(2)}
+                  {pesos(c.importe)}
                 </Text>
               </Group>
             ))}
             {combustible_total && (
               <Group justify="flex-end">
                 <Text size="sm" fw={700}>
-                  Total: {Number(combustible_total.litros)} L · ${Number(combustible_total.importe).toFixed(2)}
+                  Total: {Number(combustible_total.litros)} L · {pesos(combustible_total.importe)}
                 </Text>
               </Group>
             )}

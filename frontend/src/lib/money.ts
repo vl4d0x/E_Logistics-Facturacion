@@ -41,3 +41,11 @@ export function subtotalDesdeTotal(total: number, regimenReceptor: RegimenRecept
   const totalCent = aCentavos(total);
   return aPesos(redondearHalfUp(totalCent / factor));
 }
+
+/** `$1,848.00` (`05-ui-spec §6`). Acepta los strings decimales que manda la API. */
+export function pesos(monto: number | string | null | undefined): string {
+  const n = Number(monto ?? 0);
+  const v = Number.isFinite(n) ? n : 0;
+  const texto = Math.abs(v).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${v < 0 ? "−" : ""}$${texto}`;
+}

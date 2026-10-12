@@ -194,14 +194,16 @@ function PasoCierre({ servicio }: { servicio: NonNullable<ReturnType<typeof useS
       <Text fw={600}>Cierre del servicio</Text>
       <Stack gap={4}>
         {servicio.viajes.map((v) => (
-          <Group key={v.id} justify="space-between">
-            <Text size="sm">
+          <Group key={v.id} justify="space-between" wrap="nowrap">
+            <Text size="sm" style={{ flex: 1, minWidth: 0 }}>
               Viaje {v.orden} · {v.tipo === "recoleccion" ? "Recolección" : v.tipo === "entrega" ? "Entrega" : "Recolección y entrega"}
               {" · "}
               {(v.tipo === "recoleccion" ? v.origen : v.destino)?.nombre}
             </Text>
             <NumberInput
               w={110}
+              style={{ flexShrink: 0 }}
+              inputMode="decimal"
               suffix=" km"
               aria-label={`Km reportados del viaje ${v.orden}`}
               value={kms[v.id] ?? undefined}
@@ -280,7 +282,12 @@ export function ServicioOperadorPage() {
         </Text>
       </Card>
 
-      <Stepper active={paso} allowNextStepsSelect={false}>
+      <Stepper
+        active={paso}
+        allowNextStepsSelect={false}
+        size="sm"
+        styles={{ separator: { marginInline: 6, minWidth: 8 }, step: { minWidth: 0 } }}
+      >
         <Stepper.Step label="Inspección" />
         <Stepper.Step label="Viajes" />
         <Stepper.Step label="Cierre" />

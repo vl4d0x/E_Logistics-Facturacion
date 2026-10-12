@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from app.core.db import get_session
 from app.core.deps import require_role
+from app.core.errors import AppError
 from app.modules.auth.models import RolUsuario, Usuario
 from app.modules.cobranza import service
 from app.modules.cobranza.models import EstadoPago
@@ -87,13 +88,23 @@ def crear_pago(
     datos = body.model_dump(exclude={"aplicaciones", "emitir_rep"})
     pago = service.registrar(session, datos, user)
     rep = None
+    rep_error = None
     if body.aplicaciones:
         service.aplicar(session, pago, [(a.factura_id, a.monto) for a in body.aplicaciones])
         if body.emitir_rep:
-            rep = service.emitir_rep(session, pago)
+            # El pago ya quedó registrado y aplicado: si el PAC falla no se responde error (el
+            # admin creería que no se guardó y lo capturaría otra vez); se avisa y se reintenta
+            # el REP desde "Pagos y REP".
+            try:
+                rep = service.emitir_rep(session, pago)
+            except AppError as exc:
+                session.rollback()
+                rep_error = exc.message
     salida = service.pago_out(session, pago, detalle=True)
     if rep:
         salida["rep"] = service.rep_out(rep)
+    if rep_error:
+        salida["rep_error"] = rep_error
     return salida
 
 

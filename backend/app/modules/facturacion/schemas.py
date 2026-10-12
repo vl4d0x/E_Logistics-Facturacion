@@ -145,6 +145,7 @@ class AcuseFacturarOut(BaseModel):
     viaje_id: uuid.UUID
     tipo: str
     url: str | None = None
+    mime: str | None = None
     referencia: str | None = None
     pagina: int
 

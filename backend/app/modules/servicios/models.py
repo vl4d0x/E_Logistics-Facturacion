@@ -117,6 +117,7 @@ class ViajeMercancia(TimestampMixin, table=True):
     bienes_transp: str = Field(nullable=False)
     clave_unidad: str = Field(nullable=False)
     unidad_desc: str | None = Field(default=None)
+    declarar_material_peligroso: bool = Field(default=False, nullable=False)  # snapshot del catálogo
     cantidad: Decimal = Field(default=Decimal(1), nullable=False)
     peso_kg: float = Field(nullable=False)
 

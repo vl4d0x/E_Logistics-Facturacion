@@ -103,6 +103,7 @@ Si el viaje ya estaba terminado, también se borran sus mercancías y acuses.`))
       <Text size="xs" c="dimmed">
         Cambia el lugar, el CP, la hora programada y los km, o quita un origen o destino; se guarda al salir del campo. Vaciar el CP vuelve al del lugar.
       </Text>
+      <Table.ScrollContainer minWidth={680}>
       <Table verticalSpacing={4}>
         <Table.Thead>
           <Table.Tr>
@@ -122,13 +123,16 @@ Si el viaje ya estaba terminado, también se borran sus mercancías y acuses.`))
                 <Table.Td>{u.tipo}</Table.Td>
                 <Table.Td>
                   {clienteId ? (
-                    <LugarSelect
-                      clienteId={clienteId}
-                      label=""
-                      value={u.lugar.id ?? null}
-                      onChange={(id) => cambiarLugar(u, id)}
-                      nuevoLabel={u.tipo === "Origen" ? "Agregar nuevo origen" : "Agregar nuevo destino"}
-                    />
+                    // Ancho mínimo: si no, la tabla lo aplasta y solo se ve la primera letra del lugar.
+                    <div style={{ minWidth: 220 }}>
+                      <LugarSelect
+                        clienteId={clienteId}
+                        label=""
+                        value={u.lugar.id ?? null}
+                        onChange={(id) => cambiarLugar(u, id)}
+                        nuevoLabel={u.tipo === "Origen" ? "Agregar nuevo origen" : "Agregar nuevo destino"}
+                      />
+                    </div>
                   ) : (
                     (u.lugar.nombre ?? "—")
                   )}
@@ -201,6 +205,7 @@ Si el viaje ya estaba terminado, también se borran sus mercancías y acuses.`))
           })}
         </Table.Tbody>
       </Table>
+      </Table.ScrollContainer>
 
       {clienteId && (
         <Group align="flex-end" gap="md" wrap="wrap">

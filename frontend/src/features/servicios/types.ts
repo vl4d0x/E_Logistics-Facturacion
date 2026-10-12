@@ -122,7 +122,7 @@ export interface ServicioDetalle {
   subtotal: number | null;
   notas: string | null;
   viajes: ViajeOut[];
-  factura_vigente: Record<string, unknown> | null;
+  factura_vigente: FacturaVigente | null;
   datos_fiscales_bloqueados: boolean;
   acciones_permitidas: string[];
   mercancias_cliente: MercanciaClienteResumen[] | null;
@@ -159,3 +159,13 @@ export interface Conteos {
 }
 
 export type Vista = "programados" | "en_curso" | "por_facturar" | "facturados" | "cancelados";
+
+export interface FacturaVigente {
+  id: string;
+  estado: string;
+  uuid_fiscal: string | null;
+  serie: string | null;
+  folio: string | null;
+  total: string;
+  estado_cobro: string;
+}

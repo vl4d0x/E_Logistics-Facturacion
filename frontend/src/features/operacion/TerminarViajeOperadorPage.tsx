@@ -244,9 +244,12 @@ export function TerminarViajeOperadorPage() {
                     key={c}
                     label={c}
                     checked={revisado.includes(c)}
-                    onChange={(e) =>
-                      setRevisado((prev) => (e.currentTarget.checked ? [...prev, c] : prev.filter((x) => x !== c)))
-                    }
+                    onChange={(e) => {
+                      // Leer el valor YA: dentro del updater de setState `e.currentTarget` es null
+                      // (la pantalla tronaba al marcar la primera casilla).
+                      const marcado = e.currentTarget.checked;
+                      setRevisado((prev) => (marcado ? [...prev, c] : prev.filter((x) => x !== c)));
+                    }}
                   />
                 ))}
               </Stack>

@@ -1,6 +1,6 @@
 // `05-ui-spec §5 AcuseViewer` — versión simplificada para la primera entrega de H4.4
 // (zoom/rotar/miniaturas de varias páginas quedan para una siguiente pasada).
-import { Badge, Image, Stack, Tabs, Text } from "@mantine/core";
+import { Anchor, Badge, Image, Stack, Tabs, Text } from "@mantine/core";
 import type { AcuseFacturar, Ubicacion } from "../types";
 
 export function AcuseViewerSimple({
@@ -55,6 +55,17 @@ export function AcuseViewerSimple({
                       <Badge size="lg" variant="light">
                         Folio: {a.referencia}
                       </Badge>
+                    ) : a.url && (a.mime === "application/pdf" || /\.pdf($|\?)/i.test(a.url)) ? (
+                      <Stack gap={4}>
+                        <iframe
+                          src={a.url}
+                          title={`Acuse de ${d.lugar.nombre ?? "la entrega"}`}
+                          style={{ width: "100%", height: 360, border: "1px solid var(--el-line)", borderRadius: 8 }}
+                        />
+                        <Anchor href={a.url} target="_blank" rel="noreferrer" size="xs">
+                          Abrir el acuse en otra pestaña
+                        </Anchor>
+                      </Stack>
                     ) : a.url ? (
                       <Image src={a.url} radius="sm" fit="contain" mah={300} alt="Acuse" />
                     ) : (

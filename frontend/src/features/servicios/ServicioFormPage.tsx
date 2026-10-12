@@ -1,4 +1,5 @@
 // `fase-2-servicios.md` H2.1 — crear un servicio con sus viajes en una sola pantalla.
+import { hoyMexico } from "../../lib/fecha";
 import {
   Alert,
   Badge,
@@ -18,7 +19,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { TotalConIva } from "../../components/TotalConIva";
-import { calcularImpuestos } from "../../lib/money";
+import { calcularImpuestos, pesos } from "../../lib/money";
 import { numberInputValue } from "../../lib/numberInput";
 import { clientesApi, operadoresApi, unidadesApi } from "../catalogos/api";
 import { useLugares } from "../catalogos/api";
@@ -49,7 +50,7 @@ export function ServicioFormPage() {
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [unidadId, setUnidadId] = useState<string | null>(null);
   const [operadorId, setOperadorId] = useState<string | null>(null);
-  const [fecha, setFecha] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState<string>(hoyMexico());
   const [notas, setNotas] = useState("");
   const [subtotal, setSubtotal] = useState<number | null>(null);
   const [timbradoAnticipado, setTimbradoAnticipado] = useState(false);
@@ -139,7 +140,10 @@ export function ServicioFormPage() {
         viajes: viajes.map(draftToViajeIn),
       },
       {
-        onSuccess: (servicio) => navigate(`/admin/servicios/${servicio.id}`),
+        // Con timbrado anticipado el siguiente paso es Facturar (`05 §7.1`, H4.11): horas programadas,
+        // mercancías y timbre se capturan ahí.
+        onSuccess: (servicio) =>
+          navigate(timbradoAnticipado ? `/admin/servicios/${servicio.id}/facturar` : `/admin/servicios/${servicio.id}`),
       },
     );
   }
@@ -269,6 +273,7 @@ export function ServicioFormPage() {
             label="Subtotal"
             mt="lg"
             prefix="$"
+            thousandSeparator=","
             decimalScale={2}
             value={subtotal ?? undefined}
             onChange={(v) => setSubtotal(numberInputValue(v))}
@@ -308,7 +313,7 @@ export function ServicioFormPage() {
             <Alert color="blue" icon={<IconAlertTriangle size={16} />} mt="sm">
               Para cuando aún no se acuerda el precio: se timbra con un subtotal simbólico de $0.10
               {clienteSeleccionado
-                ? ` (total $${calcularImpuestos(0.1, clienteSeleccionado.regimen_receptor).total.toFixed(2)} con IVA)`
+                ? ` (total ${pesos(calcularImpuestos(0.1, clienteSeleccionado.regimen_receptor).total)} con IVA)`
                 : ""}
               , podrás descargar el PDF y el XML para el cliente, y la factura se cancela
               automáticamente. Después se timbra con el precio real.
@@ -320,7 +325,7 @@ export function ServicioFormPage() {
               Cancelar
             </Button>
             <Button disabled={!puedeGuardar} loading={crear.isPending} onClick={handleSubmit}>
-              Crear servicio
+              {timbradoAnticipado ? "Crear y revisar para timbrar" : "Crear servicio"}
             </Button>
           </Group>
         </Card>
