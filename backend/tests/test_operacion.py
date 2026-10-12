@@ -403,3 +403,16 @@ def test_admin_corrige_carga(client: TestClient, admin_user: Usuario):
 
     eliminar = client.delete(f"{API}/cargas/{carga_id}", headers=admin_headers)
     assert eliminar.status_code == 204
+
+
+def test_carga_con_importe_que_no_cuadra_exacto_se_acepta():
+    from datetime import datetime, timezone
+    from decimal import Decimal
+
+    from app.modules.operacion.schemas import CargaIn
+
+    carga = CargaIn(
+        id=uuid.uuid4(), litros=Decimal("7"), precio_litro=Decimal("22.86"), importe=Decimal("158.50"),
+        cargada_at=datetime.now(timezone.utc),
+    )
+    assert carga.importe == Decimal("158.50")  # 7 × 22.86 = 160.02: el ticket manda

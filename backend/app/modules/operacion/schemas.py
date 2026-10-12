@@ -54,9 +54,8 @@ class CargaIn(BaseModel):
     def _check(self) -> "CargaIn":
         if self.litros <= 0 or self.precio_litro <= 0 or self.importe <= 0:
             raise ValueError("litros, precio_litro e importe deben ser mayores a 0")
-        calculado = self.litros * self.precio_litro
-        if abs(calculado - self.importe) > Decimal("1.00"):
-            raise ValueError("litros × precio_litro no cuadra con importe (±$1.00)")
+        # Litros × precio puede no cuadrar exacto con el ticket (redondeos de la bomba): el
+        # importe capturado manda; la app solo avisa, no bloquea.
         return self
 
 

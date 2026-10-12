@@ -104,6 +104,8 @@ export interface CargaDraft {
   precioLitro: number | null;
   importe: number | null;
   ticket: File | null;
+  /** Cuál de los tres valores se calculó solo (se recalcula al cambiar los otros dos). */
+  calculado?: "litros" | "precioLitro" | "importe" | null;
 }
 
 export function nuevaCargaDraft(): CargaDraft {

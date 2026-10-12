@@ -1,21 +1,39 @@
-// `05-ui-spec §5 FuelLoadForm` — una o más cargas de gasolina; con dos de los tres
-// valores se calcula el tercero; avisa si los tres capturados no cuadran (±$1.00).
+// `05-ui-spec §5 FuelLoadForm` — una o más cargas de gasolina. Con dos de los tres valores
+// se calcula el tercero y se SIGUE recalculando si cambian los otros dos; si el operador
+// escribe el valor calculado, queda manual (el ticket puede variar por redondeos) y solo se
+// avisa si no cuadra, sin bloquear.
 import { ActionIcon, Alert, Button, FileButton, Group, NumberInput, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
 import { numberInputValue } from "../../../lib/numberInput";
 import { type CargaDraft, nuevaCargaDraft } from "../types";
 
-function calcularFaltante(c: CargaDraft): Partial<CargaDraft> {
+type Campo = "litros" | "precioLitro" | "importe";
+const CAMPOS: Campo[] = ["litros", "precioLitro", "importe"];
+
+function redondear(valor: number, decimales: number): number {
+  const f = 10 ** decimales;
+  return Math.round(valor * f) / f;
+}
+
+function recalcular(c: CargaDraft, editado: Campo): CargaDraft {
+  // Si el operador escribe el campo que se había calculado, ese valor ya es suyo.
+  let objetivo: Campo | null = c.calculado === editado ? null : (c.calculado ?? null);
+  if (!objetivo && c.calculado !== editado) {
+    const faltan = CAMPOS.filter((k) => c[k] === null);
+    if (faltan.length === 1) objetivo = faltan[0];
+  }
+  if (!objetivo) return { ...c, calculado: null };
   const { litros, precioLitro, importe } = c;
-  const presentes = [litros, precioLitro, importe].filter((v) => v !== null).length;
-  if (presentes !== 2) return {};
-  if (litros === null) return { litros: importe! / precioLitro! };
-  if (precioLitro === null) return { precioLitro: importe! / litros! };
-  if (importe === null) return { importe: litros! * precioLitro! };
-  return {};
+  let valor: number | null = null;
+  if (objetivo === "litros" && importe && precioLitro) valor = redondear(importe / precioLitro, 2);
+  if (objetivo === "precioLitro" && importe && litros) valor = redondear(importe / litros, 3);
+  if (objetivo === "importe" && litros && precioLitro) valor = redondear(litros * precioLitro, 2);
+  if (valor === null) return { ...c, calculado: c.calculado === objetivo ? objetivo : null };
+  return { ...c, [objetivo]: valor, calculado: objetivo };
 }
 
 function noCuadra(c: CargaDraft): boolean {
+  if (c.calculado) return false;
   if (c.litros === null || c.precioLitro === null || c.importe === null) return false;
   return Math.abs(c.litros * c.precioLitro - c.importe) > 1;
 }
@@ -27,12 +45,12 @@ export function FuelLoadForm({
   cargas: CargaDraft[];
   onChange: (cargas: CargaDraft[]) => void;
 }) {
-  function actualizar(id: string, patch: Partial<CargaDraft>) {
+  function actualizar(id: string, patch: Partial<CargaDraft>, editado?: Campo) {
     onChange(
       cargas.map((c) => {
         if (c.id !== id) return c;
         const actualizada = { ...c, ...patch };
-        return { ...actualizada, ...calcularFaltante(actualizada) };
+        return editado ? recalcular(actualizada, editado) : actualizada;
       }),
     );
   }
@@ -53,21 +71,24 @@ export function FuelLoadForm({
               label="Litros"
               decimalScale={2}
               value={c.litros ?? undefined}
-              onChange={(v) => actualizar(c.id, { litros: numberInputValue(v) })}
+              description={c.calculado === "litros" ? "Calculado" : undefined}
+              onChange={(v) => actualizar(c.id, { litros: numberInputValue(v) }, "litros")}
             />
             <NumberInput
               label="Precio por litro"
               prefix="$"
               decimalScale={3}
               value={c.precioLitro ?? undefined}
-              onChange={(v) => actualizar(c.id, { precioLitro: numberInputValue(v) })}
+              description={c.calculado === "precioLitro" ? "Calculado" : undefined}
+              onChange={(v) => actualizar(c.id, { precioLitro: numberInputValue(v) }, "precioLitro")}
             />
             <NumberInput
               label="Importe"
               prefix="$"
               decimalScale={2}
               value={c.importe ?? undefined}
-              onChange={(v) => actualizar(c.id, { importe: numberInputValue(v) })}
+              description={c.calculado === "importe" ? "Calculado (puedes corregirlo con el ticket)" : undefined}
+              onChange={(v) => actualizar(c.id, { importe: numberInputValue(v) }, "importe")}
             />
             <ActionIcon
               variant="subtle"
@@ -81,7 +102,7 @@ export function FuelLoadForm({
           </Group>
           {noCuadra(c) && (
             <Alert color="yellow" icon={<IconAlertTriangle size={14} />} py={6}>
-              Litros × precio no cuadra con el importe (diferencia mayor a $1.00).
+              Litros × precio no cuadra con el importe (más de $1.00 de diferencia). Revisa el ticket; si está bien, puedes continuar.
             </Alert>
           )}
           <FileButton onChange={(file) => actualizar(c.id, { ticket: file })} accept="image/*">
