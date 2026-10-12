@@ -10,6 +10,8 @@ Todo el diseño (arquitectura, modelo de datos, contrato de API, mapeo fiscal, f
 `specs/`. Un agente o persona nueva debe leer `specs/00-overview.md` antes que nada.
 
 - `specs/00-overview.md` — qué es, dominio, reglas de negocio, cuándo pedir info a Vlad.
+- `specs/ESTADO.md` — **en qué quedó el proyecto y decisiones recientes** (léelo segundo).
+- `specs/IDEAS-FUTURAS.md` — mejoras acordadas que aún no se construyen.
 - `specs/01-architecture.md` — decisiones técnicas ya tomadas (no reabrir).
 - `specs/02-data-model.md` — tablas, enums, máquinas de estado.
 - `specs/03-api-contract.md` — endpoints REST.
