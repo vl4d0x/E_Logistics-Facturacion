@@ -1,6 +1,20 @@
 // `05-ui-spec §8 Terminar viaje` — mercancías, acuse (escaneo/referencia/ninguno), hora y notas.
-import { ActionIcon, Button, FileButton, Group, NumberInput, Select, Skeleton, Stack, Text, TextInput, Textarea } from "@mantine/core";
-import { IconArrowLeft, IconTrash, IconUpload } from "@tabler/icons-react";
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Checkbox,
+  FileButton,
+  Group,
+  NumberInput,
+  Select,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
+import { IconAlertTriangle, IconArrowLeft, IconFileTypePdf, IconTrash, IconUpload } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
@@ -39,7 +53,8 @@ export function TerminarViajeOperadorPage() {
 
   const [filas, setFilas] = useState<MercanciaRow[] | null>(null);
   const [folio, setFolio] = useState("");
-  const [archivos, setArchivos] = useState<File[]>([]);
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [revisado, setRevisado] = useState<string[]>([]);
   const [hora, setHora] = useState(horaActual());
   const [notas, setNotas] = useState("");
 
@@ -48,7 +63,15 @@ export function TerminarViajeOperadorPage() {
 
   const muestraMercancias = viaje.tipo !== "recoleccion";
   const bloqueado = servicio.datos_fiscales_bloqueados;
-  const modoAcuse = servicio.cliente.modo_acuse;
+  // El acuse (o folio, según el cliente) solo se pide al entregar; nunca en una recolección.
+  const requiereAcuse = viaje.tipo !== "recoleccion";
+  const modoAcuse = requiereAcuse ? servicio.cliente.modo_acuse : "ninguno";
+  const CHECKS_ACUSE = [
+    "Se ve todo CLARO",
+    "Está ESCANEADO (no es una foto)",
+    `Corresponde al SERVICIO #${servicio.numero}`,
+    "Está SELLADO o FIRMADO",
+  ];
 
   const filasIniciales: MercanciaRow[] =
     filas ??
@@ -92,14 +115,12 @@ export function TerminarViajeOperadorPage() {
       },
     });
 
-    if (modoAcuse === "escaneo") {
-      for (let i = 0; i < archivos.length; i++) {
-        await agregarAcuse.mutateAsync({
-          viajeId: viaje.id,
-          file: archivos[i],
-          clientActionId: crypto.randomUUID(),
-        });
-      }
+    if (modoAcuse === "escaneo" && archivo) {
+      await agregarAcuse.mutateAsync({
+        viajeId: viaje.id,
+        file: archivo,
+        clientActionId: crypto.randomUUID(),
+      });
     }
 
     navigate(`/operador/servicios/${servicio.id}`);
@@ -108,7 +129,7 @@ export function TerminarViajeOperadorPage() {
   const enviando = terminar.isPending || agregarAcuse.isPending;
   const puedeEnviar =
     (modoAcuse !== "referencia" || folio.trim().length > 0) &&
-    (modoAcuse !== "escaneo" || archivos.length > 0);
+    (modoAcuse !== "escaneo" || (archivo !== null && revisado.length === CHECKS_ACUSE.length));
 
   return (
     <Stack gap="lg">
@@ -201,9 +222,10 @@ export function TerminarViajeOperadorPage() {
         </Card>
       )}
 
+      {requiereAcuse && (
       <Card>
         <Text fw={600} mb="sm">
-          Acuse
+          {modoAcuse === "referencia" ? "Folio" : "Acuse"}
         </Text>
         {modoAcuse === "referencia" && (
           <TextInput
@@ -214,33 +236,49 @@ export function TerminarViajeOperadorPage() {
           />
         )}
         {modoAcuse === "escaneo" && (
-          <Stack gap="xs">
-            <FileButton onChange={(f) => f && setArchivos((prev) => [...prev, f])} accept="image/*">
+          <Stack gap="sm">
+            <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />} title="IMPORTANTE: revisa el acuse antes de subirlo">
+              <Stack gap={6} mt={4}>
+                {CHECKS_ACUSE.map((c) => (
+                  <Checkbox
+                    key={c}
+                    label={c}
+                    checked={revisado.includes(c)}
+                    onChange={(e) =>
+                      setRevisado((prev) => (e.currentTarget.checked ? [...prev, c] : prev.filter((x) => x !== c)))
+                    }
+                  />
+                ))}
+              </Stack>
+            </Alert>
+            <FileButton onChange={(f) => setArchivo(f)} accept="application/pdf">
               {(props) => (
                 <Button variant="default" leftSection={<IconUpload size={16} />} {...props}>
-                  Agregar página
+                  {archivo ? "Cambiar PDF" : "Subir acuse (PDF)"}
                 </Button>
               )}
             </FileButton>
-            {archivos.map((a, i) => (
-              <Group key={i} justify="space-between">
-                <Text size="sm">
-                  Página {i + 1}: {a.name}
-                </Text>
-                <ActionIcon
-                  variant="subtle"
-                  color="red"
-                  aria-label="Quitar página"
-                  onClick={() => setArchivos((prev) => prev.filter((_, idx) => idx !== i))}
-                >
+            {archivo && (
+              <Group justify="space-between" wrap="nowrap">
+                <Group gap={6} wrap="nowrap">
+                  <IconFileTypePdf size={18} />
+                  <Text size="sm" truncate>
+                    {archivo.name}
+                  </Text>
+                </Group>
+                <ActionIcon variant="subtle" color="red" aria-label="Quitar PDF" onClick={() => setArchivo(null)}>
                   <IconTrash size={14} />
                 </ActionIcon>
               </Group>
-            ))}
+            )}
+            <Text size="xs" c="dimmed">
+              Solo un archivo PDF por entrega.
+            </Text>
           </Stack>
         )}
         {modoAcuse === "ninguno" && <Text c="dimmed">Este cliente no requiere acuse.</Text>}
       </Card>
+      )}
 
       <Card>
         <Stack gap="sm">

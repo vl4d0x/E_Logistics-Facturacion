@@ -160,7 +160,7 @@ function ViajeCard({
           ) : (
             <FileButton
               onChange={(file) => file && acuseArchivo.mutate({ viajeId: viaje.id, file })}
-              accept="image/*,application/pdf"
+              accept="application/pdf"
             >
               {(props) => (
                 <Button size="xs" variant="default" leftSection={<IconUpload size={14} />} loading={acuseArchivo.isPending} {...props}>

@@ -487,3 +487,26 @@ def test_quitar_viaje_terminado_borra_sus_datos_y_el_servicio_lo_refleja(client:
     assert r.status_code == 204, r.text
     detalle = client.get(f"{API}/servicios/{s['id']}", headers=headers).json()
     assert [v["id"] for v in detalle["viajes"]] == [recoleccion]
+
+
+def test_acuse_escaneado_solo_un_pdf(client: TestClient, admin_user: Usuario, monkeypatch):
+    from app.modules.servicios import router as servicios_router
+
+    monkeypatch.setattr(servicios_router, "subir_archivo", lambda *a, **k: None)
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    s = client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers).json()
+    entrega = s["viajes"][1]["id"]
+
+    foto = client.post(
+        f"{API}/viajes/{entrega}/acuses", files={"file": ("acuse.jpg", b"\xff\xd8\xff fake", "image/jpeg")}, headers=headers
+    )
+    assert foto.status_code == 422 and foto.json()["error"]["details"][0]["issue"] == "solo_pdf"
+
+    for nombre in ("primero.pdf", "segundo.pdf"):
+        r = client.post(
+            f"{API}/viajes/{entrega}/acuses", files={"file": (nombre, b"%PDF-1.7 fake", "application/pdf")}, headers=headers
+        )
+        assert r.status_code == 201, r.text
+    acuses = client.get(f"{API}/servicios/{s['id']}", headers=headers).json()["viajes"][1]["acuses"]
+    assert len([a for a in acuses if a["tipo"] == "escaneo"]) == 1  # el segundo reemplaza al primero

@@ -123,7 +123,8 @@ function PasoViajes({ servicio }: { servicio: NonNullable<ReturnType<typeof useS
               <Text size="sm" c="dimmed" mt={4}>
                 {lugar.nombre}
                 {lugar.calle ? ` · ${lugar.calle} ${lugar.num_exterior ?? ""}` : ""}
-                {lugar.referencia ? ` · ${lugar.referencia}` : ""}
+                {/* La referencia del lugar a veces trae correos del cliente: al operador no se le muestran. */}
+                {lugar.referencia && !lugar.referencia.includes("@") ? ` · ${lugar.referencia}` : ""}
               </Text>
             )}
             {v.notas_admin && (

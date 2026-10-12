@@ -850,6 +850,28 @@ def set_folio_viaje(
     return {"viaje_id": viaje_id, "folio": folio}
 
 
+def validar_acuse_pdf(contenido: bytes) -> None:
+    """El acuse escaneado es UN solo PDF (no fotos): se revisa la firma del archivo."""
+    if not contenido.startswith(b"%PDF"):
+        raise AppError(
+            "validation_error",
+            "El acuse debe ser un solo archivo PDF escaneado",
+            422,
+            details=[{"field": "file", "issue": "solo_pdf"}],
+        )
+
+
+def reemplazar_acuses_escaneo(session: Session, viaje_id: uuid.UUID, nuevo_id: uuid.UUID) -> None:
+    """Un viaje guarda un solo acuse escaneado: al subir otro, el anterior se quita."""
+    for viejo in session.exec(
+        select(Acuse).where(
+            Acuse.viaje_id == viaje_id, Acuse.tipo == TipoAcuse.escaneo, Acuse.id != nuevo_id
+        )
+    ).all():
+        session.delete(viejo)
+    session.commit()
+
+
 def agregar_acuse_archivo(
     session: Session,
     viaje_id: uuid.UUID,
@@ -870,6 +892,8 @@ def agregar_acuse_archivo(
     )
     session.add(acuse)
     session.commit()
+    session.refresh(acuse)
+    reemplazar_acuses_escaneo(session, viaje_id, acuse.id)
     session.refresh(acuse)
     return acuse
 

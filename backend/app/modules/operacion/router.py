@@ -16,6 +16,7 @@ from app.modules.operacion.schemas import (
     IniciarServicioIn,
     TerminarViajeOperadorIn,
 )
+from app.modules.servicios import service as servicios_service
 from app.modules.servicios.schemas import ServicioDetalleOut
 
 router = APIRouter(dependencies=[Depends(require_role(RolUsuario.operador))])
@@ -76,6 +77,7 @@ async def agregar_acuse(
         )
     pagina = int(form.get("pagina", 1))
     contenido = await archivo.read()
+    servicios_service.validar_acuse_pdf(contenido)
     key = nueva_key(f"acuses/{viaje_id}", archivo.filename or "acuse")
     subir_archivo(key, contenido, archivo.content_type or "application/octet-stream")
     acuse = service.agregar_acuse_operador_archivo(

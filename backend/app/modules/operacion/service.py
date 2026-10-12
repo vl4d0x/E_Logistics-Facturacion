@@ -260,6 +260,8 @@ def agregar_acuse_operador_archivo(
     session.add(acuse)
     session.commit()
     session.refresh(acuse)
+    servicios_service.reemplazar_acuses_escaneo(session, viaje_id, acuse.id)
+    session.refresh(acuse)
     return servicios_service.acuse_out(acuse)
 
 

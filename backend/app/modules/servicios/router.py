@@ -199,6 +199,7 @@ async def agregar_acuse(
             )
         pagina = int(form.get("pagina", 1))
         contenido = await archivo.read()
+        service.validar_acuse_pdf(contenido)
         key = nueva_key(f"acuses/{viaje_id}", archivo.filename or "acuse")
         subir_archivo(key, contenido, archivo.content_type or "application/octet-stream")
         acuse = service.agregar_acuse_archivo(
