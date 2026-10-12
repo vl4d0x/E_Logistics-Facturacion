@@ -1,6 +1,8 @@
 """Facturas ya timbradas: archivos, lista, descarga, correo y cancelación — `04 §8-9`, H4.7-H4.10."""
 import base64
+import io
 import logging
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -320,6 +322,50 @@ def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos:
 
 
 
+def nombre_evidencia(factura: Factura, cliente: Cliente) -> str:
+    """`FACT #<folio Elogistics>-<CLIENTE>_EVIDENCIA.pdf` (sin caracteres que rompan un nombre de archivo)."""
+    nombre = re.sub(r'[\/:*?"<>|]+', " ", (cliente.nombre_comercial or cliente.razon_social).upper()).strip()
+    return f"FACT #{factura.folio or ''}-{nombre}_EVIDENCIA.pdf"
+
+
+def unir_pdfs(contenidos: list[bytes]) -> bytes:
+    """Une varios PDF en uno solo, en el orden recibido."""
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for contenido in contenidos:
+        writer.append(io.BytesIO(contenido))
+    salida = io.BytesIO()
+    writer.write(salida)
+    return salida.getvalue()
+
+
+def _adjuntos_evidencia(
+    session: Session, factura: Factura, servicio: Servicio, cliente: Cliente, acuses: list[Acuse]
+) -> list[dict]:
+    """Los acuses escaneados del servicio, en orden de viaje, unidos en UN solo PDF de evidencia.
+    Acuses viejos que no son PDF (fotos) se adjuntan aparte, como antes."""
+    from app.core import storage
+
+    orden = {v.id: v.orden for v in session.exec(select(Viaje).where(Viaje.servicio_id == servicio.id)).all()}
+    pdfs: list[bytes] = []
+    otros: list[dict] = []
+    for a in sorted(acuses, key=lambda a: (orden.get(a.viaje_id, 0), a.pagina, a.subido_at)):
+        if not a.archivo_key:
+            continue
+        contenido = storage.leer_archivo(a.archivo_key)
+        if contenido.startswith(b"%PDF"):
+            pdfs.append(contenido)
+        else:
+            ext = a.archivo_key.rsplit(".", 1)[-1]
+            otros.append({"filename": f"acuse_{servicio.numero}_{len(otros) + 1}.{ext}", "content": list(contenido)})
+    adjuntos: list[dict] = []
+    if pdfs:
+        evidencia = pdfs[0] if len(pdfs) == 1 else unir_pdfs(pdfs)
+        adjuntos.append({"filename": nombre_evidencia(factura, cliente), "content": list(evidencia)})
+    return adjuntos + otros
+
+
 def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factura:
     if factura.estado not in {EstadoFactura.timbrada, EstadoFactura.cancelacion_pendiente}:
         raise AppError("conflict", "Solo se envían facturas vigentes", 409)
@@ -341,17 +387,7 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
     acuses = session.exec(select(Acuse).where(Acuse.viaje_id.in_(viajes_ids))).all() if viajes_ids else []
     folios: list[str] = []
     if cliente.modo_acuse == ModoAcuse.escaneo:
-        from app.core import storage
-
-        for a in sorted(acuses, key=lambda a: (a.subido_at, a.pagina)):
-            if a.archivo_key:
-                ext = a.archivo_key.rsplit(".", 1)[-1]
-                adjuntos.append(
-                    {
-                        "filename": f"acuse_{servicio.numero}_{a.pagina}.{ext}",
-                        "content": list(storage.leer_archivo(a.archivo_key)),
-                    }
-                )
+        adjuntos.extend(_adjuntos_evidencia(session, factura, servicio, cliente, acuses))
     elif cliente.modo_acuse == ModoAcuse.referencia:
         folios = [a.referencia for a in acuses if a.referencia]
 

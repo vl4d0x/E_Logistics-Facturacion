@@ -253,3 +253,58 @@ def test_cancelar_guarda_acuse_en_r2(client: TestClient, admin_user: Usuario, mo
     pac.cancel_cfdi.return_value = {"Status": "canceled", "AcuseXmlBase64": base64.b64encode(b"<acuse/>").decode()}
     client.post(f"{API}/facturas/{factura['id']}/cancelar", json={"motivo": "02"}, headers=h)
     assert r2.objetos[f"facturas/{factura['id']}_acuse_cancelacion.xml"] == b"<acuse/>"
+
+
+def _pdf_de_paginas(n: int) -> bytes:
+    import io
+
+    from pypdf import PdfWriter
+
+    w = PdfWriter()
+    for _ in range(n):
+        w.add_blank_page(width=200, height=200)
+    buf = io.BytesIO()
+    w.write(buf)
+    return buf.getvalue()
+
+
+def test_correo_une_los_acuses_pdf_en_un_solo_archivo_de_evidencia(client: TestClient, admin_user: Usuario, monkeypatch):
+    import io
+
+    from pypdf import PdfReader
+
+    from app.modules.servicios import router as servicios_router
+
+    h = _auth_headers(client, admin_user.email)
+    r2 = _R2Falso()
+    servicio, factura, _ = _timbrar(client, h, monkeypatch, r2)
+    monkeypatch.setattr(servicios_router, "subir_archivo", r2.subir_archivo)
+    detalle = client.get(f"{API}/servicios/{servicio['id']}", headers=h).json()
+    client.patch(f"{API}/catalogos/clientes/{detalle['cliente']['id']}", json={"modo_acuse": "escaneo"}, headers=h)
+    for viaje, paginas in zip(detalle["viajes"], (1, 2)):
+        r = client.post(
+            f"{API}/viajes/{viaje['id']}/acuses",
+            files={"file": ("acuse.pdf", _pdf_de_paginas(paginas), "application/pdf")},
+            headers=h,
+        )
+        assert r.status_code == 201, r.text
+
+    enviado = MagicMock()
+    monkeypatch.setattr(
+        facturas_service, "get_settings", lambda: types.SimpleNamespace(
+            resend_api_key="k", email_from="x", email_reply_to="r@x.mx", email_modo_prueba=False
+        )
+    )
+    import resend
+
+    monkeypatch.setattr(resend.Emails, "send", enviado)
+    r = client.post(f"{API}/facturas/{factura['id']}/enviar", json={"to": ["c@x.mx"]}, headers=h)
+    assert r.status_code == 200, r.text
+    adjuntos = enviado.call_args.args[0]["attachments"]
+    assert [a["filename"] for a in adjuntos] == [
+        "ELG7_CME091007LG1.xml",
+        "ELG7_CME091007LG1.pdf",
+        "FACT #7-CHEMITAL_EVIDENCIA.pdf",
+    ]
+    evidencia = PdfReader(io.BytesIO(bytes(adjuntos[2]["content"])))
+    assert len(evidencia.pages) == 3  # 1 + 2 páginas, unidas en un solo PDF
