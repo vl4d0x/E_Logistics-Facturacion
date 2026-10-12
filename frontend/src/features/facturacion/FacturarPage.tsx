@@ -124,7 +124,7 @@ export function FacturarPage() {
         }
         notifications.show({ color: "green", message: "Factura timbrada" });
         // Lo siguiente es descargar o enviar: el detalle de la factura tiene ambas cosas.
-        navigate(`/admin/facturas/${res.factura.id}`);
+        navigate(`/admin/facturas/${res.factura.id}?timbrada=1`);
       },
       onError: (err) => {
         setConfirmarAbierto(false);

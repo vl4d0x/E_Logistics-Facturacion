@@ -1,6 +1,7 @@
 // H4.8-H4.10 — lista, detalle, descarga, correo y cancelación de facturas.
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth";
 
@@ -85,12 +86,41 @@ export const useActualizarEstatus = (id: string) =>
 export const useEnviarFactura = (id: string) =>
   useAccionFactura<{ to?: string[] }>(id, "enviar", "Correo enviado", "No se pudo enviar el correo");
 
-/** Descarga con el token (el endpoint exige Bearer, no sirve un `<a href>`). */
-export async function descargarFactura(id: string, formato: "pdf" | "xml") {
+async function pedirArchivo(id: string, formato: "pdf" | "xml") {
   const base = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-  const res = await fetch(`${base}/api/v1/facturas/${id}/descargar?formato=${formato}`, {
+  return fetch(`${base}/api/v1/facturas/${id}/descargar?formato=${formato}`, {
     headers: { Authorization: `Bearer ${getAccessToken()}` },
   });
+}
+
+/** PDF de la factura como URL local (blob) para mostrarlo incrustado; se libera al salir. */
+export function usePdfFactura(id: string, habilitado: boolean) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    if (!habilitado) return;
+    let vigente = true;
+    let creada: string | null = null;
+    setError(false);
+    pedirArchivo(id, "pdf")
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const blob = new Blob([await res.blob()], { type: "application/pdf" });
+        creada = URL.createObjectURL(blob);
+        if (vigente) setUrl(creada);
+      })
+      .catch(() => vigente && setError(true));
+    return () => {
+      vigente = false;
+      if (creada) URL.revokeObjectURL(creada);
+    };
+  }, [id, habilitado]);
+  return { url, error };
+}
+
+/** Descarga con el token (el endpoint exige Bearer, no sirve un `<a href>`). */
+export async function descargarFactura(id: string, formato: "pdf" | "xml") {
+  const res = await pedirArchivo(id, formato);
   if (!res.ok) {
     toastError("No se pudo descargar")(new ApiError("internal_error", "No se pudo descargar el archivo", res.status));
     return;
