@@ -7,6 +7,7 @@ from datetime import timedelta
 from functools import lru_cache
 
 import boto3
+from botocore.config import Config
 
 from app.core.config import get_settings
 from app.core.errors import AppError
@@ -24,6 +25,10 @@ def _client():
         endpoint_url=settings.r2_endpoint,
         aws_access_key_id=settings.r2_access_key_id,
         aws_secret_access_key=settings.r2_secret_access_key,
+        # R2 solo acepta firmas SigV4; sin esto las URLs firmadas salían con SigV2 y R2 respondía
+        # "SigV2 authorization is not supported" al abrir un acuse.
+        region_name="auto",
+        config=Config(signature_version="s3v4"),
     )
 
 
