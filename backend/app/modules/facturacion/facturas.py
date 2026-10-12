@@ -141,6 +141,8 @@ def _resumen(f: Factura, s: Servicio, c: Cliente) -> dict:
         "subtotal": f.subtotal,
         "total": f.total,
         "saldo_insoluto": f.saldo_insoluto,
+        "enviado_at": f.enviado_at,  # la lista muestra "Enviada" / "Correo falló"
+        "envio_error": f.envio_error,
     }
 
 

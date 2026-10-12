@@ -20,6 +20,8 @@ export interface FacturaResumen {
   subtotal: string;
   total: string;
   saldo_insoluto: string;
+  enviado_at: string | null;
+  envio_error: string | null;
 }
 
 export interface FacturaDetalle extends FacturaResumen {
@@ -30,9 +32,7 @@ export interface FacturaDetalle extends FacturaResumen {
   motivo_cancelacion: string | null;
   cancelacion_solicitada_at: string | null;
   cancelada_at: string | null;
-  enviado_at: string | null;
   envio_destinatarios: string[] | null;
-  envio_error: string | null;
   emails_cliente: string[];
   ejercicio_anterior: boolean;
 }
@@ -47,6 +47,8 @@ const toastError = (title: string) => (err: unknown) =>
     color: "red",
     title,
     message: err instanceof ApiError ? err.message : "Error inesperado",
+    // Lo que responde Facturama (cancelar, timbrar) hay que poder leerlo: no se cierra solo.
+    autoClose: err instanceof ApiError && err.code === "facturama_error" ? false : 6000,
   });
 
 export function useFacturas(filtros: FacturasFiltros) {

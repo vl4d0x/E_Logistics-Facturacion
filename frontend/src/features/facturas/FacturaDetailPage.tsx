@@ -1,6 +1,6 @@
 // H4.8-H4.10 — detalle de factura: vista previa del PDF, envío por correo, descargas,
 // duplicar el servicio y cancelación. Es también la pantalla que se abre al timbrar.
-import { Alert, Anchor, Badge, Button, Group, Modal, Select, Skeleton, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Anchor, Badge, Button, Group, Modal, Skeleton, Stack, Text, TextInput } from "@mantine/core";
 import { IconAlertTriangle, IconCheck, IconCopy, IconDownload, IconMail } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -10,18 +10,12 @@ import { useDuplicarServicio } from "../servicios/api";
 import {
   descargarFactura,
   useActualizarEstatus,
-  useCancelarFactura,
   useEnviarFactura,
   useFactura,
   usePdfFactura,
 } from "./api";
+import { CancelarFacturaModal } from "./components/CancelarFacturaModal";
 import { ESTADO_FACTURA, pesos } from "./format";
-
-const MOTIVOS = [
-  { value: "02", label: "02 · Comprobante emitido con errores sin relación" },
-  { value: "03", label: "03 · No se llevó a cabo la operación" },
-  { value: "04", label: "04 · Operación nominativa en factura global" },
-];
 
 export function FacturaDetailPage() {
   const { id = "" } = useParams();
@@ -29,12 +23,10 @@ export function FacturaDetailPage() {
   const [params] = useSearchParams();
   const recienTimbrada = params.get("timbrada") === "1";
   const { data: f } = useFactura(id);
-  const cancelar = useCancelarFactura(id);
   const enviar = useEnviarFactura(id);
   const actualizarEstatus = useActualizarEstatus(id);
   const duplicar = useDuplicarServicio(f?.servicio_id ?? "");
   const [cancelando, setCancelando] = useState(false);
-  const [motivo, setMotivo] = useState<string | null>("02");
   const [destinatarios, setDestinatarios] = useState<string | null>(null);
   const [duplicando, setDuplicando] = useState(false);
   const [fechaDuplicado, setFechaDuplicado] = useState(hoyMexico());
@@ -210,30 +202,7 @@ export function FacturaDetailPage() {
         </div>
       )}
 
-      <Modal opened={cancelando} onClose={() => setCancelando(false)} title="Cancelar factura">
-        <Stack>
-          <Text size="sm">
-            Factura {f.serie}
-            {f.folio} a <b>{f.cliente_nombre}</b> por <b>{pesos(f.total)}</b>.
-          </Text>
-          <Select label="Motivo" data={MOTIVOS} value={motivo} onChange={setMotivo} allowDeselect={false} />
-          <Text size="sm" c="dimmed">
-            Con más de $1,000 el receptor debe aceptar la cancelación; la factura puede quedar “en espera”.
-          </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setCancelando(false)}>
-              Volver
-            </Button>
-            <Button
-              color="red"
-              loading={cancelar.isPending}
-              onClick={() => motivo && cancelar.mutate({ motivo }, { onSuccess: () => setCancelando(false) })}
-            >
-              Cancelar factura
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <CancelarFacturaModal factura={cancelando ? f : null} onClose={() => setCancelando(false)} />
 
       <Modal opened={duplicando} onClose={() => setDuplicando(false)} title="Duplicar servicio">
         <Stack>
