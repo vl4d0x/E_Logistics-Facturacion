@@ -145,7 +145,9 @@ export function ServicioFormPage() {
         // Con timbrado anticipado el siguiente paso es Facturar (`05 §7.1`, H4.11): horas programadas,
         // mercancías y timbre se capturan ahí.
         onSuccess: (servicio) =>
-          navigate(timbradoAnticipado ? `/admin/servicios/${servicio.id}/facturar` : `/admin/servicios/${servicio.id}`),
+          timbradoAnticipado
+            ? navigate(`/admin/servicios/${servicio.id}/facturar`)
+            : navigate(`/admin/servicios/${servicio.id}`, { state: { mensajeWhatsapp: true } }),
       },
     );
   }

@@ -17,6 +17,7 @@ import {
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconBrandWhatsapp,
   IconCheck,
   IconDotsVertical,
   IconRestore,
@@ -24,7 +25,7 @@ import {
   IconUpload,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { TotalConIva } from "../../components/TotalConIva";
 import {
@@ -40,6 +41,7 @@ import {
 } from "./api";
 import { descargarFactura } from "../facturas/api";
 import { OperatorReportCard } from "../operacion/components/OperatorReportCard";
+import { MensajeWhatsappModal } from "./components/MensajeWhatsappModal";
 import { ReescaneoControl } from "./components/ReescaneoControl";
 import type { RegimenReceptor } from "../catalogos/types";
 import type { FacturaVigente, ViajeOut } from "./types";
@@ -247,6 +249,7 @@ function ViajeCard({
 export function ServicioDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: servicio, isLoading, isError } = useServicio(id ?? null);
   const eliminarViaje = useEliminarViaje(id ?? "");
   const duplicar = useDuplicarServicio(id ?? "");
@@ -257,6 +260,10 @@ export function ServicioDetailPage() {
   const [fechaDuplicar, setFechaDuplicar] = useState("");
   const [cancelarAbierto, setCancelarAbierto] = useState(false);
   const [motivo, setMotivo] = useState("");
+  // Recién creado el servicio, el mensaje de WhatsApp se ofrece abierto.
+  const [whatsappAbierto, setWhatsappAbierto] = useState(
+    Boolean((location.state as { mensajeWhatsapp?: boolean } | null)?.mensajeWhatsapp),
+  );
 
   if (isLoading) return <Skeleton height={300} />;
   if (isError || !servicio) {
@@ -276,6 +283,13 @@ export function ServicioDetailPage() {
           Servicios
         </Button>
         <Group gap="xs">
+          <Button
+            variant="default"
+            leftSection={<IconBrandWhatsapp size={16} />}
+            onClick={() => setWhatsappAbierto(true)}
+          >
+            Mensaje WhatsApp
+          </Button>
           {/* Con todos los viajes terminados, el siguiente paso queda a la vista (no solo en el menú). */}
           {servicio.acciones_permitidas.includes("marcar_terminado") && (
             <Button
@@ -388,6 +402,16 @@ export function ServicioDetailPage() {
         />
       ))}
 
+
+      <MensajeWhatsappModal
+        servicio={servicio}
+        opened={whatsappAbierto}
+        onClose={() => {
+          setWhatsappAbierto(false);
+          // Que no se vuelva a abrir solo al recargar la página.
+          navigate(location.pathname, { replace: true, state: null });
+        }}
+      />
 
       <Modal opened={duplicarAbierto} onClose={() => setDuplicarAbierto(false)} title="Duplicar servicio">
         <Stack>
