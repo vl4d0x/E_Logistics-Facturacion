@@ -1,6 +1,7 @@
 // `05-ui-spec §5 AcuseViewer` — versión simplificada para la primera entrega de H4.4
 // (zoom/rotar/miniaturas de varias páginas quedan para una siguiente pasada).
-import { Anchor, Badge, Group, Image, Stack, Tabs, Text } from "@mantine/core";
+import { Anchor, Badge, Checkbox, Group, Image, Stack, Tabs, Text } from "@mantine/core";
+import { useSinAcuse } from "../../registroExcel/api";
 import { ReescaneoControl } from "../../servicios/components/ReescaneoControl";
 import type { AcuseFacturar, Ubicacion } from "../types";
 
@@ -18,6 +19,7 @@ export function AcuseViewerSimple({
   modoAnticipado: boolean;
 }) {
   const destinos = ubicaciones.filter((u) => u.tipo === "Destino");
+  const sinAcuse = useSinAcuse();
 
   if (modoAnticipado) {
     return (
@@ -49,19 +51,30 @@ export function AcuseViewerSimple({
         const propios = acuses.filter((a) => a.viaje_id === d.viaje_id);
         return (
           <Tabs.Panel key={d.viaje_id} value={d.viaje_id} pt="sm">
-            {modoAcuse === "escaneo" && (
-              <Group justify="flex-end" mb="xs">
+            <Group justify="space-between" mb="xs" gap="xs">
+              {modoAcuse !== "ninguno" ? (
+                <Checkbox
+                  size="xs"
+                  label={modoAcuse === "escaneo" ? "Este destino no tiene escaneo" : "Este destino no tiene REF"}
+                  checked={!!d.sin_acuse}
+                  disabled={sinAcuse.isPending}
+                  onChange={(e) => sinAcuse.mutate({ viajeId: d.viaje_id, sinAcuse: e.currentTarget.checked })}
+                />
+              ) : (
+                <span />
+              )}
+              {modoAcuse === "escaneo" && !d.sin_acuse && (
                 <ReescaneoControl
                   servicioId={servicioId}
                   viajeId={d.viaje_id}
                   destino={d.lugar.nombre ?? "este destino"}
                   reescaneo={d.reescaneo}
                 />
-              </Group>
-            )}
+              )}
+            </Group>
             {propios.length === 0 ? (
               <Text size="sm" c="dimmed">
-                Sin acuse todavía.
+                {d.sin_acuse ? "No tiene REF ni escaneo: no se pide para timbrar." : "Sin acuse todavía."}
               </Text>
             ) : (
               <Stack gap="xs">

@@ -192,7 +192,7 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         faltan = [
             lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else "destino"
             for v in viajes
-            if v.destino_lugar_id is not None and not folios.get(v.id)
+            if v.destino_lugar_id is not None and not folios.get(v.id) and not v.sin_acuse
         ]
         if faltan:
             checks.append(
@@ -215,6 +215,8 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
 
             faltantes = []
             for v in entregas:
+                if v.sin_acuse:
+                    continue  # el destino no tiene REF ni escaneo
                 acuses = session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
                 if cliente.modo_acuse.value == "escaneo":
                     completo = any(a.archivo_key for a in acuses)

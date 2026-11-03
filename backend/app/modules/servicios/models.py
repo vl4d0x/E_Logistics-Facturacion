@@ -109,6 +109,9 @@ class Viaje(TimestampMixin, table=True):
     reescaneo_motivo: str | None = Field(default=None)
     reescaneo_solicitado_at: datetime | None = Field(default=None)
     reescaneo_solicitado_por: uuid.UUID | None = Field(default=None, foreign_key="usuario.id")
+    # El destino no tiene REF ni escaneo (así llegó): no se exige acuse y su folio no va en
+    # el renglón REF del concepto.
+    sin_acuse: bool = Field(default=False, nullable=False)
 
 
 class ViajeMercancia(TimestampMixin, table=True):

@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.modules.servicios.models import EstadoFacturacion, EstadoServicio, EstadoViaje, TipoViaje
 
-
 _TIPOS_CON_ORIGEN = (TipoViaje.recoleccion, TipoViaje.recoleccion_entrega)
 
 
@@ -152,6 +151,7 @@ class ViajeOut(BaseModel):
     acuse_requerido: bool
     acuse_completo: bool
     reescaneo: ReescaneoOut | None = None
+    sin_acuse: bool = False
 
 
 
@@ -296,6 +296,10 @@ class DistanciaSugeridaOut(BaseModel):
     fuente: Literal["cliente", "por_defecto"] | None
     # False = estimación (70 km por defecto): la UI la marca como "no confirmado".
     confirmado: bool = False
+
+
+class SinAcuseIn(BaseModel):
+    sin_acuse: bool
 
 
 class FolioViajeIn(BaseModel):

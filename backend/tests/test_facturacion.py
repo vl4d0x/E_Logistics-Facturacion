@@ -403,7 +403,7 @@ def test_folio_por_viaje_en_el_concepto_y_editable(client: TestClient, admin_use
     sin_folio = client.get(f"{API}/servicios/{servicio['id']}/validar", headers=headers).json()
     assert any(c["regla"] == "folio_cliente_presente" for c in sin_folio["checks"] if c["nivel"] == "error")
     detalle = client.get(f"{API}/servicios/{servicio['id']}/facturacion", headers=headers).json()
-    assert detalle["concepto"]["folios"] == [{"viaje_id": viaje_entrega, "destino": "Tiendas Express", "folio": None}]
+    assert detalle["concepto"]["folios"] == [{"viaje_id": viaje_entrega, "destino": "Tiendas Express", "folio": None, "sin_acuse": False}]
     assert detalle["concepto"]["descripcion"].endswith("REF: —")
 
     # Se captura el folio del viaje y el concepto lo lleva

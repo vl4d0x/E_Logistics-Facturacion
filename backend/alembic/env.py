@@ -14,6 +14,7 @@ from app.modules.configuracion import models as configuracion_models  # noqa: F4
 from app.modules.facturacion import models as facturacion_models  # noqa: F401
 from app.modules.operacion import models as operacion_models  # noqa: F401
 from app.modules.servicios import models as servicios_models  # noqa: F401
+from app.modules.registro_excel import models as registro_excel_models  # noqa: F401
 
 config = context.config
 

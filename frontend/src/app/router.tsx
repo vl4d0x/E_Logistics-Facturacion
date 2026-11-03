@@ -17,6 +17,7 @@ import { AdminLayout } from "../routes/admin/AdminLayout";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { UsuariosPage } from "../routes/admin/configuracion/UsuariosPage";
 import { FacturasPage } from "../features/facturas/FacturasPage";
+import { FacturarExcelPage } from "../features/registroExcel/FacturarExcelPage";
 import { CobranzaPage } from "../features/cobranza/CobranzaPage";
 import { PagoDetailPage } from "../features/cobranza/PagoDetailPage";
 import { FacturaDetailPage } from "../features/facturas/FacturaDetailPage";
@@ -61,6 +62,7 @@ export function AppRouter() {
           <Route path="servicios/nuevo" element={<ServicioFormPage />} />
           <Route path="servicios/:id" element={<ServicioDetailPage />} />
           <Route path="servicios/:id/facturar" element={<FacturarPage />} />
+          <Route path="facturar-excel" element={<FacturarExcelPage />} />
           <Route path="facturas" element={<FacturasPage />} />
           <Route path="facturas/:id" element={<FacturaDetailPage />} />
           <Route path="cobranza" element={<CobranzaPage />} />

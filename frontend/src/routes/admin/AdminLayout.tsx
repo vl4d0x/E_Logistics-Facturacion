@@ -2,6 +2,7 @@ import {
   IconBooks,
   IconCoin,
   IconFileInvoice,
+  IconFileSpreadsheet,
   IconLayoutDashboard,
   IconLogout,
   IconReceipt,
@@ -27,6 +28,12 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", subtitle: "Ingresos y pendientes", to: "/admin", icon: IconLayoutDashboard },
   { label: "Servicios", subtitle: "Viajes, acuses y cierre", to: "/admin/servicios", icon: IconFileInvoice },
+  {
+    label: "Facturar con Excel",
+    subtitle: "Una fila de tu Excel de registros → servicio listo para timbrar",
+    to: "/admin/facturar-excel",
+    icon: IconFileSpreadsheet,
+  },
   { label: "Facturas", subtitle: "CFDI timbrados", to: "/admin/facturas", icon: IconReceipt },
   { label: "Cobranza", subtitle: "Pagos y REP", to: "/admin/cobranza", icon: IconCoin },
   {

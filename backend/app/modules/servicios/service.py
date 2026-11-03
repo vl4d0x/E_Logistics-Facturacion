@@ -271,7 +271,7 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
         acuses = session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
         requiere_acuse = v.tipo in (TipoViaje.entrega, TipoViaje.recoleccion_entrega) and (
             cliente.modo_acuse.value != "ninguno"
-        )
+        ) and not v.sin_acuse
         if cliente.modo_acuse.value == "escaneo":
             completo = any(a.archivo_key for a in acuses)
         elif cliente.modo_acuse.value == "referencia":
@@ -321,6 +321,7 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
                 "acuse_requerido": requiere_acuse,
                 "acuse_completo": completo if requiere_acuse else True,
                 "reescaneo": reescaneo_out(session, v),
+                "sin_acuse": v.sin_acuse,
             }
         )
 
@@ -390,7 +391,7 @@ def list_servicios(
         acuses_comp = 0
         if cliente.modo_acuse.value != "ninguno":
             for v in viajes:
-                if v.tipo in (TipoViaje.entrega, TipoViaje.recoleccion_entrega):
+                if v.tipo in (TipoViaje.entrega, TipoViaje.recoleccion_entrega) and not v.sin_acuse:
                     acuses_req += 1
                     acuses = session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
                     if cliente.modo_acuse.value == "escaneo" and any(
@@ -441,7 +442,7 @@ def viajes_con_acuse_pendiente(session: Session) -> list[Viaje]:
         if v.reescaneo_solicitado_at is not None:
             pendientes.append(v)
             continue
-        if v.estado != EstadoViaje.terminado:
+        if v.estado != EstadoViaje.terminado or v.sin_acuse:
             continue
         acuses = session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
         ok = any(a.archivo_key for a in acuses) if c.modo_acuse == ModoAcuse.escaneo else any(a.referencia for a in acuses)
@@ -916,6 +917,20 @@ def set_folio_viaje(
         )
     session.commit()
     return {"viaje_id": viaje_id, "folio": folio}
+
+
+def set_sin_acuse(session: Session, viaje_id: uuid.UUID, sin_acuse: bool) -> dict:
+    """Marca que el destino no tiene REF ni escaneo (o lo desmarca). Con factura vigente no (409)."""
+    viaje = get_viaje(session, viaje_id)
+    servicio = get_servicio(session, viaje.servicio_id)
+    _check_editable(session, servicio)
+    viaje.sin_acuse = sin_acuse
+    if sin_acuse:
+        _limpiar_reescaneo(viaje)
+    viaje.updated_at = utcnow()
+    session.add(viaje)
+    session.commit()
+    return {"viaje_id": viaje_id, "sin_acuse": sin_acuse}
 
 
 def validar_acuse_pdf(contenido: bytes) -> None:

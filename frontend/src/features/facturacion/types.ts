@@ -20,7 +20,7 @@ export interface Concepto {
   descripcion_autogenerada: boolean;
   requiere_folio: boolean;
   folio_cliente: string | null;
-  folios: { viaje_id: string; destino: string; folio: string | null }[];
+  folios: { viaje_id: string; destino: string; folio: string | null; sin_acuse?: boolean }[];
 }
 
 export interface Ubicacion {
@@ -44,6 +44,7 @@ export interface Ubicacion {
   viaje_tipo?: "recoleccion" | "entrega" | "recoleccion_entrega" | null;
   distancia_km: number | null;
   reescaneo?: import("../servicios/types").Reescaneo | null;
+  sin_acuse?: boolean; // el destino no tiene REF ni escaneo
   km_reportado: number | null;
 }
 

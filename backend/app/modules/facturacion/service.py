@@ -164,8 +164,13 @@ def _descripcion_autogenerada(
     destinos = [lugares[v.destino_lugar_id].nombre for v in viajes if v.destino_lugar_id in lugares]
     lineas_ref: list[str] = []
     if cliente.requiere_folio_concepto:
-        refs = [folios.get(v.id) or "—" for v in viajes if v.destino_lugar_id in lugares]
-        lineas_ref = [f"REF: {', '.join(refs) or '—'}"]
+        # Un destino sin REF ni escaneo (`viaje.sin_acuse`) no pone nada en el renglón.
+        refs = [
+            folios.get(v.id) or "—"
+            for v in viajes
+            if v.destino_lugar_id in lugares and not (v.sin_acuse and not folios.get(v.id))
+        ]
+        lineas_ref = [f"REF: {', '.join(refs)}"] if refs else []
     fechas = sorted({v.fecha for v in viajes})
     if len(fechas) <= 1:
         fecha_txt = _fecha_concepto(fechas[0] if fechas else hoy_mx())
@@ -221,6 +226,7 @@ def _ubicaciones(
                     distancia_km=v.distancia_km,
                     km_reportado=v.km_reportado,
                     reescaneo=reescaneos.get(v.id),
+                    sin_acuse=v.sin_acuse,
                 )
             )
     return ubicaciones
@@ -337,6 +343,7 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
                     viaje_id=v.id,
                     destino=lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else "—",
                     folio=folios_por_viaje(session, servicio, viajes).get(v.id),
+                    sin_acuse=v.sin_acuse,
                 )
                 for v in viajes
                 if v.destino_lugar_id is not None

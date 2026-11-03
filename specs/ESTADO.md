@@ -3,7 +3,7 @@
 > **Para el siguiente agente.** Léelo después de `00-overview.md`. Resume en qué quedó el
 > proyecto, las decisiones que se tomaron con Vlad (que a veces cambian lo que dicen los specs
 > numerados) y lo que hay que saber para trabajar sin romper nada.
-> **Última actualización:** 3 nov 2026 · último commit en `master`: `7441c0a` (+ este doc).
+> **Última actualización:** 3 nov 2026 · Facturar con Excel (migración `0016`).
 
 ## 1. Estado general
 
@@ -153,6 +153,32 @@ filtros `acuses_pendientes` / `inspeccion_fallas` ya funcionan (antes se ignorab
   cuelga de ellos, en una sola transacción. No toca catálogos, usuarios, configuración, R2 ni
   Facturama. Sin `--confirmar` solo cuenta.
 
+**3 nov 2026 — Facturar con Excel** (`/admin/facturar-excel`, menú "Facturar con Excel")
+- Vlad sube su `REGISTROS ELOGISTICS 2024.xlsx` **una vez**; se guarda en la base (`registro_excel`, bytea)
+  hasta que suba otro. Se lee la primera hoja cuyo encabezado trae FECHA, CLIENTE, DESTINO y FACTURA
+  (hoy `Hoja1`; columnas por nombre, no por posición).
+- Escribe el **número de fila** y la app propone cliente, operador, unidad (por placa; **"KICKS" = SAVEIRO
+  BLANCA**, regla fija en `matching.UNIDAD_ALIAS_FIJOS`), fecha, subtotal, origen (el predeterminado del
+  cliente si el Excel dice el nombre del cliente) y destinos. Solo se captura por destino la REF o el escaneo
+  PDF, los kg (si las notas dicen "820KG" se precargan) y la mercancía.
+- Búsqueda de destinos (`app/modules/registro_excel/matching.py`, funciones puras con pruebas): IDF para que
+  palabras comunes pesen poco, ciudades/notas pegadas ("TEPOTZOTLAN, QUALTIA", "(TIRO EN FALSO)") no son otro
+  destino, la celda se parte en varios destinos con la combinación que mejor encaja. Lo que el admin elige
+  se **recuerda** (`registro_excel_alias`) para la siguiente vez.
+- Destino que no está en el catálogo: se da de alta en los lugares del cliente con **RFC XAXX010101000,
+  estado MEX, CP 50000 (editable) y 70 km**.
+- "**No tiene REF / escaneo**" por destino (`viaje.sin_acuse`): no se exige acuse y en el concepto no se
+  pone nada en la REF (si ningún destino tiene REF, no va el renglón). También se marca desde Facturar →
+  Acuses (`PUT /viajes/{id}/sin-acuse`).
+- El servicio se crea **terminado** (salida 9:00 y una hora por destino, hora de México; si es de hoy,
+  termina antes de ahora) y lleva a Facturar. Una fila no se puede usar dos veces (409).
+- "**Descargar con facturas**": copia del Excel con el folio de la factura vigente escrito en la columna
+  FACTURA de las filas facturadas aquí. Se edita el XML de la hoja dentro del .xlsx (openpyxl perdía
+  dibujos y comentarios al guardar); nunca sobrescribe una celda con dato. Al subir un Excel nuevo, la liga
+  fila→servicio se reubica por huella (fecha+cliente+destino) si se insertaron filas.
+- Probado en local con Postgres 16 en Docker (migración sube/baja/sube), catálogos sembrados de los YAML,
+  R2 simulado en disco y Playwright a 1280 y 390 px. **No se probó en producción.**
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
@@ -221,7 +247,8 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAXX en lugares ·
 `0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia) · `0014`
 cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes. · `0015`
-viaje.reescaneo_motivo/_solicitado_at/_solicitado_por.
+viaje.reescaneo_motivo/_solicitado_at/_solicitado_por. · `0016` Facturar con Excel (registro_excel*,
+viaje.sin_acuse).
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

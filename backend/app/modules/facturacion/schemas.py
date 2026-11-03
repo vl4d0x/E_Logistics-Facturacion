@@ -58,6 +58,7 @@ class FolioViajeOut(BaseModel):
     viaje_id: uuid.UUID
     destino: str
     folio: str | None = None
+    sin_acuse: bool = False  # el destino no tiene REF ni escaneo
 
 
 class ConceptoOut(BaseModel):
@@ -94,6 +95,7 @@ class UbicacionOut(BaseModel):
     distancia_km: float | None
     km_reportado: float | None
     reescaneo: dict | None = None  # {motivo, solicitado_at, solicitado_por} en destinos marcados
+    sin_acuse: bool = False  # el destino no tiene REF ni escaneo
 
 
 class MercanciaFacturarOut(BaseModel):

@@ -85,6 +85,7 @@ export interface ViajeOut {
   acuse_requerido: boolean;
   acuse_completo: boolean;
   reescaneo?: Reescaneo | null;
+  sin_acuse?: boolean; // el destino no tiene REF ni escaneo
 }
 
 export interface ServicioCreate {

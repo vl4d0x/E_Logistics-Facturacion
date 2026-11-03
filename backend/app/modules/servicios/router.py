@@ -18,14 +18,15 @@ from app.modules.servicios.schemas import (
     CancelarServicioIn,
     ConteosOut,
     DistanciaSugeridaOut,
-    FolioViajeIn,
     DuplicarServicioIn,
+    FolioViajeIn,
     OrdenViajesIn,
     ReescaneoIn,
     ServicioCreate,
     ServicioDetalleOut,
     ServicioListItemOut,
     ServicioUpdate,
+    SinAcuseIn,
     TerminarViajeIn,
     ViajeCreate,
     ViajeMercanciaIn,
@@ -201,6 +202,11 @@ def set_folio(
     user: Usuario = Depends(require_role(RolUsuario.admin)),
 ) -> dict:
     return service.set_folio_viaje(session, viaje_id, body.folio, user)
+
+
+@router.put("/viajes/{viaje_id}/sin-acuse")
+def set_sin_acuse(viaje_id: uuid.UUID, body: SinAcuseIn, session: Session = Depends(get_session)) -> dict:
+    return service.set_sin_acuse(session, viaje_id, body.sin_acuse)
 
 
 @router.post("/viajes/{viaje_id}/acuses", response_model=AcuseOut, status_code=201)
