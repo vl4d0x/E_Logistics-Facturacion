@@ -3,7 +3,7 @@
 > **Para el siguiente agente.** Léelo después de `00-overview.md`. Resume en qué quedó el
 > proyecto, las decisiones que se tomaron con Vlad (que a veces cambian lo que dicen los specs
 > numerados) y lo que hay que saber para trabajar sin romper nada.
-> **Última actualización:** 11 oct 2026 · último commit en `master`: `91a67f6`.
+> **Última actualización:** 3 nov 2026 · último commit en `master`: `7441c0a` (+ este doc).
 
 ## 1. Estado general
 
@@ -11,9 +11,51 @@
   frontend React/Vite PWA). Ver `00-overview §8`.
 - Se trabaja **directo sobre `master`**: cada push despliega a producción (Railway). Vlad prueba
   en producción y pide ajustes de UX/negocio.
-- Facturama está en **sandbox** (`FACTURAMA_ENV=sandbox`). Nada de lo timbrado tiene validez
-  fiscal. El timbrado real requiere credenciales de producción de Facturama.
+- ⚠️ **Facturama ya está en PRODUCCIÓN** (`FACTURAMA_ENV=production` en Railway desde el 3 nov
+  2026): **todo lo que se timbre desde la app en producción es una factura real ante el SAT y
+  gasta folios pagados**. Todavía **no se ha hecho ninguna prueba** en producción. Ver §1.1.
 - Correos en **modo prueba** (`EMAIL_MODO_PRUEBA=true`, ver §4): ningún correo sale a clientes.
+
+## 1.1 Paso de Facturama a producción (en curso, 3 nov 2026)
+
+**Hecho por Vlad (fuera del repo):**
+- Creó la cuenta de **producción** de Facturama y compró lo necesario (módulo API, que es
+  anual, y folios de API de prepago). No quedó registrado en la sesión si compró también el
+  **Complemento Carta Porte** ($1,400 pago único, publicado en la página de planes): Facturama
+  no aclara si ese complemento hace falta para timbrar Carta Porte por **API Web**. Si el primer
+  timbrado real falla por el complemento, esa es la causa.
+- Puso en Railway (servicio backend `E_Logistics-Facturacion`) `FACTURAMA_ENV=production` +
+  `FACTURAMA_USER`/`FACTURAMA_PASSWORD` de producción. Ya estaban bien y no cambiaron:
+  `FACTURAMA_SERIE=ELG`, `EMISOR_RFC=ZACE880207MC7`, `EMISOR_NOMBRE=ENRIQUE JAVIER ZAMORA
+  CALLEJA`, `EMISOR_REGIMEN_FISCAL=612`, `EMISOR_LUGAR_EXPEDICION=52176`.
+- `backend/.env` **local se queda en sandbox** a propósito (las pruebas locales no deben gastar
+  folios ni timbrar facturas reales).
+
+**Pendiente, en este orden:**
+1. **Sin confirmar**: si en la cuenta de producción de Facturama están el perfil fiscal (nombre
+   idéntico a `EMISOR_NOMBRE`, régimen 612, CP 52176), el **CSD** subido y la serie **`ELG`**
+   registrada en la sucursal. Sin la serie: *"El atributo 'Serie' debe existir en la sucursal"*.
+2. **Limpiar los datos de prueba** de la base de producción (servicios, facturas y pagos que se
+   timbraron en el sandbox) con `backend/scripts/limpiar_operacion.py`: primero sin argumentos
+   (solo cuenta), después con `--confirmar`; se corre dentro del servicio de Railway, como
+   `.misc/sembrar-prod.sh`. **No se ha corrido**, y las variables de producción ya están puestas,
+   así que hoy conviven facturas del sandbox con las que se timbren de verdad. Pregúntale a Vlad
+   antes de borrar.
+3. **Primera factura real de bajo monto** a un cliente de confianza (el receptor ficticio
+   `EKU9003173C9` ya no sirve en producción). Validar el UUID en verificacfdi.facturaelectronica.sat.gob.mx.
+4. **Probar la cancelación** (motivo 02 + refacturar): nunca se pudo verificar porque el sandbox
+   respondía 500. Revisar si la respuesta trae `Status: canceled|pending` como dice la doc.
+5. **Probar un REP** registrando un pago de esa factura.
+6. Solo después: `EMAIL_MODO_PRUEBA=false` (revisar antes correos y texto de correo de cada cliente).
+
+**Lo que puede hacer fallar el timbrado real:** la licencia de Felipe está vacía (bloquea a
+propósito); el régimen fiscal y el uso CFDI de Aerzen, Lesaffre, Parautos y Farmabiot siguen en
+601/G03 por defecto y el SAT los rechaza si no coinciden con la Constancia del cliente; el RFC de un
+operador que no esté en l_RFC.
+
+**Costos (páginas públicas de Facturama, nov 2026):** módulo API $1,650/año (API Web y
+Multiemisor); folios de API $0.50 c/u (1–10k), vigencia de 1 año; los "folios web" **no** sirven
+para la API. Unos 2 folios por servicio: factura + REP (todas son PPD).
 
 ## 2. Decisiones de negocio vigentes (11 oct 2026)
 
@@ -104,6 +146,14 @@ filtros `acuses_pendientes` / `inspeccion_fallas` ya funcionan (antes se ignorab
   `rep_error` (antes respondía error y el admin podía capturar el pago dos veces).
 - Los errores de Facturama traen el detalle de `ModelState` y una pista de dónde corregir.
 
+**28 oct 2026**
+- **Mensaje para WhatsApp** con botón de copiar, al crear el servicio y desde su detalle
+  (`features/servicios/components/MensajeWhatsappModal.tsx`, `mensajeWhatsapp.ts`). Operador,
+  acompañantes, unidad y, por destino, kg y hora de cita (opcionales) se precargan y se editan.
+- `backend/scripts/limpiar_operacion.py`: borra servicios, viajes, facturas, pagos, REP y lo que
+  cuelga de ellos, en una sola transacción. No toca catálogos, usuarios, configuración, R2 ni
+  Facturama. Sin `--confirmar` solo cuenta.
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
@@ -112,9 +162,12 @@ filtros `acuses_pendientes` / `inspeccion_fallas` ya funcionan (antes se ignorab
 
 - **Cancelación en el sandbox no funciona**: Facturama responde 500 ("Ups! Ocurrió un problema
   al cancelar…") con cualquier motivo/ruta. Probablemente porque el sandbox no registra en el
-  SAT. Por eso "$0 y cancelar" deja la factura timbrada y avisa. Solo se podrá validar en
-  producción (o preguntando a soporte de Facturama).
-- Timbrado **real** aún no probado (sandbox sí timbra con el CSD real de Vlad).
+  SAT. Por eso "$0 y cancelar" deja la factura timbrada y avisa. Ya se puede validar en
+  producción (§1.1 paso 4).
+- Timbrado **real** aún no probado: producción ya está configurada, pero falta la primera factura (§1.1).
+- Columnas del Excel de export que pide el contador: siguen provisionales.
+- 🔐 Vlad debería rotar la API key de Resend y la contraseña de la llave del CSD (aparecieron en
+  una conversación con Claude). No es urgente para el paso a producción.
 - Error común al timbrar: `RFCFigura no se encuentra en l_RFC` → el RFC del operador del
   servicio no está inscrito en el SAT; se corrige en Catálogos → Operadores.
 - No hay **bitácora de auditoría** (quién borró/archivó qué). Ofrecida a Vlad, no pedida aún.
@@ -128,7 +181,9 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 
 | Variable | Notas |
 |---|---|
-| `FACTURAMA_USER`, `FACTURAMA_PASSWORD`, `FACTURAMA_ENV` | Hoy `sandbox`. Las credenciales de sandbox dan 401 en producción. |
+| `FACTURAMA_USER`, `FACTURAMA_PASSWORD`, `FACTURAMA_ENV` | **Railway: `production`** (desde el 3 nov 2026), con las credenciales de la cuenta de producción. `backend/.env` local: `sandbox`. Las credenciales de un ambiente dan 401 en el otro. |
+| `FACTURAMA_SERIE` | `ELG` (tiene que estar registrada en la sucursal de Facturama). El folio lo asigna Facturama; la app no lo manda. |
+| `EMISOR_REGIMEN_FISCAL` | `612`. |
 | `EMISOR_RFC`, `EMISOR_NOMBRE`, `EMISOR_LUGAR_EXPEDICION` | Datos del emisor (régimen 612). |
 | `EMAIL_MODO_PRUEBA` | Default `true` en código. Con `true` todo correo va a `EMAIL_PRUEBA_DESTINO` (o `EMAIL_REPLY_TO`) con "[PRUEBA]". Poner `false` solo al facturar de verdad. |
 | `EMAIL_PRUEBA_DESTINO` | Buzón de pruebas (opcional). |
