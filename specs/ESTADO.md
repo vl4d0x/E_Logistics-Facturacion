@@ -20,10 +20,10 @@
 
 **Hecho por Vlad (fuera del repo):**
 - Creó la cuenta de **producción** de Facturama y compró lo necesario (módulo API, que es
-  anual, y folios de API de prepago). No quedó registrado en la sesión si compró también el
-  **Complemento Carta Porte** ($1,400 pago único, publicado en la página de planes): Facturama
-  no aclara si ese complemento hace falta para timbrar Carta Porte por **API Web**. Si el primer
-  timbrado real falla por el complemento, esa es la causa.
+  anual, y folios de API de prepago). **No compró el Complemento Carta Porte** ($1,400 pago
+  único, publicado en la página de planes): Facturama no aclara si hace falta para timbrar Carta
+  Porte por **API Web**. Si el primer timbrado real falla por un complemento no contratado, esa es
+  la causa: Vlad tendría que comprarlo en su perfil de Facturama, no hay que cambiar código.
 - Puso en Railway (servicio backend `E_Logistics-Facturacion`) `FACTURAMA_ENV=production` +
   `FACTURAMA_USER`/`FACTURAMA_PASSWORD` de producción. Ya estaban bien y no cambiaron:
   `FACTURAMA_SERIE=ELG`, `EMISOR_RFC=ZACE880207MC7`, `EMISOR_NOMBRE=ENRIQUE JAVIER ZAMORA
@@ -35,12 +35,11 @@
 1. **Sin confirmar**: si en la cuenta de producción de Facturama están el perfil fiscal (nombre
    idéntico a `EMISOR_NOMBRE`, régimen 612, CP 52176), el **CSD** subido y la serie **`ELG`**
    registrada en la sucursal. Sin la serie: *"El atributo 'Serie' debe existir en la sucursal"*.
-2. **Limpiar los datos de prueba** de la base de producción (servicios, facturas y pagos que se
-   timbraron en el sandbox) con `backend/scripts/limpiar_operacion.py`: primero sin argumentos
-   (solo cuenta), después con `--confirmar`; se corre dentro del servicio de Railway, como
-   `.misc/sembrar-prod.sh`. **No se ha corrido**, y las variables de producción ya están puestas,
-   así que hoy conviven facturas del sandbox con las que se timbren de verdad. Pregúntale a Vlad
-   antes de borrar.
+2. ~~Limpiar los datos de prueba~~: **Vlad decidió no hacerla** (3 nov 2026). La base de
+   producción conserva los servicios, facturas y pagos timbrados en el **sandbox**, mezclados con
+   los reales. Esas facturas viejas no existen en la cuenta de producción de Facturama: cancelarlas,
+   descargarlas de nuevo o generarles un REP desde la app fallará (Facturama no las encuentra).
+   No corras `limpiar_operacion` sin que Vlad lo pida.
 3. **Primera factura real de bajo monto** a un cliente de confianza (el receptor ficticio
    `EKU9003173C9` ya no sirve en producción). Validar el UUID en verificacfdi.facturaelectronica.sat.gob.mx.
 4. **Probar la cancelación** (motivo 02 + refacturar): nunca se pudo verificar porque el sandbox
