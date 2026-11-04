@@ -8,6 +8,7 @@ import { Card } from "../../components/Card";
 import { OrigenFacturaBadge } from "../../components/OrigenFacturaBadge";
 import { useFacturas, useImportarFacturador, type FacturaResumen, type ResultadoImportacion } from "./api";
 import { CancelarFacturaModal } from "./components/CancelarFacturaModal";
+import { EnviarTodasButton } from "./components/EnviarTodasButton";
 import { ESTADO_FACTURA, pesos } from "./format";
 
 export function FacturasPage() {
@@ -58,6 +59,7 @@ export function FacturasPage() {
             </Tooltip>
           )}
         </FileButton>
+        <EnviarTodasButton />
       </Group>
       <Table verticalSpacing="sm" highlightOnHover className="el-cardtable">
         <Table.Thead>

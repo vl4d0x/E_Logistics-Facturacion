@@ -50,6 +50,21 @@ async def importar_facturador(
     return importar(session, contenido)
 
 
+class EnviarPendientesIn(BaseModel):
+    ids: list[uuid.UUID]
+
+
+@router.get("/envio-pendiente")
+def envio_pendiente(session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Facturas que "Enviar todas" mandaría a sus clientes."""
+    return svc.envio_pendiente(session)
+
+
+@router.post("/enviar-pendientes")
+def enviar_pendientes(body: EnviarPendientesIn, session: Session = Depends(get_session)) -> dict[str, Any]:
+    return svc.enviar_pendientes(session, body.ids)
+
+
 @router.get("/{factura_id}")
 def obtener(factura_id: uuid.UUID, session: Session = Depends(get_session)) -> dict[str, Any]:
     return svc.detalle(session, svc.get_factura(session, factura_id))

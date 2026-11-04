@@ -1,5 +1,6 @@
 """H4.7-H4.10 — archivos, lista, descarga, correo y cancelación de facturas timbradas."""
 import base64
+import uuid
 import types
 from unittest.mock import MagicMock
 
@@ -153,7 +154,7 @@ def test_enviar_correo_con_adjuntos(client: TestClient, admin_user: Usuario, mon
     msg = enviado.call_args.args[0]
     assert msg["to"] == ["cliente@x.mx"]
     assert msg["reply_to"] == "e_logistics@outlook.com"
-    assert msg["subject"].startswith("Factura ELG7 · Servicio #")
+    assert "cc" not in msg  # sin EMAIL_COPIA configurado
     assert [a["filename"] for a in msg["attachments"]] == ["ELG7_CME091007LG1.xml", "ELG7_CME091007LG1.pdf"]
     assert r.json()["enviado_at"] is not None and r.json()["envio_destinatarios"] == ["cliente@x.mx"]
 
@@ -178,6 +179,7 @@ def test_modo_prueba_redirige_el_correo_al_buzon_de_prueba(client: TestClient, a
     assert msg["subject"].startswith("[PRUEBA] Factura ELG7")
     assert "cliente@x.mx" in msg["html"] and "MODO PRUEBA" in msg["html"]
     assert r.json()["envio_destinatarios"] == ["prueba@elogistics.mx"]
+    assert r.json()["enviado_at"] is None  # el cliente no la recibió: sigue "sin enviar"
 
     # sin EMAIL_PRUEBA_DESTINO cae al buzón de respuestas de Elogistics
     monkeypatch.setattr(
@@ -308,3 +310,106 @@ def test_correo_une_los_acuses_pdf_en_un_solo_archivo_de_evidencia(client: TestC
     ]
     evidencia = PdfReader(io.BytesIO(bytes(adjuntos[2]["content"])))
     assert len(evidencia.pages) == 3  # 1 + 2 páginas, unidas en un solo PDF
+
+
+def _settings_correo(**extra):
+    base = dict(
+        resend_api_key="k", email_from="Elogistics <a@b.mx>", email_reply_to="e_logistics@outlook.com",
+        email_modo_prueba=False, email_prueba_destino=None, email_copia="e_logistics@outlook.com",
+    )
+    return lambda: types.SimpleNamespace(**{**base, **extra})
+
+
+def test_todo_correo_lleva_copia_a_elogistics(client: TestClient, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, _ = _timbrar(client, h, monkeypatch)
+    enviado = MagicMock()
+    monkeypatch.setattr(facturas_service, "get_settings", _settings_correo())
+    import resend
+
+    monkeypatch.setattr(resend.Emails, "send", enviado)
+    client.post(f"{API}/facturas/{factura['id']}/enviar", json={"to": ["cliente@x.mx"]}, headers=h)
+    assert enviado.call_args.args[0]["cc"] == ["e_logistics@outlook.com"]
+    # si el destinatario ya es ese buzón, no se duplica
+    client.post(f"{API}/facturas/{factura['id']}/enviar", json={"to": ["E_Logistics@outlook.com"]}, headers=h)
+    assert "cc" not in enviado.call_args.args[0]
+
+
+def _con_correos_del_cliente(session, factura_id, correos):
+    from app.modules.catalogos.models import Cliente
+    from app.modules.facturacion.models import Factura
+
+    f = session.get(Factura, uuid.UUID(factura_id))
+    c = session.get(Cliente, f.cliente_id)
+    c.emails_facturacion = correos
+    session.add(c)
+    session.commit()
+
+
+def test_enviar_todas_manda_cada_factura_una_sola_vez(client: TestClient, session, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, _ = _timbrar(client, h, monkeypatch)
+    _con_correos_del_cliente(session, factura["id"], ["pagos@cliente.mx", "cxp@cliente.mx"])
+    enviado = MagicMock()
+    monkeypatch.setattr(facturas_service, "get_settings", _settings_correo())
+    monkeypatch.setattr(facturas_service, "ENVIO_EN_BLOQUE_DESDE", facturas_service.datetime(2000, 1, 1, tzinfo=facturas_service.MX))
+    import resend
+
+    monkeypatch.setattr(resend.Emails, "send", enviado)
+
+    pendiente = client.get(f"{API}/facturas/envio-pendiente", headers=h).json()
+    assert pendiente["modo_prueba"] is False and pendiente["copia"] == "e_logistics@outlook.com"
+    assert [f["id"] for f in pendiente["facturas"]] == [factura["id"]]
+    assert pendiente["facturas"][0]["destinatarios"] == ["pagos@cliente.mx", "cxp@cliente.mx"]
+
+    r = client.post(f"{API}/facturas/enviar-pendientes", json={"ids": [factura["id"]]}, headers=h)
+    assert r.status_code == 200, r.text
+    assert [e["id"] for e in r.json()["enviadas"]] == [factura["id"]]
+    msg = enviado.call_args.args[0]
+    assert msg["to"] == ["pagos@cliente.mx", "cxp@cliente.mx"] and msg["cc"] == ["e_logistics@outlook.com"]
+
+    # segundo clic: no se vuelve a mandar
+    r = client.post(f"{API}/facturas/enviar-pendientes", json={"ids": [factura["id"], factura["id"]]}, headers=h)
+    assert r.json()["enviadas"] == [] and r.json()["omitidas"][0]["motivo"] == "Ya se había enviado"
+    assert enviado.call_count == 1
+    assert client.get(f"{API}/facturas/envio-pendiente", headers=h).json()["facturas"] == []
+
+
+def test_enviar_todas_en_modo_prueba_no_marca_enviada(client: TestClient, session, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, _ = _timbrar(client, h, monkeypatch)
+    _con_correos_del_cliente(session, factura["id"], ["pagos@cliente.mx"])
+    enviado = MagicMock()
+    monkeypatch.setattr(facturas_service, "get_settings", _settings_correo(email_modo_prueba=True))
+    monkeypatch.setattr(facturas_service, "ENVIO_EN_BLOQUE_DESDE", facturas_service.datetime(2000, 1, 1, tzinfo=facturas_service.MX))
+    import resend
+
+    monkeypatch.setattr(resend.Emails, "send", enviado)
+    pendiente = client.get(f"{API}/facturas/envio-pendiente", headers=h).json()
+    assert pendiente["modo_prueba"] is True and pendiente["destino_prueba"] == "e_logistics@outlook.com"
+    r = client.post(f"{API}/facturas/enviar-pendientes", json={"ids": [factura["id"]]}, headers=h)
+    assert len(r.json()["enviadas"]) == 1
+    assert enviado.call_args.args[0]["to"] == ["e_logistics@outlook.com"]
+    # sigue pendiente para cuando se envíe de verdad
+    assert len(client.get(f"{API}/facturas/envio-pendiente", headers=h).json()["facturas"]) == 1
+
+
+def test_enviar_todas_omite_sin_correo_y_anteriores_al_corte(client: TestClient, session, admin_user: Usuario, monkeypatch):
+    h = _auth_headers(client, admin_user.email)
+    _, factura, _ = _timbrar(client, h, monkeypatch)
+    _con_correos_del_cliente(session, factura["id"], [])
+    enviado = MagicMock()
+    monkeypatch.setattr(facturas_service, "get_settings", _settings_correo())
+    import resend
+
+    monkeypatch.setattr(resend.Emails, "send", enviado)
+    monkeypatch.setattr(facturas_service, "ENVIO_EN_BLOQUE_DESDE", facturas_service.datetime(2000, 1, 1, tzinfo=facturas_service.MX))
+    fila = client.get(f"{API}/facturas/envio-pendiente", headers=h).json()["facturas"][0]
+    assert fila["motivo_no_enviable"] == "El cliente no tiene correos de facturación"
+    r = client.post(f"{API}/facturas/enviar-pendientes", json={"ids": [factura["id"]]}, headers=h).json()
+    assert r["enviadas"] == [] and len(r["omitidas"]) == 1
+    enviado.assert_not_called()
+
+    # timbradas antes del corte (las del sandbox en producción) ni aparecen
+    monkeypatch.setattr(facturas_service, "ENVIO_EN_BLOQUE_DESDE", facturas_service.datetime(2999, 1, 1, tzinfo=facturas_service.MX))
+    assert client.get(f"{API}/facturas/envio-pendiente", headers=h).json()["facturas"] == []

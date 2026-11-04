@@ -36,6 +36,7 @@ import {
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { EnviarTodasButton } from "../facturas/components/EnviarTodasButton";
 import { TotalConIva } from "../../components/TotalConIva";
 import { api, ApiError } from "../../lib/api";
 import { pesos } from "../../lib/money";
@@ -151,6 +152,7 @@ function ArchivoCard() {
             </Tooltip>
           )}
           {boton(registro ? "Subir uno nuevo" : "Subir Excel")}
+          <EnviarTodasButton />
         </Group>
       </Group>
     </Card>

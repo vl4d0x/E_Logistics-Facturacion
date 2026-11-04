@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     # "[PRUEBA]". Para enviar a clientes de verdad hay que poner EMAIL_MODO_PRUEBA=false.
     email_modo_prueba: bool = Field(default=True, alias="EMAIL_MODO_PRUEBA")
     email_prueba_destino: str | None = Field(default=None, alias="EMAIL_PRUEBA_DESTINO")
+    # Copia (CC) de TODO correo que sale (facturas y REP), para que Elogistics tenga constancia.
+    email_copia: str | None = Field(default="e_logistics@outlook.com", alias="EMAIL_COPIA")
 
     # --- CORS ---
     cors_origins: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")

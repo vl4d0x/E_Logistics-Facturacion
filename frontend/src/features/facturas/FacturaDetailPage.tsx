@@ -177,6 +177,11 @@ export function FacturaDetailPage() {
                     Enviado el {new Date(f.enviado_at).toLocaleString("es-MX")} a {f.envio_destinatarios?.join(", ")}
                   </Text>
                 )}
+                {!f.enviado_at && !f.envio_error && f.envio_destinatarios && (
+                  <Text size="sm" c="dimmed" mt="xs">
+                    Solo se envió de prueba a {f.envio_destinatarios.join(", ")}: el cliente todavía no la tiene.
+                  </Text>
+                )}
                 {f.envio_error && (
                   <Alert color="red" mt="xs">
                     Último intento falló: {f.envio_error}

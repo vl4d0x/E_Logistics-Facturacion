@@ -148,6 +148,17 @@ Estas mandan sobre los specs numerados cuando difieran.
   Farmabiot y Lesaffre. Debajo del texto va la tabla del desglose (si está completo).
 - Correo de factura: XML + PDF + **un solo PDF de evidencia** con todos los acuses unidos
   (`pypdf`), nombre `FACT #<folio>-<NOMBRE COMERCIAL>_EVIDENCIA.pdf`.
+- **Todo correo (facturas y REP) lleva copia (CC) a `EMAIL_COPIA`** (default `e_logistics@outlook.com`; no se
+  duplica si ya es destinatario).
+- **"Enviar todas"** (Facturar con Excel y Facturas; `GET /facturas/envio-pendiente`,
+  `POST /facturas/enviar-pendientes`): muestra la lista con a quién va cada una, se pueden desmarcar, y envía
+  cada factura a los `emails_facturacion` de su cliente. Solo toma facturas de la app, vigentes, sin
+  `enviado_at`, que no sean de "Timbrar con $0" y **timbradas desde el 3 nov 2026**
+  (`facturas.ENVIO_EN_BLOQUE_DESDE`, para no mandar las del sandbox que siguen en la base de producción). Nunca
+  dos veces: cada factura se bloquea con `FOR UPDATE SKIP LOCKED` y se revisa `enviado_at` ya bloqueada
+  (probado en Postgres local con dos peticiones simultáneas). Un fallo no detiene las demás.
+- **En modo prueba ya no se marca `enviado_at`** (el cliente no la recibió): la factura sigue "Sin enviar" y el
+  detalle dice "Solo se envió de prueba a …".
 
 **Otra razón social del mismo cliente** (`cliente.hereda_de_id`, "Usa los lugares y mercancías de"
 en la ficha del cliente): AERZEN RENTAL MEXICO usa los lugares (incluido el origen predeterminado) y
@@ -275,6 +286,7 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 | `EMISOR_RFC`, `EMISOR_NOMBRE`, `EMISOR_LUGAR_EXPEDICION` | Datos del emisor (régimen 612). |
 | `EMAIL_MODO_PRUEBA` | Default `true` en código. Con `true` todo correo va a `EMAIL_PRUEBA_DESTINO` (o `EMAIL_REPLY_TO`) con "[PRUEBA]". Poner `false` solo al facturar de verdad. |
 | `EMAIL_PRUEBA_DESTINO` | Buzón de pruebas (opcional). |
+| `EMAIL_COPIA` | CC de todo correo. Default `e_logistics@outlook.com`; vacío = sin copia. |
 | `R2_*` | Cloudflare R2. Las URLs firmadas usan **SigV4** (R2 rechaza SigV2). |
 | `RESEND_API_KEY` | Envío de correo. |
 

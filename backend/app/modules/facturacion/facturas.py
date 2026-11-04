@@ -404,18 +404,20 @@ def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos:
         destinatarios = [prueba]
     import resend
 
+    mensaje = {
+        "from": settings.email_from,
+        "reply_to": settings.email_reply_to,
+        "to": destinatarios,
+        "subject": asunto,
+        "html": html,
+        "attachments": adjuntos,
+    }
+    copia = getattr(settings, "email_copia", None)
+    if copia and copia.lower() not in {d.lower() for d in destinatarios}:
+        mensaje["cc"] = [copia]
     resend.api_key = settings.resend_api_key
     try:
-        resend.Emails.send(
-            {
-                "from": settings.email_from,
-                "reply_to": settings.email_reply_to,
-                "to": destinatarios,
-                "subject": asunto,
-                "html": html,
-                "attachments": adjuntos,
-            }
-        )
+        resend.Emails.send(mensaje)
     except Exception as exc:
         raise AppError("internal_error", f"No se pudo enviar el correo: {exc}", 502) from exc
     return destinatarios
@@ -502,10 +504,121 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
         session.commit()
         raise
 
-    factura.enviado_at = utcnow()
+    # En modo prueba el cliente no recibió nada: no cuenta como enviada (si no, "Enviar todas"
+    # la saltaría cuando se quite el modo prueba).
+    if not getattr(settings, "email_modo_prueba", False):
+        factura.enviado_at = utcnow()
     factura.envio_destinatarios = enviados or destinatarios  # en modo prueba: el correo de prueba
     factura.envio_error = None
     session.add(factura)
     session.commit()
     session.refresh(factura)
     return factura
+
+
+# --- Envío en bloque ("Enviar todas") ----------------------------------------
+
+# La base de producción conserva facturas timbradas en el sandbox antes del paso a producción
+# (ESTADO §1.1): nunca deben llegar a un cliente. El envío en bloque solo toma las de esta fecha
+# en adelante (hora de México); las anteriores se siguen pudiendo enviar una por una.
+ENVIO_EN_BLOQUE_DESDE = datetime(2026, 11, 3, tzinfo=MX)
+
+
+def _motivo_no_enviable(factura: Factura, servicio: Servicio | None, cliente: Cliente) -> str | None:
+    if factura.origen == ORIGEN_FACTURADOR:
+        return "Es del Facturador Electrónico"
+    if factura.estado != EstadoFactura.timbrada:
+        return "No está vigente"
+    if factura.enviado_at is not None:
+        return "Ya se había enviado"
+    if servicio is None:
+        return "No tiene servicio"
+    if servicio.timbrado_modo == "cero":
+        return "Se timbró con $0 para cancelarse"
+    if not cliente.emails_facturacion:
+        return "El cliente no tiene correos de facturación"
+    return None
+
+
+def _candidatas(session: Session):
+    desde = ENVIO_EN_BLOQUE_DESDE
+    stmt = (
+        select(Factura, Servicio, Cliente)
+        .join(Servicio, Factura.servicio_id == Servicio.id)
+        .join(Cliente, Factura.cliente_id == Cliente.id)
+        .where(Factura.origen != ORIGEN_FACTURADOR)
+        .where(Factura.estado == EstadoFactura.timbrada)
+        .where(Factura.enviado_at.is_(None))
+        .where(Factura.timbrado_at >= desde)
+        .order_by(Factura.timbrado_at)
+    )
+    return session.exec(stmt).all()
+
+
+def envio_pendiente(session: Session) -> dict:
+    """Lo que enviaría "Enviar todas": facturas vigentes de la app, sin enviar al cliente."""
+    settings = get_settings()
+    filas = []
+    for f, s, c in _candidatas(session):
+        motivo = _motivo_no_enviable(f, s, c)
+        if motivo == "Se timbró con $0 para cancelarse":
+            continue
+        filas.append({
+            **_resumen(f, s, c),
+            "destinatarios": c.emails_facturacion or [],
+            "motivo_no_enviable": motivo,
+        })
+    modo_prueba = bool(getattr(settings, "email_modo_prueba", False))
+    return {
+        "modo_prueba": modo_prueba,
+        "destino_prueba": (getattr(settings, "email_prueba_destino", None) or settings.email_reply_to) if modo_prueba else None,
+        "copia": getattr(settings, "email_copia", None),
+        "facturas": filas,
+    }
+
+
+def enviar_pendientes(session: Session, ids: list[uuid.UUID]) -> dict:
+    """Envía cada factura a los correos de su cliente, una por una.
+
+    Nunca dos veces: cada factura se bloquea (`FOR UPDATE SKIP LOCKED`) mientras se envía y se
+    vuelve a revisar `enviado_at` ya bloqueada, así que dos clics o dos pestañas no la duplican.
+    Un fallo no detiene las demás.
+    """
+    import time
+
+    enviadas: list[dict] = []
+    omitidas: list[dict] = []
+    fallidas: list[dict] = []
+    for i, fid in enumerate(dict.fromkeys(ids)):
+        session.rollback()  # cada factura en su propia transacción
+        factura = session.exec(
+            select(Factura)
+            .where(Factura.id == fid)
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
+        ).first()
+        if factura is None:
+            omitidas.append({"id": fid, "folio": None, "motivo": "Se está enviando en otra ventana o no existe"})
+            continue
+        folio = f"{factura.serie or ''}{factura.folio or ''}"
+        servicio = session.get(Servicio, factura.servicio_id) if factura.servicio_id else None
+        motivo = _motivo_no_enviable(factura, servicio, cliente_de(session, factura))
+        if motivo:
+            omitidas.append({"id": fid, "folio": folio, "motivo": motivo})
+            session.rollback()
+            continue
+        if i and enviadas:
+            time.sleep(0.6)  # Resend acepta ~2 correos por segundo
+        try:
+            factura = enviar(session, factura, None)
+        except AppError as exc:
+            session.rollback()
+            fallidas.append({"id": fid, "folio": folio, "error": exc.message})
+            continue
+        except Exception as exc:  # noqa: BLE001 — p. ej. R2 caído al leer un acuse: sigue con las demás
+            log.exception("Fallo al enviar la factura %s", fid)
+            session.rollback()
+            fallidas.append({"id": fid, "folio": folio, "error": str(exc) or exc.__class__.__name__})
+            continue
+        enviadas.append({"id": fid, "folio": folio, "destinatarios": factura.envio_destinatarios or []})
+    return {"enviadas": enviadas, "omitidas": omitidas, "fallidas": fallidas}

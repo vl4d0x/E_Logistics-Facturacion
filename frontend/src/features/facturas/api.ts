@@ -169,3 +169,43 @@ export async function descargarFactura(id: string, formato: "pdf" | "xml") {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// --- "Enviar todas": facturas timbradas aquí que todavía no le llegan al cliente ---------------
+
+export interface FacturaPorEnviar extends FacturaResumen {
+  destinatarios: string[];
+  motivo_no_enviable: string | null;
+}
+
+export interface EnvioPendiente {
+  modo_prueba: boolean;
+  destino_prueba: string | null;
+  copia: string | null;
+  facturas: FacturaPorEnviar[];
+}
+
+export interface ResultadoEnvio {
+  enviadas: { id: string; folio: string; destinatarios: string[] }[];
+  omitidas: { id: string; folio: string | null; motivo: string }[];
+  fallidas: { id: string; folio: string; error: string }[];
+}
+
+export function useEnvioPendiente(enabled = true) {
+  return useQuery({
+    queryKey: ["facturas", "envio-pendiente"],
+    queryFn: () => api.get<EnvioPendiente>("/api/v1/facturas/envio-pendiente"),
+    enabled,
+  });
+}
+
+export function useEnviarPendientes() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => api.post<ResultadoEnvio>("/api/v1/facturas/enviar-pendientes", { ids }),
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ["facturas"] });
+      client.invalidateQueries({ queryKey: ["servicios"] });
+    },
+    onError: toastError("No se pudieron enviar las facturas"),
+  });
+}
