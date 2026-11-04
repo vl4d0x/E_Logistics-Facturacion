@@ -291,18 +291,34 @@ export function FacturarPage() {
                       Cada destino lleva su folio en el concepto (REF: folio, folio). Corrígelo aquí si está mal.
                     </Text>
                     {detalle.concepto.folios.map((f) => (
-                      <Group key={`${f.viaje_id}-${f.folio}`} gap="xs" wrap="nowrap" align="center">
-                        <Text size="sm" w={200} truncate>
-                          Destino {f.destino}
-                        </Text>
-                        <TextInput
-                          size="xs"
-                          placeholder="Folio"
-                          defaultValue={f.folio ?? ""}
-                          error={!f.folio && errores.some((c) => c.regla === "folio_cliente_presente") ? "Falta el folio" : undefined}
-                          onBlur={(e) => guardarFolio(f.viaje_id, e.currentTarget.value, f.folio)}
-                        />
-                      </Group>
+                      <Stack key={`${f.viaje_id}-${f.folio}`} gap={2}>
+                        <Group gap="xs" wrap="nowrap" align="center">
+                          <Text size="sm" w={200} truncate>
+                            Destino {f.destino}
+                          </Text>
+                          <TextInput
+                            size="xs"
+                            placeholder={f.sin_acuse ? "No tiene REF" : "Folio"}
+                            defaultValue={f.folio ?? ""}
+                            error={!f.folio && !f.sin_acuse && errores.some((c) => c.regla === "folio_cliente_presente") ? "Falta el folio" : undefined}
+                            onBlur={(e) => guardarFolio(f.viaje_id, e.currentTarget.value, f.folio)}
+                          />
+                        </Group>
+                        {!!f.repetida_en?.length && (
+                          <Text size="xs" c="var(--el-warning-text)">
+                            ⚠ Esta REF ya está en{" "}
+                            {f.repetida_en.slice(0, 3).map((s, i) => (
+                              <span key={s.servicio_id}>
+                                {i > 0 ? ", " : ""}
+                                <Anchor component={Link} to={`/admin/servicios/${s.servicio_id}`} target="_blank" size="xs">
+                                  #{s.numero}
+                                </Anchor>{" "}
+                                del {s.fecha.slice(8, 10)}/{s.fecha.slice(5, 7)}
+                              </span>
+                            ))}
+                          </Text>
+                        )}
+                      </Stack>
                     ))}
                     {detalle.concepto.folios.length === 0 && (
                       <Text size="sm" c="dimmed">

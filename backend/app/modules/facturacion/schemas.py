@@ -59,6 +59,7 @@ class FolioViajeOut(BaseModel):
     destino: str
     folio: str | None = None
     sin_acuse: bool = False  # el destino no tiene REF ni escaneo
+    repetida_en: list[dict] = []  # otros servicios del cliente con la misma REF
 
 
 class ConceptoOut(BaseModel):

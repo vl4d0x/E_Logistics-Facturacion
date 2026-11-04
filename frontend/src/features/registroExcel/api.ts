@@ -201,3 +201,58 @@ export function useSinAcuse() {
     onError: (err) => toastError(err, "No se pudo guardar"),
   });
 }
+
+// --- REF repetida y servicios de días cercanos (avisos para Chemital) -----------------------
+
+export interface ServicioConRef {
+  servicio_id: string;
+  numero: number;
+  fecha: string;
+  destinos: string[];
+  factura_folio: string | null;
+}
+
+export interface ServicioCercano extends ServicioConRef {
+  dias: number;
+  refs: string[];
+}
+
+/** "05151 " = "5151" (igual que `servicios/referencias.normalizar_ref`). */
+export function normalizarRef(ref: string): string {
+  const s = ref.replace(/\s+/g, "").toUpperCase();
+  return s.replace(/^0+/, "") || s;
+}
+
+export function useRefsRepetidas(clienteId: string | null, refs: string[], excluirServicioId?: string | null) {
+  const unicas = [...new Set(refs.map((r) => r.trim()).filter(Boolean))].sort();
+  return useQuery({
+    queryKey: ["referencias-repetidas", clienteId, unicas, excluirServicioId ?? null],
+    queryFn: () => {
+      const p = new URLSearchParams();
+      unicas.forEach((r) => p.append("ref", r));
+      if (excluirServicioId) p.set("excluir_servicio_id", excluirServicioId);
+      return api
+        .get<{ repetidas: Record<string, ServicioConRef[]> }>(`/api/v1/clientes/${clienteId}/referencias-repetidas?${p}`)
+        .then((r) => r.repetidas);
+    },
+    enabled: !!clienteId && unicas.length > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useServiciosCercanos(clienteId: string | null, fecha: string, excluirServicioId?: string | null) {
+  const valida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  return useQuery({
+    queryKey: ["servicios-cercanos", clienteId, fecha, excluirServicioId ?? null],
+    queryFn: () =>
+      api.get<{ dias: number; servicios: ServicioCercano[] }>(
+        `/api/v1/clientes/${clienteId}/servicios-cercanos?fecha=${fecha}${excluirServicioId ? `&excluir_servicio_id=${excluirServicioId}` : ""}`,
+      ),
+    enabled: !!clienteId && valida,
+  });
+}
+
+export function fechaDMY(iso: string): string {
+  const [a, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${a}`;
+}

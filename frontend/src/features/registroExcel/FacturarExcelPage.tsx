@@ -22,6 +22,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconAlertTriangle,
@@ -43,7 +44,11 @@ import { clientesApi, operadoresApi, unidadesApi, useMercancias } from "../catal
 import { LugarSelect } from "../servicios/components/LugarSelect";
 import {
   descargarRegistro,
+  fechaDMY,
+  normalizarRef,
   useCrearDesdeFila,
+  useRefsRepetidas,
+  useServiciosCercanos,
   useFilasRecientes,
   usePropuesta,
   useRegistro,
@@ -53,6 +58,8 @@ import {
   type FilaResumen,
   type Propuesta,
   type PropuestaLugar,
+  type ServicioCercano,
+  type ServicioConRef,
 } from "./api";
 
 const CP_GENERICO = "50000";
@@ -376,6 +383,70 @@ function LugarEditor({
   );
 }
 
+// --- Avisos de REF repetida y servicios cercanos (errores comunes con Chemital) ---------------
+
+function cuando(dias: number): string {
+  if (dias === 0) return "mismo día";
+  const n = Math.abs(dias);
+  return dias < 0 ? `${n} día${n === 1 ? "" : "s"} antes` : `${n} día${n === 1 ? "" : "s"} después`;
+}
+
+function AvisoRefRepetida({ otros, enLaFila }: { otros: ServicioConRef[] | undefined; enLaFila: boolean }) {
+  if (!otros?.length && !enLaFila) return null;
+  return (
+    <Alert color="yellow" variant="light" p="xs" icon={<IconAlertTriangle size={16} />}>
+      <Stack gap={2}>
+        {enLaFila && <Text size="sm">Esta REF ya la pusiste en otro destino de esta misma fila.</Text>}
+        {otros?.map((s) => (
+          <Text key={s.servicio_id} size="sm">
+            Esta REF ya está en el{" "}
+            <Anchor component={Link} to={`/admin/servicios/${s.servicio_id}`} target="_blank" size="sm">
+              servicio #{s.numero}
+            </Anchor>{" "}
+            del {fechaDMY(s.fecha)}
+            {s.destinos.length ? ` (${s.destinos.join(", ")})` : ""}
+            {s.factura_folio ? ` · factura ${s.factura_folio}` : ""}.
+          </Text>
+        ))}
+      </Stack>
+    </Alert>
+  );
+}
+
+function ServiciosCercanos({ cliente, dias, servicios }: { cliente: string; dias: number; servicios: ServicioCercano[] }) {
+  if (servicios.length === 0) return null;
+  return (
+    <Alert
+      color="yellow"
+      variant="light"
+      icon={<IconAlertTriangle size={18} />}
+      title={`${servicios.length} servicio${servicios.length === 1 ? "" : "s"} de ${cliente} a ±${dias} días: revisa que no confundas las REF`}
+    >
+      <Table verticalSpacing={4} className="el-cardtable" fz="sm">
+        <Table.Tbody>
+          {servicios.map((s) => (
+            <Table.Tr key={s.servicio_id}>
+              <Table.Td data-label="Servicio">
+                <Anchor component={Link} to={`/admin/servicios/${s.servicio_id}`} target="_blank" size="sm">
+                  #{s.numero}
+                </Anchor>
+              </Table.Td>
+              <Table.Td data-label="Fecha">
+                {fechaDMY(s.fecha)} <Text span size="xs" c="dimmed">({cuando(s.dias)})</Text>
+              </Table.Td>
+              <Table.Td data-label="REF" ff="monospace">
+                {s.refs.length ? s.refs.join(", ") : "—"}
+              </Table.Td>
+              <Table.Td data-label="Destinos">{s.destinos.join(", ") || "—"}</Table.Td>
+              <Table.Td data-label="Factura">{s.factura_folio ?? "Sin factura"}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Alert>
+  );
+}
+
 // --- Fila → servicio -------------------------------------------------------------------------
 
 function ResumenExcel({ fila, datos }: { fila: number; datos: DatosFila }) {
@@ -451,6 +522,26 @@ function FilaEditor({
 
   const modoAcuse = propuesta.modo_acuse;
   const yaCreado = propuesta.servicio;
+
+  // REF repetida: se consulta mientras escribe (con pausa) contra los servicios del cliente.
+  const refsKey =
+    modoAcuse === "referencia"
+      ? destinos
+          .filter((d) => !d.sinAcuse && d.folio.trim())
+          .map((d) => d.folio.trim())
+          .join("\u0001")
+      : "";
+  const [refsDebounced] = useDebouncedValue(refsKey, 400);
+  const { data: repetidas } = useRefsRepetidas(
+    clienteId,
+    refsDebounced ? refsDebounced.split("\u0001") : [],
+    yaCreado?.servicio_id,
+  );
+  const { data: cercanos } = useServiciosCercanos(clienteId, fecha, yaCreado?.servicio_id);
+  function refEnLaFila(d: DestinoDraft): boolean {
+    const n = normalizarRef(d.folio);
+    return !!d.folio.trim() && destinos.some((x) => x.key !== d.key && !x.sinAcuse && x.folio.trim() && normalizarRef(x.folio) === n);
+  }
 
   function cambiarDestino(key: string, cambios: Partial<DestinoDraft>) {
     setDestinos((ds) => ds.map((d) => (d.key === key ? { ...d, ...cambios } : d)));
@@ -630,6 +721,10 @@ function FilaEditor({
         </div>
       </Card>
 
+      {clienteId && cercanos && (
+        <ServiciosCercanos cliente={cliente?.nombre_comercial ?? "este cliente"} dias={cercanos.dias} servicios={cercanos.servicios} />
+      )}
+
       {!clienteId ? (
         <Alert color="gray" variant="light">
           Elige el cliente para buscar el origen y los destinos en sus lugares.
@@ -731,6 +826,12 @@ function FilaEditor({
                       />
                     </Group>
                   </div>
+                  {modoAcuse === "referencia" && !d.sinAcuse && (
+                    <AvisoRefRepetida
+                      otros={d.folio.trim() ? repetidas?.[normalizarRef(d.folio)] : undefined}
+                      enLaFila={refEnLaFila(d)}
+                    />
+                  )}
                   {errs.length > 0 && (
                     <Text size="xs" c="var(--el-red)">
                       {errs.join(" · ")}

@@ -20,7 +20,14 @@ export interface Concepto {
   descripcion_autogenerada: boolean;
   requiere_folio: boolean;
   folio_cliente: string | null;
-  folios: { viaje_id: string; destino: string; folio: string | null; sin_acuse?: boolean }[];
+  folios: {
+    viaje_id: string;
+    destino: string;
+    folio: string | null;
+    sin_acuse?: boolean;
+    // Otros servicios del cliente con la misma REF (aviso de error común).
+    repetida_en?: { servicio_id: string; numero: number; fecha: string }[];
+  }[];
 }
 
 export interface Ubicacion {

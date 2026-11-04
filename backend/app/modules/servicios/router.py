@@ -248,6 +248,32 @@ def eliminar_acuse(acuse_id: uuid.UUID, session: Session = Depends(get_session))
     service.eliminar_acuse(session, acuse_id)
 
 
+# --- REF repetida y servicios cercanos (aviso, no bloquea) -----------------------
+@router.get("/clientes/{cliente_id}/referencias-repetidas")
+def referencias_repetidas(
+    cliente_id: uuid.UUID,
+    ref: list[str] = Query(default=[]),
+    excluir_servicio_id: uuid.UUID | None = Query(default=None),
+    session: Session = Depends(get_session),
+) -> dict:
+    from app.modules.servicios.referencias import refs_repetidas
+
+    return {"repetidas": refs_repetidas(session, cliente_id, ref, excluir_servicio_id)}
+
+
+@router.get("/clientes/{cliente_id}/servicios-cercanos")
+def servicios_cercanos(
+    cliente_id: uuid.UUID,
+    fecha: date,
+    excluir_servicio_id: uuid.UUID | None = Query(default=None),
+    session: Session = Depends(get_session),
+) -> dict:
+    from app.modules.servicios.referencias import DIAS_CERCANOS
+    from app.modules.servicios.referencias import servicios_cercanos as _cercanos
+
+    return {"dias": DIAS_CERCANOS, "servicios": _cercanos(session, cliente_id, fecha, excluir_servicio_id)}
+
+
 @router.get("/lugares/distancia-sugerida", response_model=DistanciaSugeridaOut)
 def distancia_sugerida(
     destino_lugar_id: uuid.UUID,

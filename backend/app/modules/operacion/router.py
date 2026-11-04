@@ -59,6 +59,25 @@ def terminar_viaje(
     return service.terminar_viaje_operador(session, viaje_id, _operador_id(user), body, user)
 
 
+@router.get("/operador/viajes/{viaje_id}/referencia-repetida")
+def referencia_repetida(
+    viaje_id: uuid.UUID,
+    ref: str = Query(default=""),
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.operador)),
+) -> dict:
+    """¿El folio que está capturando ya se usó en otro servicio del mismo cliente? Solo avisa."""
+    from app.modules.servicios.referencias import normalizar_ref, refs_repetidas
+
+    viaje = service.get_viaje_de_operador(session, viaje_id, _operador_id(user))
+    servicio = servicios_service.get_servicio(session, viaje.servicio_id)
+    items = refs_repetidas(session, servicio.cliente_id, [ref], excluir_viaje_id=viaje.id).get(normalizar_ref(ref), [])
+    return {
+        "repetida": bool(items),
+        "servicios": [{"numero": i["numero"], "fecha": i["fecha"]} for i in items[:3]],
+    }
+
+
 @router.post("/operador/viajes/{viaje_id}/acuses")
 async def agregar_acuse(
     viaje_id: uuid.UUID,

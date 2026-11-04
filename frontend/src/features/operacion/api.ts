@@ -97,3 +97,17 @@ export function useSubirTicket() {
     onError: (err) => toastError(err, "No se pudo subir el ticket"),
   });
 }
+
+/** ¿El folio que captura ya se usó en otro servicio del mismo cliente? Solo para avisar. */
+export function useFolioRepetido(viajeId: string | null, folio: string) {
+  const ref = folio.trim();
+  return useQuery({
+    queryKey: ["operador", "folio-repetido", viajeId, ref],
+    queryFn: () =>
+      api.get<{ repetida: boolean; servicios: { numero: number; fecha: string }[] }>(
+        `/api/v1/operador/viajes/${viajeId}/referencia-repetida?ref=${encodeURIComponent(ref)}`,
+      ),
+    enabled: !!viajeId && ref.length > 0,
+    retry: false,
+  });
+}

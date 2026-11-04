@@ -205,6 +205,23 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         else:
             checks.append(_ok("folio_cliente_presente", "concepto"))
 
+    # --- REF repetida en otro servicio del cliente (error común con Chemital; solo avisa) ---
+    if cliente.requiere_folio_concepto or cliente.modo_acuse.value == "referencia":
+        from app.modules.servicios.referencias import refs_repetidas, texto_repetida
+
+        propias = [f for f in folios_por_viaje(session, servicio, viajes).values() if f]
+        repetidas = refs_repetidas(session, servicio.cliente_id, propias, excluir_servicio_id=servicio.id)
+        if repetidas:
+            checks.append(
+                _warning(
+                    "ref_repetida",
+                    "; ".join(texto_repetida(ref, items) for ref, items in repetidas.items()),
+                    "concepto",
+                )
+            )
+        else:
+            checks.append(_ok("ref_repetida", "concepto"))
+
     # --- Acuse por entrega (solo modo normal) ---
     if not anticipado:
         entregas = [v for v in viajes if v.destino_lugar_id is not None]

@@ -179,6 +179,15 @@ filtros `acuses_pendientes` / `inspeccion_fallas` ya funcionan (antes se ignorab
 - Probado en local con Postgres 16 en Docker (migración sube/baja/sube), catálogos sembrados de los YAML,
   R2 simulado en disco y Playwright a 1280 y 390 px. **No se probó en producción.**
 
+**3 nov 2026 — Avisos de REF repetida y servicios cercanos** (errores comunes con Chemital; solo avisan,
+no bloquean). Lógica en `app/modules/servicios/referencias.py`:
+- **REF repetida**: la misma REF en otro servicio del mismo cliente (sin cancelados; "05151" = "5151").
+  Avisa en la app del operador al escribir el folio (`GET /operador/viajes/{id}/referencia-repetida`), en
+  Facturar con Excel al escribir la REF (también si se repite entre destinos de la misma fila), en Facturar
+  junto a cada folio (`concepto.folios[].repetida_en`) y como warning `ref_repetida` de la validación.
+- **Servicios cercanos**: en Facturar con Excel, lista de servicios del mismo cliente a ±3 días de la fecha
+  (con REF, destinos y factura) — `GET /clientes/{id}/servicios-cercanos?fecha=`.
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y

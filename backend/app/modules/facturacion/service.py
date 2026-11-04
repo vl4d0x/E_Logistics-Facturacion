@@ -285,9 +285,13 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
         for a in session.exec(select(Acuse).where(Acuse.viaje_id == v.id)).all()
     ]
 
+    from app.modules.servicios.referencias import normalizar_ref, refs_repetidas
+
+    folios = folios_por_viaje(session, servicio, viajes)
+    repetidas = refs_repetidas(session, servicio.cliente_id, [f for f in folios.values() if f], excluir_servicio_id=servicio.id)
     descripcion_autogenerada = servicio.descripcion_concepto is None
     descripcion = servicio.descripcion_concepto or _descripcion_autogenerada(
-        unidad, viajes, lugares, cliente, folios_por_viaje(session, servicio, viajes)
+        unidad, viajes, lugares, cliente, folios
     )
 
     montos = None
@@ -342,8 +346,9 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
                 FolioViajeOut(
                     viaje_id=v.id,
                     destino=lugares[v.destino_lugar_id].nombre if v.destino_lugar_id in lugares else "—",
-                    folio=folios_por_viaje(session, servicio, viajes).get(v.id),
+                    folio=folios.get(v.id),
                     sin_acuse=v.sin_acuse,
+                    repetida_en=repetidas.get(normalizar_ref(folios.get(v.id)), []) if folios.get(v.id) else [],
                 )
                 for v in viajes
                 if v.destino_lugar_id is not None

@@ -16,11 +16,12 @@ import {
   Textarea,
 } from "@mantine/core";
 import { IconAlertTriangle, IconArrowLeft, IconFileTypePdf, IconTrash, IconUpload } from "@tabler/icons-react";
+import { useDebouncedValue } from "@mantine/hooks";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { numberInputValue } from "../../lib/numberInput";
-import { useAgregarAcuseOperador, useMisServicios, useTerminarViajeOperador } from "./api";
+import { useAgregarAcuseOperador, useFolioRepetido, useMisServicios, useTerminarViajeOperador } from "./api";
 import type { ServicioDetalle, ViajeOut } from "../servicios/types";
 
 interface MercanciaRow {
@@ -61,6 +62,8 @@ export function TerminarViajeOperadorPage() {
   // "No pude escanear": se confirma con una advertencia y la entrega queda para re-escaneo.
   const [sinEscaneo, setSinEscaneo] = useState(false);
   const [confirmarSinEscaneo, setConfirmarSinEscaneo] = useState(false);
+  const [folioDebounced] = useDebouncedValue(folio, 500);
+  const { data: folioRepetido } = useFolioRepetido(viajeId ?? null, folioDebounced);
 
   if (!encontrado) return <Skeleton height={200} />;
   const { servicio, viaje } = encontrado;
@@ -233,12 +236,23 @@ export function TerminarViajeOperadorPage() {
           {modoAcuse === "referencia" ? "Folio" : "Acuse"}
         </Text>
         {modoAcuse === "referencia" && (
-          <TextInput
-            label="Folio del acuse"
-            value={folio}
-            onChange={(e) => setFolio(e.currentTarget.value)}
-            size="lg"
-          />
+          <Stack gap="xs">
+            <TextInput
+              label="Folio del acuse"
+              value={folio}
+              onChange={(e) => setFolio(e.currentTarget.value)}
+              size="lg"
+            />
+            {folioRepetido?.repetida && folio.trim() === folioDebounced.trim() && (
+              <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={18} />} title="Este folio ya se capturó antes">
+                Está en el servicio{" "}
+                {folioRepetido.servicios
+                  .map((s) => `#${s.numero} del ${s.fecha.slice(8, 10)}/${s.fecha.slice(5, 7)}`)
+                  .join(", ")}
+                . Revisa que sea el folio correcto de esta entrega.
+              </Alert>
+            )}
+          </Stack>
         )}
         {modoAcuse === "escaneo" && (
           <Stack gap="sm">
