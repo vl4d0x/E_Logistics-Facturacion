@@ -44,7 +44,16 @@ class Factura(TimestampMixin, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    servicio_id: uuid.UUID = Field(foreign_key="servicio.id", nullable=False, index=True)
+    # Las facturas importadas del Facturador Electrónico (la app anterior) no tienen servicio.
+    servicio_id: uuid.UUID | None = Field(default=None, foreign_key="servicio.id", nullable=True, index=True)
+    cliente_id: uuid.UUID | None = Field(default=None, foreign_key="cliente.id", index=True)
+    # "app" = timbrada aquí (Facturama) · "facturador" = importada del Facturador Electrónico.
+    origen: str = Field(default="app", nullable=False, index=True)
+    # Lo que ya se había cobrado fuera de la app (Facturador: columna "Estatus pago") y en cuántas
+    # parcialidades (para numerar bien el siguiente REP).
+    pagado_externo: Decimal = Field(default=Decimal(0), sa_column=Column(Numeric(12, 2), nullable=False, server_default="0"))
+    parcialidades_externas: int = Field(default=0, nullable=False)
+    receptor_nombre: str | None = Field(default=None)  # razón social como venía en el CFDI importado
     estado: EstadoFactura = Field(nullable=False)
     uuid_fiscal: str | None = Field(default=None, unique=True)
     serie: str | None = Field(default=None)

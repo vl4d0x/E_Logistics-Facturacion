@@ -33,9 +33,31 @@ def get_factura(session: Session, factura_id: uuid.UUID) -> Factura:
     return factura
 
 
+ORIGEN_FACTURADOR = "facturador"
+
+
+def cliente_de(session: Session, factura: Factura) -> Cliente:
+    """El receptor: `factura.cliente_id` (todas lo tienen desde la migración 0017)."""
+    cliente_id = factura.cliente_id
+    if cliente_id is None and factura.servicio_id is not None:
+        cliente_id = session.get(Servicio, factura.servicio_id).cliente_id
+    return session.get(Cliente, cliente_id)
+
+
+def exigir_de_la_app(factura: Factura, accion: str) -> None:
+    """Las importadas del Facturador Electrónico no están en Facturama: sus archivos, correo y
+    cancelación se manejan allá. Aquí solo cuentan para cobranza, REP y dashboard."""
+    if factura.origen == ORIGEN_FACTURADOR:
+        raise AppError(
+            "conflict",
+            f"Esta factura se timbró en el Facturador Electrónico: {accion} desde ese sistema.",
+            409,
+            details=[{"field": "origen", "issue": "facturador"}],
+        )
+
+
 def nombre_archivo(session: Session, factura: Factura, formato: str) -> str:
-    servicio = session.get(Servicio, factura.servicio_id)
-    cliente = session.get(Cliente, servicio.cliente_id)
+    cliente = cliente_de(session, factura)
     return f"{factura.serie or ''}{factura.folio or ''}_{cliente.rfc}.{formato}"
 
 
@@ -63,6 +85,8 @@ def guardar_archivos(session: Session, factura: Factura) -> bool:
     reintenta con `reintentar-archivos` (`fase-4 H4.7`)."""
     from app.core import storage
 
+    if factura.origen == ORIGEN_FACTURADOR:
+        return False
     try:
         for formato in ("xml", "pdf"):
             if getattr(factura, f"{formato}_key"):
@@ -82,6 +106,7 @@ def guardar_archivos(session: Session, factura: Factura) -> bool:
 
 def contenido_archivo(session: Session, factura: Factura, formato: str) -> bytes:
     """R2 si ya está copiado; si no, directo de Facturama."""
+    exigir_de_la_app(factura, "descárgala")
     if formato not in _MIME:
         raise AppError("validation_error", "formato debe ser pdf o xml", 422)
     key = getattr(factura, f"{formato}_key")
@@ -103,16 +128,21 @@ def listar(
     estado: EstadoFactura | None,
     cliente_id: uuid.UUID | None,
     mes: str | None,
+    origen: str | None = None,
 ) -> list[dict]:
-    stmt = select(Factura, Servicio, Cliente).join(Servicio, Factura.servicio_id == Servicio.id).join(
-        Cliente, Servicio.cliente_id == Cliente.id
+    stmt = (
+        select(Factura, Servicio, Cliente)
+        .outerjoin(Servicio, Factura.servicio_id == Servicio.id)
+        .join(Cliente, Factura.cliente_id == Cliente.id)
     )
+    if origen:
+        stmt = stmt.where(Factura.origen == origen)
     if estado:
         stmt = stmt.where(Factura.estado == estado)
     else:  # un intento de timbrado rechazado no es una factura: solo con el filtro "Error"
         stmt = stmt.where(Factura.estado != EstadoFactura.error)
     if cliente_id:
-        stmt = stmt.where(Servicio.cliente_id == cliente_id)
+        stmt = stmt.where(Factura.cliente_id == cliente_id)
     if mes:
         try:
             inicio = datetime.strptime(mes, "%Y-%m").replace(tzinfo=MX)  # el mes es de México
@@ -121,15 +151,18 @@ def listar(
         fin = inicio.replace(year=inicio.year + (inicio.month == 12), month=inicio.month % 12 + 1)
         inicio, fin = inicio.astimezone(UTC), fin.astimezone(UTC)
         stmt = stmt.where(Factura.fecha_emision >= inicio, Factura.fecha_emision < fin)
-    filas = session.exec(stmt.order_by(Factura.created_at.desc())).all()
+    filas = session.exec(
+        stmt.order_by(Factura.fecha_emision.desc().nulls_first(), Factura.created_at.desc())
+    ).all()
     return [_resumen(f, s, c) for f, s, c in filas]
 
 
-def _resumen(f: Factura, s: Servicio, c: Cliente) -> dict:
+def _resumen(f: Factura, s: Servicio | None, c: Cliente) -> dict:
     return {
         "id": f.id,
-        "servicio_id": s.id,
-        "servicio_numero": s.numero,
+        "origen": f.origen,
+        "servicio_id": s.id if s else None,
+        "servicio_numero": s.numero if s else None,
         "cliente_id": c.id,
         "cliente_nombre": c.nombre_comercial,
         "estado": f.estado,
@@ -147,8 +180,8 @@ def _resumen(f: Factura, s: Servicio, c: Cliente) -> dict:
 
 
 def detalle(session: Session, factura: Factura) -> dict:
-    s = session.get(Servicio, factura.servicio_id)
-    c = session.get(Cliente, s.cliente_id)
+    s = session.get(Servicio, factura.servicio_id) if factura.servicio_id else None
+    c = cliente_de(session, factura)
     return {
         **_resumen(factura, s, c),
         "iva_trasladado": factura.iva_trasladado,
@@ -163,6 +196,9 @@ def detalle(session: Session, factura: Factura) -> dict:
         "envio_error": factura.envio_error,
         "emails_cliente": c.emails_facturacion,
         "ejercicio_anterior": bool(factura.fecha_emision and factura.fecha_emision.year < utcnow().year),
+        "receptor_nombre": factura.receptor_nombre or c.razon_social,
+        "metodo_pago": factura.metodo_pago,
+        "pagado_externo": factura.pagado_externo,
     }
 
 
@@ -172,6 +208,7 @@ def detalle(session: Session, factura: Factura) -> dict:
 def cancelar(session: Session, factura: Factura, motivo: str) -> Factura:
     if motivo not in MOTIVOS_CANCELACION:
         raise AppError("validation_error", "Motivo inválido: usa 02, 03 o 04", 422)
+    exigir_de_la_app(factura, "cancélala")
     if factura.estado != EstadoFactura.timbrada:
         raise AppError("conflict", "Solo se puede cancelar una factura timbrada", 409)
     from app.modules.cobranza.models import PagoAplicacion
@@ -237,6 +274,7 @@ _THROTTLE_ESTATUS = timedelta(minutes=5)
 
 def actualizar_estatus(session: Session, factura: Factura) -> Factura:
     """Consulta a Facturama una cancelación en espera; con throttle de 5 min (`04 §8`)."""
+    exigir_de_la_app(factura, "consulta su estatus")
     if factura.estado != EstadoFactura.cancelacion_pendiente:
         raise AppError("conflict", "Solo aplica a facturas con cancelación en espera", 409)
     consultada = factura.estatus_consultado_at
@@ -265,9 +303,10 @@ def actualizar_estatus(session: Session, factura: Factura) -> Factura:
 def _marcar_cancelada(session: Session, factura: Factura) -> None:
     factura.estado = EstadoFactura.cancelada
     factura.cancelada_at = utcnow()
-    servicio = session.get(Servicio, factura.servicio_id)
-    servicio.estado_facturacion = EstadoFacturacion.pendiente  # datos fiscales editables otra vez
-    session.add(servicio)
+    if factura.servicio_id is not None:
+        servicio = session.get(Servicio, factura.servicio_id)
+        servicio.estado_facturacion = EstadoFacturacion.pendiente  # datos fiscales editables otra vez
+        session.add(servicio)
 
 
 # --- Correo ------------------------------------------------------------------
@@ -430,6 +469,7 @@ def _adjuntos_evidencia(
 def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factura:
     if factura.estado not in {EstadoFactura.timbrada, EstadoFactura.cancelacion_pendiente}:
         raise AppError("conflict", "Solo se envían facturas vigentes", 409)
+    exigir_de_la_app(factura, "envíala")
     settings = get_settings()
     if not settings.resend_api_key:
         raise AppError("internal_error", "El correo (Resend) no está configurado en este entorno.", 500)

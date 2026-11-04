@@ -41,7 +41,7 @@ def _factura(session: Session, cliente: Cliente, numero: int, subtotal: str, dia
     session.add(s)
     session.commit()
     f = Factura(
-        servicio_id=s.id, estado=EstadoFactura.timbrada, uuid_fiscal=str(uuid.uuid4()), serie="ELG", folio=str(numero),
+        servicio_id=s.id, cliente_id=cliente.id, estado=EstadoFactura.timbrada, uuid_fiscal=str(uuid.uuid4()), serie="ELG", folio=str(numero),
         fecha_emision=datetime(2026, 9, dia, 12, tzinfo=UTC), metodo_pago="PPD", forma_pago="99", uso_cfdi="G03",
         subtotal=sub, iva_trasladado=iva, iva_retenido=ret, total=sub + iva - ret, saldo_insoluto=sub + iva - ret,
         facturama_id=f"fac{numero}",

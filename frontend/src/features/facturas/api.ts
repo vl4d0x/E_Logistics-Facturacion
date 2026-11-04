@@ -7,8 +7,9 @@ import { getAccessToken } from "../../lib/auth";
 
 export interface FacturaResumen {
   id: string;
-  servicio_id: string;
-  servicio_numero: number;
+  origen: "app" | "facturador";
+  servicio_id: string | null; // null en las importadas del Facturador Electrónico
+  servicio_numero: number | null;
   cliente_id: string;
   cliente_nombre: string;
   estado: "timbrada" | "cancelacion_pendiente" | "cancelada" | "error";
@@ -35,11 +36,43 @@ export interface FacturaDetalle extends FacturaResumen {
   envio_destinatarios: string[] | null;
   emails_cliente: string[];
   ejercicio_anterior: boolean;
+  receptor_nombre: string;
+  metodo_pago: string;
+  pagado_externo: string;
+}
+
+export interface ResultadoImportacion {
+  creadas: number;
+  actualizadas: number;
+  de_la_app: number;
+  ignoradas: number;
+  clientes_creados: string[];
+  vigentes: number;
+  canceladas: number;
+  pagadas: number;
+  con_saldo: number;
+  saldo_total: string;
+}
+
+export function useImportarFacturador() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return api.post<ResultadoImportacion>("/api/v1/facturas/importar-facturador", form);
+    },
+    onSuccess: () => {
+      for (const k of ["facturas", "cobranza", "dashboard", "clientes"]) client.invalidateQueries({ queryKey: [k] });
+    },
+    onError: toastError("No se pudo importar el reporte"),
+  });
 }
 
 export interface FacturasFiltros {
   estado: string;
   mes: string;
+  origen?: string;
 }
 
 const toastError = (title: string) => (err: unknown) =>
@@ -55,6 +88,7 @@ export function useFacturas(filtros: FacturasFiltros) {
   const params = new URLSearchParams();
   if (filtros.estado) params.set("estado", filtros.estado);
   if (filtros.mes) params.set("mes", filtros.mes);
+  if (filtros.origen) params.set("origen", filtros.origen);
   return useQuery({
     queryKey: ["facturas", "list", filtros],
     queryFn: () => api.get<FacturaResumen[]>(`/api/v1/facturas?${params}`),

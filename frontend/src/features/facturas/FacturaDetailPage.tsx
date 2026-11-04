@@ -5,6 +5,7 @@ import { IconAlertTriangle, IconCheck, IconCopy, IconDownload, IconMail } from "
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { OrigenFacturaBadge } from "../../components/OrigenFacturaBadge";
 import { hoyMexico } from "../../lib/fecha";
 import { useDuplicarServicio } from "../servicios/api";
 import {
@@ -30,7 +31,8 @@ export function FacturaDetailPage() {
   const [destinatarios, setDestinatarios] = useState<string | null>(null);
   const [duplicando, setDuplicando] = useState(false);
   const [fechaDuplicado, setFechaDuplicado] = useState(hoyMexico());
-  const conArchivos = Boolean(f && f.estado !== "error");
+  const delFacturador = f?.origen === "facturador";
+  const conArchivos = Boolean(f && f.estado !== "error" && !delFacturador);
   const pdf = usePdfFactura(id, conArchivos);
 
   if (!f) return <Skeleton height={400} />;
@@ -51,12 +53,22 @@ export function FacturaDetailPage() {
             Factura {f.serie}
             {f.folio} · {f.cliente_nombre}
           </Text>
-          <Badge variant="light" color={ESTADO_FACTURA[f.estado].color}>
-            {ESTADO_FACTURA[f.estado].label}
-          </Badge>
+          <Group gap={6}>
+            <OrigenFacturaBadge origen={f.origen} />
+            <Badge variant="light" color={ESTADO_FACTURA[f.estado].color}>
+              {ESTADO_FACTURA[f.estado].label}
+            </Badge>
+          </Group>
         </Group>
         <Text size="sm">
-          Servicio <Link to={`/admin/servicios/${f.servicio_id}`}>#{f.servicio_numero}</Link> · Subtotal{" "}
+          {f.servicio_id ? (
+            <>
+              Servicio <Link to={`/admin/servicios/${f.servicio_id}`}>#{f.servicio_numero}</Link> ·{" "}
+            </>
+          ) : (
+            <>{f.receptor_nombre} · </>
+          )}
+          {f.fecha_emision ? `${new Date(f.fecha_emision).toLocaleDateString("es-MX")} · ` : ""}Subtotal{" "}
           {pesos(f.subtotal)} · IVA {pesos(f.iva_trasladado)} · Retención {pesos(f.iva_retenido)} ·{" "}
           <b>Total {pesos(f.total)}</b>
         </Text>
@@ -64,6 +76,28 @@ export function FacturaDetailPage() {
           <Text size="xs" c="dimmed" mt={4}>
             UUID {f.uuid_fiscal}
           </Text>
+        )}
+        {delFacturador && (
+          <Stack gap="xs" mt="md">
+            <Text size="sm">
+              {f.metodo_pago} · Saldo <b>{pesos(f.saldo_insoluto)}</b>
+              {Number(f.pagado_externo) > 0 && <> · cobrado en el Facturador {pesos(f.pagado_externo)}</>}
+            </Text>
+            <Alert color="grape" variant="light">
+              Se timbró en el Facturador Electrónico. Su PDF, XML, envío por correo y cancelación están en ese sistema;
+              aquí cuenta para cobranza, REP y dashboard.
+            </Alert>
+            {f.estado === "timbrada" && f.estado_cobro !== "pagada" && f.metodo_pago === "PPD" && (
+              <Group>
+                <Button
+                  variant="light"
+                  onClick={() => navigate(`/admin/cobranza?tab=por_cobrar&cliente=${f.cliente_id}&factura=${f.id}`)}
+                >
+                  Registrar pago y REP
+                </Button>
+              </Group>
+            )}
+          </Stack>
         )}
 
         {f.estado === "error" && (

@@ -188,6 +188,23 @@ no bloquean). Lógica en `app/modules/servicios/referencias.py`:
 - **Servicios cercanos**: en Facturar con Excel, lista de servicios del mismo cliente a ±3 días de la fecha
   (con REF, destinos y factura) — `GET /clientes/{id}/servicios-cercanos?fecha=`.
 
+**3 nov 2026 — Facturas del Facturador Electrónico (app anterior)** (migración `0017`)
+- Facturas → "Importar del Facturador": sube el reporte de emisión (`Emision_<RFC>_<desde>_<hasta>.xlsx`).
+  Se importan las de tipo **Ingreso** como facturas con `origen="facturador"` y **sin servicio**
+  (`factura.servicio_id` ahora es opcional; todas llevan `factura.cliente_id`). Idempotente por UUID: subir un
+  reporte más nuevo actualiza estatus y lo cobrado. Las timbradas en esta app no se tocan.
+- Lo cobrado sale de la columna "Estatus pago (MXN)" = monto ya pagado con REP del Facturador
+  (`factura.pagado_externo`; coincide con el total en 3,064 de 3,139 vigentes). Saldo = total − pagado en el
+  Facturador − aplicado en la app. Si ya tenía cobros, el siguiente REP es la parcialidad 2
+  (`parcialidades_externas`) y sus impuestos se calculan proporcionales.
+- Los REP del Facturador no se importan (el reporte no trae sus montos ni a qué facturas pagan).
+- En la lista y el detalle llevan la etiqueta **facturadorelectronico**; su PDF/XML, correo y cancelación se
+  hacen en el Facturador (aquí responden 409). Cobranza, conciliación, REP (también mezclando facturas de ambos
+  sistemas en un mismo pago) y dashboard las cuentan igual que las de la app. Probado: REP mixto timbrado en
+  el sandbox.
+- Un RFC que no está en Clientes se da de alta con la razón social del reporte y **CP/régimen fiscal vacíos**;
+  el REP avisa que hay que completarlos. En local se crearon 17 (SAFMEX, FORTA LAB, SUSTAINABLE…).
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
@@ -257,7 +274,7 @@ cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAX
 `0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia) · `0014`
 cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes. · `0015`
 viaje.reescaneo_motivo/_solicitado_at/_solicitado_por. · `0016` Facturar con Excel (registro_excel*,
-viaje.sin_acuse).
+viaje.sin_acuse). · `0017` factura sin servicio: cliente_id, origen, pagado_externo, parcialidades_externas.
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

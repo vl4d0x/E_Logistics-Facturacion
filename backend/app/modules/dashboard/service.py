@@ -131,8 +131,7 @@ def cancelaciones_en_espera(session: Session) -> dict[str, Any]:
         except AppError:
             session.rollback()  # throttle, Facturama caído o sin configurar: se muestra como está
     for f in session.exec(select(Factura).where(Factura.estado == EstadoFactura.cancelacion_pendiente)).all():
-        s = session.get(Servicio, f.servicio_id)
-        c = session.get(Cliente, s.cliente_id)
+        c = session.get(Cliente, f.cliente_id)
         items.append(
             {
                 "tipo": "factura", "id": f.id, "factura_id": f.id, "folio": f"{f.serie or ''}{f.folio or ''}",

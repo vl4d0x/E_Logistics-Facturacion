@@ -3,6 +3,7 @@ import { Badge, Checkbox, Group, Table, Tabs, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { OrigenFacturaBadge } from "../../components/OrigenFacturaBadge";
 import { centavos, pesos, useCobranzaClientes, useCobranzaFacturas, usePagos } from "./api";
 import { RegistrarPagoPanel } from "./RegistrarPagoPanel";
 
@@ -59,7 +60,9 @@ function PorCobrarTab() {
                 <Table.Tr key={f.id}>
                   <Table.Td><Checkbox checked={f.id in seleccion} onChange={() => alternar(f.id, f.saldo_insoluto)} aria-label={`Seleccionar ${f.folio}`} /></Table.Td>
                   <Table.Td data-label="Folio">{f.folio}</Table.Td>
-                  <Table.Td data-label="Servicio">#{f.servicio.numero} · {f.servicio.ruta_resumen}</Table.Td>
+                  <Table.Td data-label="Servicio">
+                    {f.servicio ? `#${f.servicio.numero} · ${f.servicio.ruta_resumen}` : <OrigenFacturaBadge origen={f.origen ?? "facturador"} />}
+                  </Table.Td>
                   <Table.Td data-label="Emisión">{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
                   <Table.Td ta="right" data-label="Total">{pesos(f.total)}</Table.Td>
                   <Table.Td ta="right" data-label="Saldo">{pesos(f.saldo_insoluto)}</Table.Td>
@@ -135,7 +138,9 @@ function PagadasTab() {
           {facturas.map((f) => (
             <Table.Tr key={f.id}>
               <Table.Td data-label="Folio">{f.folio}</Table.Td><Table.Td>{f.cliente_nombre}</Table.Td>
-              <Table.Td data-label="Servicio">#{f.servicio.numero} · {f.servicio.ruta_resumen}</Table.Td>
+              <Table.Td data-label="Servicio">
+                    {f.servicio ? `#${f.servicio.numero} · ${f.servicio.ruta_resumen}` : <OrigenFacturaBadge origen={f.origen ?? "facturador"} />}
+                  </Table.Td>
               <Table.Td data-label="Emisión">{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
               <Table.Td ta="right" data-label="Total">{pesos(f.total)}</Table.Td>
             </Table.Tr>

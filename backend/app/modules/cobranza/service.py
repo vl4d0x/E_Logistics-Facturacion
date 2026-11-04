@@ -88,20 +88,28 @@ def _ruta_resumen(session: Session, servicio: Servicio) -> str:
     return f"{origen or '—'} → {', '.join(destinos) or '—'}"
 
 
+def _servicio_resumen(session: Session, f: Factura) -> dict[str, Any] | None:
+    """Las facturas del Facturador Electrónico no tienen servicio."""
+    s = session.get(Servicio, f.servicio_id) if f.servicio_id else None
+    if s is None:
+        return None
+    return {
+        "id": s.id,
+        "numero": s.numero,
+        "fecha": s.fecha.isoformat() if getattr(s, "fecha", None) else None,
+        "ruta_resumen": _ruta_resumen(session, s),
+    }
+
+
 def _factura_detalle(session: Session, f: Factura) -> dict[str, Any]:
-    s = session.get(Servicio, f.servicio_id)
     return {
         "factura_id": f.id,
         "folio": f"{f.serie or ''}{f.folio or ''}",
+        "origen": f.origen,
         "fecha_emision": a_hora_mx(f.fecha_emision).date().isoformat() if f.fecha_emision else None,
         "total": money(f.total),
         "saldo": money(f.saldo_insoluto),
-        "servicio": {
-            "id": s.id,
-            "numero": s.numero,
-            "fecha": s.fecha.isoformat() if getattr(s, "fecha", None) else None,
-            "ruta_resumen": _ruta_resumen(session, s),
-        },
+        "servicio": _servicio_resumen(session, f),
     }
 
 
@@ -109,9 +117,8 @@ def facturas_abiertas(session: Session, cliente_id: uuid.UUID) -> list[Factura]:
     return list(
         session.exec(
             select(Factura)
-            .join(Servicio, Factura.servicio_id == Servicio.id)
             .where(
-                Servicio.cliente_id == cliente_id,
+                Factura.cliente_id == cliente_id,
                 Factura.estado == EstadoFactura.timbrada,
                 Factura.metodo_pago == "PPD",
                 Factura.saldo_insoluto > 0,
@@ -170,12 +177,11 @@ def _vencida(f: Factura, dias_credito: int) -> tuple[int, bool]:
 def resumen_clientes(session: Session, anio: int | None) -> list[dict[str, Any]]:
     filas: dict[uuid.UUID, dict[str, Any]] = {}
     stmt = (
-        select(Factura, Servicio, Cliente)
-        .join(Servicio, Factura.servicio_id == Servicio.id)
-        .join(Cliente, Servicio.cliente_id == Cliente.id)
+        select(Factura, Cliente)
+        .join(Cliente, Factura.cliente_id == Cliente.id)
         .where(Factura.estado == EstadoFactura.timbrada, Factura.saldo_insoluto > 0)
     )
-    for f, _s, c in session.exec(stmt).all():
+    for f, c in session.exec(stmt).all():
         if anio and f.fecha_emision and a_hora_mx(f.fecha_emision).year != anio:
             continue
         fila = filas.setdefault(
@@ -205,17 +211,16 @@ def listar_facturas(
     session: Session, cliente_id: uuid.UUID | None, estados: list[EstadoCobro], mes_emision: str | None, anio: int | None
 ) -> list[dict[str, Any]]:
     stmt = (
-        select(Factura, Servicio, Cliente)
-        .join(Servicio, Factura.servicio_id == Servicio.id)
-        .join(Cliente, Servicio.cliente_id == Cliente.id)
+        select(Factura, Cliente)
+        .join(Cliente, Factura.cliente_id == Cliente.id)
         .where(Factura.estado == EstadoFactura.timbrada)
     )
     if cliente_id:
-        stmt = stmt.where(Servicio.cliente_id == cliente_id)
+        stmt = stmt.where(Factura.cliente_id == cliente_id)
     if estados:
         stmt = stmt.where(Factura.estado_cobro.in_(estados))
     filas = []
-    for f, s, c in session.exec(stmt.order_by(Factura.fecha_emision)).all():
+    for f, c in session.exec(stmt.order_by(Factura.fecha_emision)).all():
         if mes_emision and (not f.fecha_emision or a_hora_mx(f.fecha_emision).strftime("%Y-%m") != mes_emision):
             continue
         if anio and (not f.fecha_emision or a_hora_mx(f.fecha_emision).year != anio):
@@ -228,7 +233,8 @@ def listar_facturas(
                 "uuid_fiscal": f.uuid_fiscal,
                 "cliente_nombre": c.nombre_comercial,
                 "fecha_emision": f.fecha_emision,
-                "servicio": {"id": s.id, "numero": s.numero, "ruta_resumen": _ruta_resumen(session, s)},
+                "origen": f.origen,
+                "servicio": _servicio_resumen(session, f),
                 "total": money(f.total),
                 "saldo_insoluto": money(f.saldo_insoluto),
                 "estado_cobro": f.estado_cobro,
@@ -276,8 +282,7 @@ def aplicar(session: Session, pago: Pago, aplicaciones: list[tuple[uuid.UUID, De
         f = facturas.get(fid)
         if f is None:
             raise AppError("not_found", "Factura no encontrada", 404)
-        servicio = session.get(Servicio, f.servicio_id)
-        if servicio.cliente_id != pago.cliente_id:
+        if f.cliente_id != pago.cliente_id:
             raise AppError("validation_error", "Las facturas deben ser del mismo cliente que el pago", 422)
         if f.estado != EstadoFactura.timbrada or f.metodo_pago != "PPD":
             raise AppError("conflict", "Solo se aplican pagos a facturas PPD vigentes", 409)
@@ -294,22 +299,32 @@ def aplicar(session: Session, pago: Pago, aplicaciones: list[tuple[uuid.UUID, De
         previas = session.exec(select(PagoAplicacion).where(PagoAplicacion.factura_id == fid)).all()
         saldo_ant = f.saldo_insoluto
         saldo = saldo_ant - monto
-        imp = impuestos_proporcionales(
-            subtotal=f.subtotal,
-            total=f.total,
-            iva_trasladado=f.iva_trasladado,
-            iva_retenido=f.iva_retenido,
-            pagado=monto,
-            saldo_insoluto=saldo,
-            previas=[ImpuestosParcialidad(p.base, p.traslado, p.retencion) for p in previas],
-            receptor_moral=moral,
-        )
+        if f.pagado_externo > 0:
+            # Cobros previos en el Facturador Electrónico: no se conocen sus impuestos por parcialidad,
+            # así que esta se calcula proporcional al monto (nunca "absorbe" el resto de la factura).
+            base = (monto * f.subtotal / f.total).quantize(_CENTAVO)
+            imp = ImpuestosParcialidad(
+                base,
+                (base * Decimal("0.16")).quantize(_CENTAVO),
+                (base * Decimal("0.04")).quantize(_CENTAVO) if f.iva_retenido > 0 else Decimal("0.00"),
+            )
+        else:
+            imp = impuestos_proporcionales(
+                subtotal=f.subtotal,
+                total=f.total,
+                iva_trasladado=f.iva_trasladado,
+                iva_retenido=f.iva_retenido,
+                pagado=monto,
+                saldo_insoluto=saldo,
+                previas=[ImpuestosParcialidad(p.base, p.traslado, p.retencion) for p in previas],
+                receptor_moral=moral and f.iva_retenido > 0,
+            )
         session.add(
             PagoAplicacion(
                 pago_id=pago.id,
                 factura_id=fid,
                 monto=monto,
-                num_parcialidad=len(previas) + 1,
+                num_parcialidad=f.parcialidades_externas + len(previas) + 1,
                 saldo_anterior=saldo_ant,
                 saldo_insoluto=saldo,
                 base=imp.base,
@@ -439,6 +454,14 @@ def emitir_rep(session: Session, pago: Pago) -> Rep:
         raise AppError("facturama_no_configurado", "Falta EMISOR_LUGAR_EXPEDICION.", 503)
 
     cliente = session.get(Cliente, pago.cliente_id)
+    if not (cliente.cp_fiscal and cliente.regimen_fiscal):
+        raise AppError(
+            "validation_error",
+            f"Completa el código postal y el régimen fiscal de {cliente.nombre_comercial} en Catálogos → Clientes "
+            "antes de emitir el REP (vienen de su Constancia de Situación Fiscal).",
+            422,
+            details=[{"field": "cliente", "issue": "datos_fiscales_incompletos"}],
+        )
     payload = construir_payload_rep(
         serie=None,
         expedition_place=settings.emisor_lugar_expedicion,

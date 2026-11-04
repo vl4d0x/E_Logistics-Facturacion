@@ -17,7 +17,8 @@ export interface FacturaCobranza {
   uuid_fiscal: string | null;
   cliente_nombre: string;
   fecha_emision: string | null;
-  servicio: { id: string; numero: number; ruta_resumen: string };
+  origen?: "app" | "facturador";
+  servicio: { id: string; numero: number; ruta_resumen: string } | null; // null: del Facturador Electrónico
   total: string;
   saldo_insoluto: string;
   estado_cobro: "pendiente" | "parcial" | "pagada";
@@ -31,7 +32,8 @@ export interface FacturaCandidato {
   fecha_emision: string | null;
   total: string;
   saldo: string;
-  servicio: { id: string; numero: number; fecha: string | null; ruta_resumen: string };
+  origen?: "app" | "facturador";
+  servicio: { id: string; numero: number; fecha: string | null; ruta_resumen: string } | null;
 }
 
 export interface Candidato {

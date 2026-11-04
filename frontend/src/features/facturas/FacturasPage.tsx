@@ -1,10 +1,12 @@
 // H4.9 — lista de facturas con filtros por estado y mes de emisión; muestra si ya se envió
 // por correo y permite cancelar desde la fila.
-import { Badge, Button, Group, Select, Table, Text, TextInput, Tooltip } from "@mantine/core";
+import { Badge, Button, FileButton, Group, List, Modal, Select, Stack, Table, Text, TextInput, Tooltip } from "@mantine/core";
+import { IconUpload } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "../../components/Card";
-import { useFacturas, type FacturaResumen } from "./api";
+import { OrigenFacturaBadge } from "../../components/OrigenFacturaBadge";
+import { useFacturas, useImportarFacturador, type FacturaResumen, type ResultadoImportacion } from "./api";
 import { CancelarFacturaModal } from "./components/CancelarFacturaModal";
 import { ESTADO_FACTURA, pesos } from "./format";
 
@@ -14,8 +16,13 @@ export function FacturasPage() {
   const [params] = useSearchParams();
   const [mes, setMes] = useState(params.get("mes_emision") ?? "");
   const mesValido = /^\d{4}-\d{2}$/.test(mes) ? mes : "";
-  const { data: facturas, isLoading } = useFacturas({ estado, mes: mesValido });
+  const [origen, setOrigen] = useState("");
+  const { data: facturas, isLoading } = useFacturas({ estado, mes: mesValido, origen });
   const [cancelando, setCancelando] = useState<FacturaResumen | null>(null);
+  const importar = useImportarFacturador();
+  const [resultado, setResultado] = useState<ResultadoImportacion | null>(null);
+  // Con el historial del Facturador son miles: se muestran de 200 en 200.
+  const [visibles, setVisibles] = useState(200);
 
   return (
     <Card>
@@ -28,6 +35,29 @@ export function FacturasPage() {
           onChange={(v) => setEstado(v ?? "")}
         />
         <TextInput placeholder="Mes (AAAA-MM)" value={mes} onChange={(e) => setMes(e.currentTarget.value)} maw={150} />
+        <Select
+          placeholder="Todos los sistemas"
+          clearable
+          data={[
+            { value: "app", label: "Timbradas en esta app" },
+            { value: "facturador", label: "facturadorelectronico" },
+          ]}
+          value={origen || null}
+          onChange={(v) => setOrigen(v ?? "")}
+          maw={230}
+        />
+        <FileButton
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          onChange={(f) => f && importar.mutate(f, { onSuccess: setResultado })}
+        >
+          {(props) => (
+            <Tooltip label="Reporte de emisión del Facturador Electrónico (.xlsx). Se puede volver a subir uno más nuevo: actualiza lo cobrado sin duplicar.">
+              <Button {...props} variant="default" leftSection={<IconUpload size={16} />} loading={importar.isPending} ml="auto">
+                Importar del Facturador
+              </Button>
+            </Tooltip>
+          )}
+        </FileButton>
       </Group>
       <Table verticalSpacing="sm" highlightOnHover className="el-cardtable">
         <Table.Thead>
@@ -42,11 +72,13 @@ export function FacturasPage() {
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {facturas?.map((f) => (
+          {facturas?.slice(0, visibles).map((f) => (
             <Table.Tr key={f.id} style={{ cursor: "pointer" }} onClick={() => navigate(`/admin/facturas/${f.id}`)}>
               <Table.Td data-label="Folio">{`${f.serie ?? ""}${f.folio ?? ""}` || "—"}</Table.Td>
               <Table.Td>{f.cliente_nombre}</Table.Td>
-              <Table.Td data-label="Servicio">#{f.servicio_numero}</Table.Td>
+              <Table.Td data-label="Servicio">
+                {f.servicio_numero != null ? `#${f.servicio_numero}` : <OrigenFacturaBadge origen={f.origen} />}
+              </Table.Td>
               <Table.Td data-label="Emisión">{f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString("es-MX") : "—"}</Table.Td>
               <Table.Td ta="right" data-label="Total">{pesos(f.total)}</Table.Td>
               <Table.Td>
@@ -58,7 +90,7 @@ export function FacturasPage() {
                 </Group>
               </Table.Td>
               <Table.Td onClick={(e) => e.stopPropagation()}>
-                {f.estado === "timbrada" &&
+                {f.estado === "timbrada" && f.origen !== "facturador" &&
                   (f.estado_cobro === "pendiente" ? (
                     <Button size="compact-xs" color="red" variant="light" onClick={() => setCancelando(f)}>
                       Cancelar
@@ -75,6 +107,14 @@ export function FacturasPage() {
           ))}
         </Table.Tbody>
       </Table>
+      {facturas && facturas.length > visibles && (
+        <Group justify="center" mt="md">
+          <Button variant="light" onClick={() => setVisibles((v) => v + 200)}>
+            Mostrar más ({(facturas.length - visibles).toLocaleString("es-MX")} restantes)
+          </Button>
+        </Group>
+      )}
+      <ResultadoImportacionModal resultado={resultado} onClose={() => setResultado(null)} />
       {!isLoading && facturas?.length === 0 && (
         <Text c="dimmed" ta="center" py="lg">
           No hay facturas con esos filtros.
@@ -86,7 +126,38 @@ export function FacturasPage() {
 }
 
 /** "Enviada" (con la fecha), "Correo falló" o "Sin enviar"; nada si la factura no está vigente. */
+function ResultadoImportacionModal({ resultado: r, onClose }: { resultado: ResultadoImportacion | null; onClose: () => void }) {
+  return (
+    <Modal opened={!!r} onClose={onClose} title="Importación del Facturador Electrónico">
+      {r && (
+        <Stack gap="sm">
+          <List size="sm" spacing={4}>
+            <List.Item>
+              {r.creadas.toLocaleString("es-MX")} facturas nuevas, {r.actualizadas.toLocaleString("es-MX")} actualizadas
+            </List.Item>
+            <List.Item>
+              {r.vigentes.toLocaleString("es-MX")} vigentes: {r.pagadas.toLocaleString("es-MX")} pagadas y{" "}
+              {r.con_saldo.toLocaleString("es-MX")} con saldo ({pesos(r.saldo_total)})
+            </List.Item>
+            <List.Item>{r.canceladas.toLocaleString("es-MX")} canceladas (no cuentan en el dashboard)</List.Item>
+            {r.de_la_app > 0 && <List.Item>{r.de_la_app} ya estaban timbradas en esta app: no se tocaron</List.Item>}
+            <List.Item>{r.ignoradas.toLocaleString("es-MX")} filas ignoradas (REP emitidos en el Facturador: no se importan)</List.Item>
+          </List>
+          {r.clientes_creados.length > 0 && (
+            <Text size="sm" c="var(--el-warning-text)">
+              Se dieron de alta {r.clientes_creados.length} clientes que no estaban en el catálogo ({r.clientes_creados.join(", ")}).
+              Completa su código postal y régimen fiscal en Catálogos → Clientes antes de emitirles un REP.
+            </Text>
+          )}
+          <Button onClick={onClose}>Listo</Button>
+        </Stack>
+      )}
+    </Modal>
+  );
+}
+
 function EnvioBadge({ factura: f }: { factura: FacturaResumen }) {
+  if (f.origen === "facturador") return null;
   if (f.estado !== "timbrada" && f.estado !== "cancelacion_pendiente") return null;
   if (f.envio_error && !f.enviado_at) {
     return (

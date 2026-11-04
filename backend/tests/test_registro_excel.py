@@ -143,7 +143,7 @@ def test_fila_a_servicio_terminado_con_folio_y_destino_nuevo(client: TestClient,
     assert p2["destinos"][1]["lugar"]["nombre"] == "THALIA" and p2["destinos"][1]["fuente"] == "recordado"
 
     # Con factura vigente, la descarga escribe el folio en la columna FACTURA.
-    session.add(Factura(servicio_id=uuid.UUID(s["id"]), estado=EstadoFactura.timbrada, serie="ELG", folio="5540", metodo_pago="PPD",
+    session.add(Factura(servicio_id=uuid.UUID(s["id"]), cliente_id=uuid.UUID(cat["cliente"]["id"]), estado=EstadoFactura.timbrada, serie="ELG", folio="5540", metodo_pago="PPD",
                         uso_cfdi="G03", subtotal=2310, iva_trasladado=369.6, iva_retenido=92.4, total=2587.2, saldo_insoluto=2587.2))
     session.commit()
     pend = client.get(f"{API}/registro-excel/filas?pendientes=true", headers=h).json()["items"]

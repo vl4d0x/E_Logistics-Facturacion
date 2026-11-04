@@ -2,13 +2,14 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session
 
 from app.core.db import get_session
 from app.core.deps import require_role
+from app.core.errors import AppError
 from app.modules.auth.models import RolUsuario
 from app.modules.facturacion import facturas as svc
 from app.modules.facturacion.models import EstadoFactura
@@ -29,9 +30,24 @@ def listar(
     estado: EstadoFactura | None = None,
     cliente_id: uuid.UUID | None = None,
     mes: str | None = Query(default=None, description="YYYY-MM de emisión"),
+    origen: str | None = Query(default=None, description="app | facturador"),
     session: Session = Depends(get_session),
 ) -> list[dict[str, Any]]:
-    return svc.listar(session, estado, cliente_id, mes)
+    return svc.listar(session, estado, cliente_id, mes, origen)
+
+
+@router.post("/importar-facturador")
+async def importar_facturador(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Reporte de emisión del Facturador Electrónico (.xlsx). Idempotente por UUID."""
+    from app.modules.facturacion.importar_facturador import importar
+
+    contenido = await file.read()
+    if not contenido.startswith(b"PK"):
+        raise AppError("validation_error", "Sube el reporte en formato .xlsx", 422, details=[{"field": "file", "issue": "formato"}])
+    return importar(session, contenido)
 
 
 @router.get("/{factura_id}")

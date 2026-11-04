@@ -71,7 +71,7 @@ export function DashboardPage() {
   const aCobranza = (tab: string, mes: string) => ir(`/admin/cobranza?tab=${tab}&mes=${mes}`);
   const mesTexto = periodo ? mesLabel(periodo.mes) : "";
 
-  const aniosOpciones = [{ value: "todos", label: "Todos los años" }, ...[0, 1, 2].map((d) => ({ value: String(hoy.getFullYear() - d), label: String(hoy.getFullYear() - d) }))];
+  const aniosOpciones = [{ value: "todos", label: "Todos los años" }, ...[0, 1, 2, 3].map((d) => ({ value: String(hoy.getFullYear() - d), label: String(hoy.getFullYear() - d) }))];
   const items = cobrar ? (verTodos ? cobrar.items : cobrar.items.slice(0, 5)) : [];
   const totalSaldo = cobrar?.items.reduce((s, i) => s + Number(i.saldo), 0) ?? 0;
 

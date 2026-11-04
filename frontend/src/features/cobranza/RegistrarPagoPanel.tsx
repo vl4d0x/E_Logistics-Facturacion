@@ -8,6 +8,7 @@ import { IconAlertTriangle } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { OrigenFacturaBadge } from "../../components/OrigenFacturaBadge";
 import { numberInputValue } from "../../lib/numberInput";
 import {
   centavos, pesos, useCrearPago, useEnviarRep, useSugerencias, type Candidato, type FacturaCobranza, type PagoDetalle,
@@ -37,8 +38,18 @@ function CandidatoCard({ c, titulo, color, onUsar }: { c: Candidato; titulo: str
       <Stack gap={2}>
         {c.facturas.map((f) => (
           <Text size="xs" key={f.factura_id}>
-            <b>{f.folio}</b> · <Link to={`/admin/servicios/${f.servicio.id}`}>Servicio #{f.servicio.numero}</Link> ·{" "}
-            {fechaCorta(f.fecha_emision)} · {f.servicio.ruta_resumen} · {pesos(c.aplicaciones.find((a) => a.factura_id === f.factura_id)?.monto ?? f.saldo)}
+            <b>{f.folio}</b> ·{" "}
+            {f.servicio ? (
+              <>
+                <Link to={`/admin/servicios/${f.servicio.id}`}>Servicio #{f.servicio.numero}</Link> ·{" "}
+              </>
+            ) : (
+              <>
+                <OrigenFacturaBadge origen="facturador" />{" "}
+              </>
+            )}
+            {fechaCorta(f.fecha_emision)}
+            {f.servicio ? ` · ${f.servicio.ruta_resumen}` : ""} · {pesos(c.aplicaciones.find((a) => a.factura_id === f.factura_id)?.monto ?? f.saldo)}
           </Text>
         ))}
       </Stack>
@@ -217,7 +228,7 @@ export function RegistrarPagoPanel({
             .map((f) => (
               <Group key={f.id} justify="space-between" wrap="nowrap">
                 <Text size="sm">
-                  {f.folio} · Servicio #{f.servicio.numero}
+                  {f.folio} · {f.servicio ? `Servicio #${f.servicio.numero}` : "facturadorelectronico"}
                 </Text>
                 <Text size="sm">{pesos(seleccion[f.id] / 100)}</Text>
               </Group>

@@ -679,6 +679,7 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
         if factura is None:
             factura = Factura(
                 servicio_id=servicio.id,
+                cliente_id=servicio.cliente_id,
                 estado=EstadoFactura.error,
                 metodo_pago=payload["PaymentMethod"],
                 forma_pago=payload["PaymentForm"],
