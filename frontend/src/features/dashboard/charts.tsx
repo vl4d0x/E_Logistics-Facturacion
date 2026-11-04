@@ -24,6 +24,12 @@ export function PeriodDonut({ datos, size, grosor, etiquetaCentro, onCobrado, on
   const aCobrado = arco(cobrado);
   const aPorCobrar = arco(porCobrar);
   const label = mesLabel(datos.mes);
+  // Con centavos el total puede ser largo ("$527,615.00"): la píldora crece sin salirse del hueco
+  // de la dona y, si aun así no cabe, la letra baja.
+  const textoCentro = pesos(total);
+  const hueco = size - 2 * grosor - 6;
+  const fuente = textoCentro.length * 8.4 + 20 > hueco ? 12 : 14;
+  const anchoPildora = Math.min(hueco, Math.max(96, textoCentro.length * (fuente * 0.6) + 20));
 
   return (
     <svg width={size} height={size} role="img" aria-label={`Ingresos de ${label}: cobrado ${pesos(cobrado)}, por cobrar ${pesos(porCobrar)}`}>
@@ -50,9 +56,9 @@ export function PeriodDonut({ datos, size, grosor, etiquetaCentro, onCobrado, on
       {etiquetaCentro && (
         <g style={{ cursor: "pointer" }} onClick={onCentro}>
           <title>{`Facturado en ${label}: ${pesos(total)} — ver sus facturas →`}</title>
-          <rect x={c - 48} y={c - 15} width={96} height={30} rx={15} fill="#1f1f1d" />
-          <text x={c} y={c + 5} textAnchor="middle" fontSize={14} fontWeight={700} fill="#fff">
-            {pesos(total)}
+          <rect x={c - anchoPildora / 2} y={c - 15} width={anchoPildora} height={30} rx={15} fill="#1f1f1d" />
+          <text x={c} y={c + 5} textAnchor="middle" fontSize={fuente} fontWeight={700} fill="#fff">
+            {textoCentro}
           </text>
         </g>
       )}

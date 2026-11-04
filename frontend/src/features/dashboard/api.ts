@@ -77,6 +77,6 @@ export const mesLabel = (mes: string) =>
 export const mesCorto = (mes: string) =>
   new Date(`${mes}-01T12:00:00`).toLocaleDateString("es-MX", { month: "short" }).replace(".", "");
 export const pesos = (v: string | number) =>
-  Number(v).toLocaleString("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+  Number(v).toLocaleString("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const horaLocal = (iso: string) =>
   new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
