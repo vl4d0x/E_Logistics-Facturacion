@@ -144,3 +144,18 @@ class Acuse(TimestampMixin, table=True):
     subido_por: uuid.UUID | None = Field(default=None, foreign_key="usuario.id")
     subido_at: datetime = Field(nullable=False)
     client_action_id: uuid.UUID | None = Field(default=None, unique=True)
+
+
+class FotoEvidencia(TimestampMixin, table=True):
+    """Fotos de evidencia opcionales del servicio (cualquier cliente). No son el acuse: no cuentan
+    para "acuse pendiente"; solo se adjuntan al correo de la factura."""
+
+    __tablename__ = "foto_evidencia"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    servicio_id: uuid.UUID = Field(foreign_key="servicio.id", ondelete="CASCADE", nullable=False, index=True)
+    archivo_key: str = Field(nullable=False)
+    mime: str = Field(nullable=False)
+    nombre_original: str | None = Field(default=None)
+    subido_por: uuid.UUID | None = Field(default=None, foreign_key="usuario.id")
+    subido_at: datetime = Field(nullable=False)

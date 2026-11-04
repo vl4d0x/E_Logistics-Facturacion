@@ -28,6 +28,7 @@ import {
   IconAlertTriangle,
   IconDownload,
   IconFileSpreadsheet,
+  IconPhoto,
   IconPlus,
   IconSearch,
   IconTrash,
@@ -36,6 +37,7 @@ import {
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "../../components/Card";
+import { subirFotoEvidencia } from "../../components/FotosEvidencia";
 import { EnviarTodasButton } from "../facturas/components/EnviarTodasButton";
 import { TotalConIva } from "../../components/TotalConIva";
 import { api, ApiError } from "../../lib/api";
@@ -521,6 +523,7 @@ function FilaEditor({
   );
   const [intentado, setIntentado] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  const [fotos, setFotos] = useState<File[]>([]);
 
   const modoAcuse = propuesta.modo_acuse;
   const yaCreado = propuesta.servicio;
@@ -636,6 +639,20 @@ function FilaEditor({
             message: err instanceof ApiError ? err.message : "Súbelo desde Facturar.",
           });
         }
+      }
+      setSubiendo(false);
+    }
+    // Fotos de evidencia (opcionales): van en el correo de la factura.
+    if (fotos.length) {
+      setSubiendo(true);
+      for (const foto of fotos) {
+        await subirFotoEvidencia(servicio.id, foto).catch((err) =>
+          notifications.show({
+            color: "red",
+            title: `No se subió la foto ${foto.name}`,
+            message: err instanceof ApiError ? err.message : "Agrégala desde Facturar.",
+          }),
+        );
       }
       setSubiendo(false);
     }
@@ -843,6 +860,20 @@ function FilaEditor({
               </Card>
             );
           })}
+
+          <Card>
+            <FileInput
+              label="Fotos de evidencia (opcional)"
+              description="Se adjuntan al correo de la factura. Puedes elegir varias."
+              placeholder="Elegir fotos"
+              accept="image/*"
+              multiple
+              clearable
+              leftSection={<IconPhoto size={16} />}
+              value={fotos}
+              onChange={setFotos}
+            />
+          </Card>
 
           <Group justify="space-between" wrap="wrap" gap="sm">
             <Button variant="default" leftSection={<IconPlus size={16} />} onClick={agregarDestino}>

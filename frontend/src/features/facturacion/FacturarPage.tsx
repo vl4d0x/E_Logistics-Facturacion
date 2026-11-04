@@ -25,6 +25,7 @@ import { Card } from "../../components/Card";
 import { ApiError } from "../../lib/api";
 import { descargarFactura } from "../facturas/api";
 import { AcuseViewerSimple } from "./components/AcuseViewerSimple";
+import { FotosEvidenciaCard } from "../../components/FotosEvidencia";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { DesglosePrecio } from "./components/DesglosePrecio";
 import { MercanciasEditable, RutaEditable, UnidadOperadorEditable } from "./components/EdicionFacturar";
@@ -387,6 +388,8 @@ export function FacturarPage() {
                 modoAnticipado={detalle.modo === "anticipado"}
               />
             </Card>
+
+            <FotosEvidenciaCard servicioId={detalle.servicio_id} />
 
             <Card>
               <Stack gap="sm">

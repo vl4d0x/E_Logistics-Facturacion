@@ -243,6 +243,39 @@ async def agregar_acuse(
     return service.acuse_out(acuse)
 
 
+# --- Fotos de evidencia (opcionales, cualquier cliente; van al correo de la factura) ---
+@router.get("/servicios/{servicio_id}/fotos-evidencia")
+def listar_fotos_evidencia(servicio_id: uuid.UUID, session: Session = Depends(get_session)) -> list[dict]:
+    from app.modules.servicios import fotos
+
+    return [fotos.foto_out(f) for f in fotos.listar(session, servicio_id)]
+
+
+@router.post("/servicios/{servicio_id}/fotos-evidencia", status_code=201)
+async def agregar_foto_evidencia(
+    servicio_id: uuid.UUID,
+    request: Request,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> dict:
+    from app.modules.servicios import fotos
+
+    form = await request.form()
+    archivo = form.get("file")
+    if archivo is None or isinstance(archivo, str):
+        raise AppError("validation_error", "Falta el archivo", 422, details=[{"field": "file"}])
+    contenido = await archivo.read()
+    foto = fotos.agregar(session, servicio_id, contenido, archivo.content_type or "", archivo.filename, user.id)
+    return fotos.foto_out(foto)
+
+
+@router.delete("/fotos-evidencia/{foto_id}", status_code=204)
+def eliminar_foto_evidencia(foto_id: uuid.UUID, session: Session = Depends(get_session)) -> None:
+    from app.modules.servicios import fotos
+
+    fotos.eliminar(session, foto_id)
+
+
 @router.delete("/acuses/{acuse_id}", status_code=204)
 def eliminar_acuse(acuse_id: uuid.UUID, session: Session = Depends(get_session)) -> None:
     service.eliminar_acuse(session, acuse_id)

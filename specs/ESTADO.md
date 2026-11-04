@@ -150,6 +150,11 @@ Estas mandan sobre los specs numerados cuando difieran.
   (`pypdf`), nombre `FACT #<folio>-<NOMBRE COMERCIAL>_EVIDENCIA.pdf`.
 - **Asunto del correo de factura** (Vlad, 3 nov 2026), igual para todos: `FACT#<serie><folio> ELOGISTICS-<NOMBRE COMERCIAL>` (p. ej. `FACT#ELG4 ELOGISTICS-CHEMITAL`)
   (`facturas.asunto_factura`).
+- **Fotos de evidencia** (`foto_evidencia`, migración `0018`; `servicios/fotos.py`): opcionales, para **cualquier
+  cliente** (no dependen de `modo_acuse` ni cuentan como acuse). Se eligen en Facturar con Excel ("Fotos de
+  evidencia (opcional)", se suben al crear el servicio) y se ven/agregan/quitan en la pantalla Facturar. El
+  navegador las reduce a ≤1600 px JPEG antes de subirlas (HEIC que el navegador no lea va tal cual); máx. 10 por
+  servicio y 10 MB c/u. Van al correo de la factura como `FACT #<folio>-<CLIENTE>_EVIDENCIA_FOTO_<n>.jpg`.
 - **Todo correo (facturas y REP) lleva copia (CC) a `EMAIL_COPIA`** (default `e_logistics@outlook.com`; no se
   duplica si ya es destinatario).
 - **"Enviar todas"** (Facturar con Excel y Facturas; `GET /facturas/envio-pendiente`,
@@ -358,7 +363,8 @@ cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAX
 `0013` mercancía.declarar_material_peligroso (y su copia en viaje_mercancia) · `0014`
 cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes. · `0015`
 viaje.reescaneo_motivo/_solicitado_at/_solicitado_por. · `0016` Facturar con Excel (registro_excel*,
-viaje.sin_acuse). · `0017` factura sin servicio: cliente_id, origen, pagado_externo, parcialidades_externas.
+viaje.sin_acuse). · `0017` factura sin servicio: cliente_id, origen, pagado_externo, parcialidades_externas. ·
+`0018` foto_evidencia (fotos opcionales del servicio para el correo).
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

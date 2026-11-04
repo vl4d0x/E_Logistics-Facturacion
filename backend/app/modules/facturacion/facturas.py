@@ -499,6 +499,10 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
     acuses = session.exec(select(Acuse).where(Acuse.viaje_id.in_(viajes_ids))).all() if viajes_ids else []
     if cliente.modo_acuse == ModoAcuse.escaneo:
         adjuntos.extend(_adjuntos_evidencia(session, factura, servicio, cliente, acuses))
+    # Fotos de evidencia opcionales: para cualquier cliente.
+    from app.modules.servicios.fotos import adjuntos_correo
+
+    adjuntos.extend(adjuntos_correo(session, servicio.id, nombre_evidencia(factura, cliente)))
 
     try:
         enviados = enviar_correo(
