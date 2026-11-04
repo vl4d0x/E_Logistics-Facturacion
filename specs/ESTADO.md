@@ -148,7 +148,7 @@ Estas mandan sobre los specs numerados cuando difieran.
   Farmabiot y Lesaffre. Debajo del texto va la tabla del desglose (si está completo).
 - Correo de factura: XML + PDF + **un solo PDF de evidencia** con todos los acuses unidos
   (`pypdf`), nombre `FACT #<folio>-<NOMBRE COMERCIAL>_EVIDENCIA.pdf`.
-- **Asunto del correo de factura** (Vlad, 3 nov 2026), igual para todos: `FACT#<folio> ELOGISTICS-<NOMBRE COMERCIAL>`
+- **Asunto del correo de factura** (Vlad, 3 nov 2026), igual para todos: `FACT#<serie><folio> ELOGISTICS-<NOMBRE COMERCIAL>` (p. ej. `FACT#ELG4 ELOGISTICS-CHEMITAL`)
   (`facturas.asunto_factura`).
 - **Todo correo (facturas y REP) lleva copia (CC) a `EMAIL_COPIA`** (default `e_logistics@outlook.com`; no se
   duplica si ya es destinatario).

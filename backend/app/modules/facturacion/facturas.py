@@ -429,8 +429,8 @@ def _nombre_cliente_archivo(cliente: Cliente) -> str:
 
 
 def asunto_factura(factura: Factura, cliente: Cliente) -> str:
-    """`FACT#<folio> ELOGISTICS-<CLIENTE>` (Vlad, 3 nov 2026), igual para todos los clientes."""
-    return f"FACT#{factura.folio or ''} ELOGISTICS-{_nombre_cliente_archivo(cliente)}"
+    """`FACT#<serie><folio> ELOGISTICS-<CLIENTE>` (Vlad, 3 nov 2026), igual para todos los clientes."""
+    return f"FACT#{factura.serie or ''}{factura.folio or ''} ELOGISTICS-{_nombre_cliente_archivo(cliente)}"
 
 
 def nombre_evidencia(factura: Factura, cliente: Cliente) -> str:
