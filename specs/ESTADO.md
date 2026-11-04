@@ -3,7 +3,8 @@
 > **Para el siguiente agente.** Léelo después de `00-overview.md`. Resume en qué quedó el
 > proyecto, las decisiones que se tomaron con Vlad (que a veces cambian lo que dicen los specs
 > numerados) y lo que hay que saber para trabajar sin romper nada.
-> **Última actualización:** 3 nov 2026 · Facturar con Excel (migración `0016`).
+> **Última actualización:** 3 nov 2026 (noche) · Facturar con Excel, avisos de REF, importación del
+> Facturador Electrónico, dashboard con centavos (migraciones `0016`–`0017`, último commit `63d6a12`).
 
 ## 1. Estado general
 
@@ -55,6 +56,35 @@ operador que no esté en l_RFC.
 **Costos (páginas públicas de Facturama, nov 2026):** módulo API $1,650/año (API Web y
 Multiemisor); folios de API $0.50 c/u (1–10k), vigencia de 1 año; los "folios web" **no** sirven
 para la API. Unos 2 folios por servicio: factura + REP (todas son PPD).
+
+## 1.2 Pendientes inmediatos (al cierre del 3 nov 2026)
+
+Todo lo de abajo ya está en `master` y desplegado por push; **nada de esto se probó en producción** (solo en
+local con Postgres en Docker y el sandbox de Facturama).
+
+1. **Confirmar el deploy** de `0016`/`0017` (Railway corre `alembic upgrade head` en el pre-deploy). El agente
+   no pudo leer Railway (el permiso de la CLI fue denegado) ni encontró la URL del backend en el repo.
+2. **Importar en producción el reporte del Facturador** (Facturas → "Importar del Facturador",
+   `.misc/Emision_ZACE880207MC7_20230529_20261103.xlsx`). Lo hace Vlad desde la pantalla. En local dio 3,377
+   facturas: 3,153 vigentes (3,064 pagadas, 89 con saldo = **$600,830.86**, de ellos 2023 $108,584.00) y 224
+   canceladas. **Cuadra al centavo con el dashboard de Facturador.com** por año (2024 por cobrar $12,096.00,
+   2025 $128,469.74, 2026 $351,681.12) y en el top por cliente de 2026.
+3. **Completar CP y régimen fiscal** de los clientes que crea la importación (en local fueron 17: SAFMEX,
+   FORTA LAB, SUSTAINABLE TOMORROW, ALIANZAS AGSL, A.N.A. Seguros, Seguros SURA, etc.). Sin eso el REP responde
+   "Completa el código postal y el régimen fiscal…". AERZEN RENTAL ya existe en producción y debería ligarse solo.
+4. **Primer REP real** de monto bajo (tampoco se ha probado en producción) y validar su UUID en el SAT.
+5. Vlad preguntó qué hacer con las 89 facturas con saldo del Facturador (algunas de 2023): **sin respuesta aún**.
+   Opciones que se le ofrecieron: dejarlas, o marcarlas cobradas/incobrables (no existe esa función todavía).
+6. Pendientes anteriores que siguen: §1.1 pasos 1, 4, 5 y 6 (serie/CSD en Facturama producción, cancelación,
+   REP, quitar `EMAIL_MODO_PRUEBA`). Parece que ya se timbró la primera factura real: `.misc/factura.xml` es
+   `Serie="ELG" Folio="1"` del 3 nov 2026 16:02 (no confirmado con Vlad).
+
+**Reglas de operación que se le explicaron a Vlad** (que no se pierdan):
+- Desde ahora **cada pago se registra solo en la app nueva**; un REP del mismo pago en los dos sistemas
+  duplicaría el comprobante ante el SAT.
+- Si hace REP en el Facturador después de bajar el reporte, **re-importar antes** de registrar pagos aquí.
+- Los REP hechos aquí no aparecen en Facturador.com: ahí esas facturas seguirán "por cobrar". La app nueva es
+  la que lleva la cuenta buena.
 
 ## 2. Decisiones de negocio vigentes (11 oct 2026)
 
@@ -202,6 +232,7 @@ no bloquean). Lógica en `app/modules/servicios/referencias.py`:
   hacen en el Facturador (aquí responden 409). Cobranza, conciliación, REP (también mezclando facturas de ambos
   sistemas en un mismo pago) y dashboard las cuentan igual que las de la app. Probado: REP mixto timbrado en
   el sandbox.
+- Dashboard: todos los montos con dos decimales (pedido de Vlad para cuadrar con Facturador.com).
 - Un RFC que no está en Clientes se da de alta con la razón social del reporte y **CP/régimen fiscal vacíos**;
   el REP avisa que hay que completarlos. En local se crearon 17 (SAFMEX, FORTA LAB, SUSTAINABLE…).
 
@@ -257,6 +288,25 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 - Las líneas de los archivos están mezcladas LF/CRLF (`core.autocrlf=true`): al editar con
   regex, normaliza `\r\n`.
 
+## 5.1 Entorno local (PC Linux de Vlad, la de este agente del 3 nov)
+
+- `backend/.venv` con **Python 3.14**; `frontend/node_modules` instalado; **hay Docker** con la imagen
+  `postgres:16` (también `redis:7` y `seaweedfs`, sin usar). LibreOffice instalado (útil para abrir .xlsx).
+- `backend/.env` está en **sandbox** y su `DATABASE_URL` es el placeholder de Railway: para importar `app.main`
+  a mano usa `DATABASE_URL=sqlite://`. Tests: `mv .env .env.aside && pytest; mv .env.aside .env` (182 verdes).
+- **Las migraciones solo corren en Postgres** (usan `ARRAY`); en SQLite falla `alembic upgrade`. Receta usada:
+  `docker run -d --rm --name elog-mig-test -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16`, luego
+  `DATABASE_URL=postgresql+psycopg://postgres:test@localhost:55432/postgres alembic upgrade head`,
+  `python -m scripts.seed_catalogos ../.misc/catalogos-fase1.yaml ../.misc/lugares-fase1.yaml` y un admin de
+  prueba creado con `hash_password`. `--rm`: al hacer `docker stop` la base se borra.
+- Backend local: un script (en el scratchpad, no en el repo) que fija ese `DATABASE_URL`, vacía `R2_*` y
+  `RESEND_API_KEY`, pone `EMAIL_MODO_PRUEBA=true`, `CORS_ORIGINS=http://localhost:5174`, reemplaza
+  `storage.subir_archivo/leer_archivo/url_firmada/eliminar_archivo` (y `servicios.router.subir_archivo`) por
+  versiones en disco con una ruta `/__r2/{key}` para servirlas, y arranca uvicorn en el 8001. Facturama queda
+  en sandbox (del `.env`).
+- Frontend local: `VITE_API_URL=http://localhost:8001 frontend/node_modules/.bin/vite <ruta>/frontend --port 5174`.
+- Recorridos con Playwright (`require("…/frontend/node_modules/playwright")`) a 1280 y 390 px.
+
 ## 6. Trampas que ya mordieron
 
 - **La PWA servía la versión vieja** tras cada deploy. Desde `34720e1` la app muestra
@@ -265,6 +315,18 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 - El sandbox de Facturama valida estricto con CSD real: nombre del receptor = RFC, `RFCFigura`
   en l_RFC. Para pruebas usar el receptor ficticio del SAT `EKU9003173C9` / `ESCUELA KEMPER URGATE` / CP 42501.
 - `.misc/` (gitignored) tiene el Excel `CartaPorte.xlsx`; no hay `.misc/PENDIENTES-VLAD.md` en esta PC.
+  En la PC Linux sí hay `PENDIENTES-VLAD.md`, `DatosCartaPorte.xlsx`, `REGISTROS ELOGISTICS 2024.xlsx`
+  (registro de servicios, hoja `Hoja1`), `Emision_ZACE880207MC7_….xlsx` (reporte del Facturador) y `factura.xml`.
+- **openpyxl pierde dibujos, comentarios y otras partes al re-guardar un .xlsx**: por eso "Descargar con
+  facturas" edita el XML de la hoja dentro del zip (`registro_excel/excel.py`). No cambiarlo a `wb.save()`.
+- `npx vite` lanzado desde otra carpeta **descarga otro Vite** y sirve 404: usar el binario de
+  `frontend/node_modules/.bin/vite` con la ruta del proyecto.
+- `pkill -f <algo>` dentro de un comando que contiene ese mismo texto mata al propio shell (exit 144).
+- `railway domain` está bloqueado por el clasificador de permisos (puede crear un dominio). No hay URL del
+  backend en el repo: pedírsela a Vlad si hace falta verificar `/health`.
+- En la búsqueda de destinos, unir dos palabras ("THYSSEN"+"KRUPP") con la regla de prefijo daba falsos
+  positivos ("DISTRIBUIDORA MARGA" → VASSA DIVASSA): la unión solo acepta coincidencia exacta o casi exacta.
+  El script de prueba con los destinos reales del Excel está descrito en `test_registro_excel.py`.
 
 ## 7. Migraciones agregadas en esta sesión
 
@@ -282,3 +344,7 @@ Base SQLite local con los catálogos **copiados de producción por API (solo GET
 (el mismo de producción), R2 simulado en disco y correo en modo prueba forzado; la UI se recorrió con
 Playwright como admin (1280 px) y como operador (390 px). Así se pueden crear servicios y timbrar sin
 dejar datos de prueba en la base real.
+
+Desde el 3 nov (PC Linux) se hace igual pero con **Postgres 16 en Docker** (§5.1), que también prueba las
+migraciones (subir, bajar y volver a subir `0016`/`0017`, con una factura existente para el relleno de
+`cliente_id`). El REP mixto (factura del Facturador + factura de la app) se timbró de verdad en el sandbox.
