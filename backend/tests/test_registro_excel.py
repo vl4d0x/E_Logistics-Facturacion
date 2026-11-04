@@ -177,3 +177,59 @@ def test_sin_excel_y_archivo_invalido(client: TestClient, admin_user: Usuario):
     assert client.get(f"{API}/registro-excel/filas/2", headers=h).status_code == 404
     r = client.post(f"{API}/registro-excel", files={"file": ("x.xlsx", b"hola", "application/octet-stream")}, headers=h)
     assert r.status_code == 422
+
+
+# --- Regla de negocio: SAFMEX se factura a LESAFFRE --------------------------------------
+
+def _cliente_api(client, h, nombre, rfc):
+    return client.post(
+        f"{API}/catalogos/clientes",
+        json={"razon_social": nombre, "nombre_comercial": nombre, "rfc": rfc, "cp_fiscal": "50246",
+              "regimen_fiscal": "601", "regimen_receptor": "moral", "modo_acuse": "escaneo"},
+        headers=h,
+    ).json()
+
+
+def test_safmex_se_factura_a_lesaffre(client: TestClient, admin_user: Usuario):
+    h = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, h)
+    lesaffre = _cliente_api(client, h, "LESAFFRE MEXICO", "LMA200417HY5")
+    safmex = _cliente_api(client, h, "SAFMEX", "SAF810323HF8")
+    planta = client.post(
+        f"{API}/catalogos/lugares",
+        json={"cliente_id": lesaffre["id"], "nombre": "LESAFFRE MEXICO", "estado": "MEX", "codigo_postal": "50246",
+              "es_origen_predeterminado": True},
+        headers=h,
+    ).json()
+    r = client.post(f"{API}/registro-excel", files={"file": ("R.xlsx", _xlsx([
+        [date(2026, 10, 30), "SAFMEX", "ENRIQUE", "ENRIQUE", "KR9417A", "SAFMEX", "BIMBO", 3500],
+        [date(2026, 10, 31), "SAFMEX BERTHA", "ENRIQUE", "ENRIQUE", "KR9417A", "Safmex", "BIMBO", 3500],
+    ]), "application/octet-stream")}, headers=h)
+    assert r.status_code == 200, r.text
+    for fila in (2, 3):
+        p = client.get(f"{API}/registro-excel/filas/{fila}", headers=h).json()
+        assert p["cliente"]["id"] == lesaffre["id"] and p["cliente"]["fuente"] == "regla"
+        assert p["origen"]["lugar"]["id"] == planta["id"]
+        assert any("se factura a LESAFFRE" in a for a in p["avisos"])
+
+    # Aunque se elija SAFMEX a mano, no se crea el servicio.
+    body = {
+        "cliente_id": safmex["id"], "unidad_id": cat["unidad"]["id"], "operador_id": cat["operador"]["id"],
+        "fecha": "2026-10-30", "subtotal": "3500",
+        "origen": {"lugar_id": cat["destino"]["id"]},
+        "destinos": [{"lugar_id": cat["destino"]["id"], "sin_acuse": True}],
+    }
+    r = client.post(f"{API}/registro-excel/filas/2/servicio", json=body, headers=h)
+    assert r.status_code == 422 and "Nunca se factura a SAFMEX" in r.json()["error"]["message"]
+
+    # Y un servicio de SAFMEX creado por otro camino no se puede timbrar.
+    s = client.post(f"{API}/servicios", json={
+        "cliente_id": safmex["id"], "unidad_id": cat["unidad"]["id"], "operador_id": cat["operador"]["id"],
+        "fecha": "2026-10-30", "subtotal": "3500",
+        "viajes": [{"tipo": "recoleccion", "origen_lugar_id": cat["destino"]["id"]},
+                   {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"], "distancia_km": 70}],
+    }, headers=h).json()
+    checks = {c["regla"]: c for c in client.get(f"{API}/servicios/{s['id']}/validar", headers=h).json()["checks"]}
+    assert checks["rfc_no_facturable"]["nivel"] == "error" and "LESAFFRE" in checks["rfc_no_facturable"]["mensaje"]
+    r = client.post(f"{API}/servicios/{s['id']}/facturar", json={"total_esperado": "3920.00"}, headers=h)
+    assert r.status_code == 409 and any(d["issue"] == "rfc_no_facturable" for d in r.json()["error"]["details"])

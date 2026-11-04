@@ -127,6 +127,14 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         else:
             checks.append(_ok("servicio_terminado", "estado"))
 
+    # --- RFC al que nunca se factura (SAFMEX → se factura a LESAFFRE) ---
+    from app.modules.catalogos.reglas import motivo_no_facturable
+
+    if (motivo := motivo_no_facturable(cliente.rfc)) is not None:
+        checks.append(_error("rfc_no_facturable", motivo, "receptor"))
+    else:
+        checks.append(_ok("rfc_no_facturable", "receptor"))
+
     # --- Sin factura vigente ---
     if datos_fiscales_bloqueados(session, servicio):
         checks.append(_error("sin_factura_vigente", "Ya existe una factura vigente para este servicio"))

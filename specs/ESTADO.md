@@ -197,6 +197,12 @@ filtros `acuses_pendientes` / `inspeccion_fallas` ya funcionan (antes se ignorab
   se **recuerda** (`registro_excel_alias`) para la siguiente vez.
 - Destino que no está en el catálogo: se da de alta en los lugares del cliente con **RFC XAXX010101000,
   estado MEX, CP 50000 (editable) y 70 km**.
+- **Regla de negocio: SAFMEX se factura a LESAFFRE** (Vlad, 3 nov 2026). Si la columna CLIENTE del Excel dice
+  "SAFMEX" (también "SAFMEX BERTHA"), el cliente es LESAFFRE (`LMA200417HY5`) siempre, por encima de lo
+  recordado (`matching.CLIENTE_ALIAS_FIJOS`), y un origen "SAFMEX" es el origen predeterminado de Lesaffre.
+  **Jamás se timbra al RFC de SAFMEX (`SAF810323HF8`)**: `catalogos/reglas.RFC_NO_FACTURABLES` → error
+  `rfc_no_facturable` en la validación (bloquea Facturar desde cualquier camino) y 422 al crear desde el Excel.
+  Las facturas viejas a SAFMEX del Facturador sí pueden recibir su REP.
 - "**No tiene REF / escaneo**" por destino (`viaje.sin_acuse`): no se exige acuse y en el concepto no se
   pone nada en la REF (si ningún destino tiene REF, no va el renglón). También se marca desde Facturar →
   Acuses (`PUT /viajes/{id}/sin-acuse`).

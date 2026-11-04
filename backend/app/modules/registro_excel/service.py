@@ -17,6 +17,7 @@ from app.modules.catalogos.service import clientes_del_catalogo
 from app.modules.facturacion.models import EstadoFactura, Factura
 from app.modules.registro_excel import excel
 from app.modules.registro_excel.matching import (
+    CLIENTE_ALIAS_FIJOS,
     UMBRAL_ALTA,
     UMBRAL_MEDIA,
     UNIDAD_ALIAS_FIJOS,
@@ -224,8 +225,21 @@ def _elegido(objetivo_id, nombre, score: float, fuente: str) -> dict:
     return {"id": objetivo_id, "nombre": nombre, "score": round(score, 2), "confianza": confianza(score), "fuente": fuente}
 
 
+def _regla_cliente(texto: str) -> str | None:
+    """RFC fijo por regla de negocio ("SAFMEX" → LESAFFRE) si el texto del Excel la trae."""
+    palabras = set(normalizar(texto).split())
+    for clave, rfc in CLIENTE_ALIAS_FIJOS.items():
+        if set(clave.split()) <= palabras:
+            return rfc
+    return None
+
+
 def _buscar_cliente(session: Session, texto: str) -> dict | None:
     clientes = session.exec(select(Cliente).where(Cliente.activo == True)).all()
+    if (rfc := _regla_cliente(texto)) is not None:  # manda sobre lo recordado y lo parecido
+        c = next((c for c in clientes if c.rfc.upper() == rfc), None)
+        if c is not None:
+            return _elegido(c.id, c.nombre_comercial, 1.0, "regla")
     alias = _alias(session, "cliente", texto)
     if alias and (c := next((c for c in clientes if c.id == alias), None)):
         return _elegido(c.id, c.nombre_comercial, 1.0, "recordado")
@@ -399,6 +413,8 @@ def propuesta(session: Session, numero_fila: int, cliente_id: uuid.UUID | None =
         cliente_p = _elegido(elegido.id, elegido.nombre_comercial, 1.0, "elegido")
     operador_p, operadores_excel = _buscar_operador(session, d.get("operador") or "")
     unidad_p = _buscar_unidad(session, d.get("unidad") or "")
+    if cliente_p is not None and cliente_p["fuente"] == "regla":
+        avisos.append(f"El Excel dice “{d.get('cliente')}”: por regla se factura a {cliente_p['nombre']}")
     if cliente_p is None:
         avisos.append(f"El cliente “{d.get('cliente') or '—'}” no está en el catálogo: elígelo o dalo de alta")
     if operador_p is None:
@@ -431,7 +447,16 @@ def propuesta(session: Session, numero_fila: int, cliente_id: uuid.UUID | None =
         origen = _propuesta_lugar(session, texto_origen, indice, lugares, dueno)
         if predeterminado is not None and origen["fuente"] != "recordado":
             nombre_cliente = Indice([Candidato(cliente.id, cliente.nombre_comercial, alias=[cliente.razon_social])])
-            if not texto_origen or nombre_cliente.puntaje(texto_origen, nombre_cliente.candidatos[0]) >= UMBRAL_ALTA:
+            # El origen es el cliente mismo: su nombre, o lo que el Excel puso como cliente ("SAFMEX" de Lesaffre).
+            mismo_que_excel = bool(texto_origen) and (
+                normalizar(texto_origen) == normalizar(d.get("cliente"))
+                or (_regla_cliente(texto_origen) is not None and _regla_cliente(texto_origen) == _regla_cliente(d.get("cliente") or ""))
+            )
+            if (
+                not texto_origen
+                or mismo_que_excel
+                or nombre_cliente.puntaje(texto_origen, nombre_cliente.candidatos[0]) >= UMBRAL_ALTA
+            ):
                 origen.update(lugar=_lugar_out(predeterminado), score=1.0, confianza="alta", fuente="predeterminado")
 
         destinos = []
@@ -526,6 +551,10 @@ def crear_servicio(session: Session, numero_fila: int, data: CrearDesdeFilaIn, u
     cliente = session.get(Cliente, data.cliente_id)
     if cliente is None:
         raise _no_encontrado("Cliente no encontrado")
+    from app.modules.catalogos.reglas import motivo_no_facturable
+
+    if (motivo := motivo_no_facturable(cliente.rfc)) is not None:
+        raise AppError("validation_error", motivo, 422, details=[{"field": "cliente_id", "issue": "rfc_no_facturable"}])
 
     origen, _ = _resolver_lugar(session, data.origen, cliente)
     destinos = [_resolver_lugar(session, d, cliente)[0] for d in data.destinos]

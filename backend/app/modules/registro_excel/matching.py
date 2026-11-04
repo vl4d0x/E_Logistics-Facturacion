@@ -285,3 +285,9 @@ UNIDAD_ALIAS_FIJOS = {
     "KICKS": "KR9417A",
     "KICKS GRIS": "KR9417A",
 }
+
+# Reglas de negocio de clientes (Vlad, 3 nov 2026): lo que el Excel llama "SAFMEX" se factura a
+# LESAFFRE. Texto del Excel → RFC del cliente al que se factura. Manda sobre lo recordado.
+CLIENTE_ALIAS_FIJOS = {
+    "SAFMEX": "LMA200417HY5",  # LESAFFRE MEXICO
+}
