@@ -155,6 +155,7 @@ def test_enviar_correo_con_adjuntos(client: TestClient, admin_user: Usuario, mon
     assert msg["to"] == ["cliente@x.mx"]
     assert msg["reply_to"] == "e_logistics@outlook.com"
     assert "cc" not in msg  # sin EMAIL_COPIA configurado
+    assert msg["subject"] == "FACT#7 ELOGISTICS-CHEMITAL"
     assert [a["filename"] for a in msg["attachments"]] == ["ELG7_CME091007LG1.xml", "ELG7_CME091007LG1.pdf"]
     assert r.json()["enviado_at"] is not None and r.json()["envio_destinatarios"] == ["cliente@x.mx"]
 
@@ -176,7 +177,7 @@ def test_modo_prueba_redirige_el_correo_al_buzon_de_prueba(client: TestClient, a
     assert r.status_code == 200, r.text
     msg = enviado.call_args.args[0]
     assert msg["to"] == ["prueba@elogistics.mx"]  # nunca al cliente
-    assert msg["subject"].startswith("[PRUEBA] Factura ELG7")
+    assert msg["subject"] == "[PRUEBA] FACT#7 ELOGISTICS-CHEMITAL"
     assert "cliente@x.mx" in msg["html"] and "MODO PRUEBA" in msg["html"]
     assert r.json()["envio_destinatarios"] == ["prueba@elogistics.mx"]
     assert r.json()["enviado_at"] is None  # el cliente no la recibió: sigue "sin enviar"

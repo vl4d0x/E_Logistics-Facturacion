@@ -424,6 +424,15 @@ def enviar_correo(*, destinatarios: list[str], asunto: str, html: str, adjuntos:
 
 
 
+def _nombre_cliente_archivo(cliente: Cliente) -> str:
+    return re.sub(r'[\/:*?"<>|]+', " ", (cliente.nombre_comercial or cliente.razon_social).upper()).strip()
+
+
+def asunto_factura(factura: Factura, cliente: Cliente) -> str:
+    """`FACT#<folio> ELOGISTICS-<CLIENTE>` (Vlad, 3 nov 2026), igual para todos los clientes."""
+    return f"FACT#{factura.folio or ''} ELOGISTICS-{_nombre_cliente_archivo(cliente)}"
+
+
 def nombre_evidencia(factura: Factura, cliente: Cliente) -> str:
     """`FACT #<folio Elogistics>-<CLIENTE>_EVIDENCIA.pdf` (sin caracteres que rompan un nombre de archivo)."""
     nombre = re.sub(r'[\/:*?"<>|]+', " ", (cliente.nombre_comercial or cliente.razon_social).upper()).strip()
@@ -494,7 +503,7 @@ def enviar(session: Session, factura: Factura, para: list[str] | None) -> Factur
     try:
         enviados = enviar_correo(
             destinatarios=destinatarios,
-            asunto=f"Factura {factura.serie or ''}{factura.folio or ''} · Servicio #{servicio.numero} · Elogistics",
+            asunto=asunto_factura(factura, cliente),
             html=_cuerpo_correo(session, factura, servicio, cliente),
             adjuntos=adjuntos,
         )
