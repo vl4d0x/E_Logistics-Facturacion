@@ -342,6 +342,8 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 - `npx vite` lanzado desde otra carpeta **descarga otro Vite** y sirve 404: usar el binario de
   `frontend/node_modules/.bin/vite` con la ruta del proyecto.
 - `pkill -f <algo>` dentro de un comando que contiene ese mismo texto mata al propio shell (exit 144).
+- **Para confirmar un deploy** sirve el MCP de Railway (`list-deployments`, solo lectura): proyecto
+  `dynamic-connection` (`ab76d72f-1b02-4b11-8a40-54d7d635a996`), un deploy por servicio (backend y frontend) por commit.
 - `railway domain` está bloqueado por el clasificador de permisos (puede crear un dominio). No hay URL del
   backend en el repo: pedírsela a Vlad si hace falta verificar `/health`.
 - En la búsqueda de destinos, unir dos palabras ("THYSSEN"+"KRUPP") con la regla de prefijo daba falsos
