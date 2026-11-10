@@ -73,6 +73,8 @@ export interface FacturasFiltros {
   estado: string;
   mes: string;
   origen?: string;
+  desde?: string;
+  hasta?: string;
 }
 
 const toastError = (title: string) => (err: unknown) =>
@@ -89,6 +91,8 @@ export function useFacturas(filtros: FacturasFiltros) {
   if (filtros.estado) params.set("estado", filtros.estado);
   if (filtros.mes) params.set("mes", filtros.mes);
   if (filtros.origen) params.set("origen", filtros.origen);
+  if (filtros.desde) params.set("desde", filtros.desde);
+  if (filtros.hasta) params.set("hasta", filtros.hasta);
   return useQuery({
     queryKey: ["facturas", "list", filtros],
     queryFn: () => api.get<FacturaResumen[]>(`/api/v1/facturas?${params}`),

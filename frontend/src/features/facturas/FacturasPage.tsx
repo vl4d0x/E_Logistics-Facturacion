@@ -11,14 +11,22 @@ import { CancelarFacturaModal } from "./components/CancelarFacturaModal";
 import { EnviarTodasButton } from "./components/EnviarTodasButton";
 import { ESTADO_FACTURA, pesos } from "./format";
 
+/** Último día del mes "AAAA-MM" como AAAA-MM-DD. */
+function finDeMes(mes: string): string {
+  const [a, m] = mes.split("-").map(Number);
+  return `${mes}-${String(new Date(a, m, 0).getDate()).padStart(2, "0")}`;
+}
+
 export function FacturasPage() {
   const navigate = useNavigate();
   const [estado, setEstado] = useState("");
   const [params] = useSearchParams();
-  const [mes, setMes] = useState(params.get("mes_emision") ?? "");
-  const mesValido = /^\d{4}-\d{2}$/.test(mes) ? mes : "";
+  // El enlace del dashboard trae un mes (AAAA-MM): se convierte al rango de ese mes.
+  const mesInicial = /^\d{4}-\d{2}$/.test(params.get("mes_emision") ?? "") ? params.get("mes_emision")! : "";
+  const [desde, setDesde] = useState(mesInicial ? `${mesInicial}-01` : "");
+  const [hasta, setHasta] = useState(mesInicial ? finDeMes(mesInicial) : "");
   const [origen, setOrigen] = useState("");
-  const { data: facturas, isLoading } = useFacturas({ estado, mes: mesValido, origen });
+  const { data: facturas, isLoading } = useFacturas({ estado, mes: "", origen, desde, hasta });
   const [cancelando, setCancelando] = useState<FacturaResumen | null>(null);
   const importar = useImportarFacturador();
   const [resultado, setResultado] = useState<ResultadoImportacion | null>(null);
@@ -35,7 +43,13 @@ export function FacturasPage() {
           value={estado || null}
           onChange={(v) => setEstado(v ?? "")}
         />
-        <TextInput placeholder="Mes (AAAA-MM)" value={mes} onChange={(e) => setMes(e.currentTarget.value)} maw={150} />
+        <TextInput type="date" aria-label="Desde" title="Emitidas desde" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.currentTarget.value)} maw={160} />
+        <TextInput type="date" aria-label="Hasta" title="Emitidas hasta" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.currentTarget.value)} maw={160} />
+        {(desde || hasta) && (
+          <Button variant="subtle" size="compact-sm" onClick={() => { setDesde(""); setHasta(""); }}>
+            Quitar fechas
+          </Button>
+        )}
         <Select
           placeholder="Todos los sistemas"
           clearable

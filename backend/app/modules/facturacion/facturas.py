@@ -129,6 +129,8 @@ def listar(
     cliente_id: uuid.UUID | None,
     mes: str | None,
     origen: str | None = None,
+    desde: str | None = None,
+    hasta: str | None = None,
 ) -> list[dict]:
     stmt = (
         select(Factura, Servicio, Cliente)
@@ -151,6 +153,19 @@ def listar(
         fin = inicio.replace(year=inicio.year + (inicio.month == 12), month=inicio.month % 12 + 1)
         inicio, fin = inicio.astimezone(UTC), fin.astimezone(UTC)
         stmt = stmt.where(Factura.fecha_emision >= inicio, Factura.fecha_emision < fin)
+    # Rango por día (YYYY-MM-DD, ambos inclusivos, en hora de México).
+    if desde:
+        try:
+            d = datetime.strptime(desde, "%Y-%m-%d").replace(tzinfo=MX)
+        except ValueError as exc:
+            raise AppError("validation_error", "desde debe tener formato YYYY-MM-DD", 422) from exc
+        stmt = stmt.where(Factura.fecha_emision >= d.astimezone(UTC))
+    if hasta:
+        try:
+            h = datetime.strptime(hasta, "%Y-%m-%d").replace(tzinfo=MX) + timedelta(days=1)
+        except ValueError as exc:
+            raise AppError("validation_error", "hasta debe tener formato YYYY-MM-DD", 422) from exc
+        stmt = stmt.where(Factura.fecha_emision < h.astimezone(UTC))
     filas = session.exec(
         stmt.order_by(Factura.fecha_emision.desc().nulls_first(), Factura.created_at.desc())
     ).all()

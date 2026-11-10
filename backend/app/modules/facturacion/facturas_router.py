@@ -31,9 +31,11 @@ def listar(
     cliente_id: uuid.UUID | None = None,
     mes: str | None = Query(default=None, description="YYYY-MM de emisión"),
     origen: str | None = Query(default=None, description="app | facturador"),
+    desde: str | None = Query(default=None, description="YYYY-MM-DD, emisión desde (inclusive)"),
+    hasta: str | None = Query(default=None, description="YYYY-MM-DD, emisión hasta (inclusive)"),
     session: Session = Depends(get_session),
 ) -> list[dict[str, Any]]:
-    return svc.listar(session, estado, cliente_id, mes, origen)
+    return svc.listar(session, estado, cliente_id, mes, origen, desde, hasta)
 
 
 @router.post("/importar-facturador")
