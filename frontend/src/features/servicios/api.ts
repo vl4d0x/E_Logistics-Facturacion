@@ -29,6 +29,8 @@ export interface FiltrosServicios {
   q?: string;
   acuses_pendientes?: boolean;
   inspeccion_fallas?: boolean;
+  fecha_desde?: string;
+  fecha_hasta?: string;
 }
 
 function buildParams(filtros: FiltrosServicios, extra: Record<string, string> = {}): string {
@@ -38,6 +40,8 @@ function buildParams(filtros: FiltrosServicios, extra: Record<string, string> = 
   if (filtros.operador_id) params.set("operador_id", filtros.operador_id);
   if (filtros.unidad_id) params.set("unidad_id", filtros.unidad_id);
   if (filtros.q) params.set("q", filtros.q);
+  if (filtros.fecha_desde) params.set("fecha_desde", filtros.fecha_desde);
+  if (filtros.fecha_hasta) params.set("fecha_hasta", filtros.fecha_hasta);
   if (filtros.acuses_pendientes) params.set("acuses_pendientes", "true");
   if (filtros.inspeccion_fallas) params.set("inspeccion_fallas", "true");
   return params.toString();

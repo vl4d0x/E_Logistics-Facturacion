@@ -52,6 +52,8 @@ export function ServiciosPage() {
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [operadorId, setOperadorId] = useState<string | null>(null);
   const [unidadId, setUnidadId] = useState<string | null>(null);
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   // Filtros que abre el dashboard ("Acuses faltantes", "Inspecciones con fallas").
   const [acusesPendientes, setAcusesPendientes] = useState(params.get("acuses_pendientes") === "true");
   const [inspeccionFallas, setInspeccionFallas] = useState(params.get("inspeccion_fallas") === "true");
@@ -63,10 +65,12 @@ export function ServiciosPage() {
       operador_id: operadorId,
       unidad_id: unidadId,
       q,
+      fecha_desde: fechaDesde,
+      fecha_hasta: fechaHasta,
       acuses_pendientes: acusesPendientes,
       inspeccion_fallas: inspeccionFallas,
     }),
-    [vista, clienteId, operadorId, unidadId, q, acusesPendientes, inspeccionFallas],
+    [vista, clienteId, operadorId, unidadId, q, fechaDesde, fechaHasta, acusesPendientes, inspeccionFallas],
   );
 
   const { data, isLoading, isError } = useServicios(filtros);
@@ -118,6 +122,13 @@ export function ServiciosPage() {
           onChange={(e) => setQ(e.currentTarget.value)}
           w={260}
         />
+        <TextInput type="date" aria-label="Desde" title="Servicios desde" value={fechaDesde} max={fechaHasta || undefined} onChange={(e) => setFechaDesde(e.currentTarget.value)} w={150} />
+        <TextInput type="date" aria-label="Hasta" title="Servicios hasta" value={fechaHasta} min={fechaDesde || undefined} onChange={(e) => setFechaHasta(e.currentTarget.value)} w={150} />
+        {(fechaDesde || fechaHasta) && (
+          <Button variant="subtle" size="compact-sm" onClick={() => { setFechaDesde(""); setFechaHasta(""); }}>
+            Quitar fechas
+          </Button>
+        )}
         <Chip checked={acusesPendientes} onChange={setAcusesPendientes} color="orange" variant="light">
           Acuses pendientes / re-escaneo
         </Chip>
