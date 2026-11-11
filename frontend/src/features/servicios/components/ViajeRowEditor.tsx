@@ -114,8 +114,10 @@ export function ViajeRowEditor({
   // el lugar donde se recoge. Se dispara al elegir el lugar a mano o al precargarse solo (el
   // origen predeterminado del cliente).
   const lugarDelKm = requiereDestino ? viaje.destino_lugar_id : viaje.origen_lugar_id;
+  // Un viaje ya guardado (modo editar) conserva su km tal cual: solo se sugiere si se cambia el lugar.
+  const lugarGuardado = useRef<string | null | undefined>(viaje.key.startsWith("nuevo-") ? undefined : lugarDelKm);
   useEffect(() => {
-    if (lugarDelKm) void sugerirKm(lugarDelKm);
+    if (lugarDelKm && lugarDelKm !== lugarGuardado.current) void sugerirKm(lugarDelKm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lugarDelKm]);
 

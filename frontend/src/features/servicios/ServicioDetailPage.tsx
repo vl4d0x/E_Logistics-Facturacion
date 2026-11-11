@@ -20,6 +20,7 @@ import {
   IconBrandWhatsapp,
   IconCheck,
   IconDotsVertical,
+  IconPencil,
   IconRestore,
   IconTrash,
   IconUpload,
@@ -310,6 +311,14 @@ export function ServicioDetailPage() {
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
+              {puedeEditar && (
+                <Menu.Item
+                  leftSection={<IconPencil size={14} />}
+                  onClick={() => navigate(`/admin/servicios/${servicio.id}/editar`)}
+                >
+                  Editar
+                </Menu.Item>
+              )}
               <Menu.Item onClick={() => setDuplicarAbierto(true)}>Duplicar</Menu.Item>
               {servicio.acciones_permitidas.includes("marcar_terminado") && (
                 <Menu.Item onClick={() => marcarTerminado.mutate()}>Marcar terminado</Menu.Item>

@@ -61,6 +61,7 @@ export function AppRouter() {
           <Route path="servicios" element={<ServiciosPage />} />
           <Route path="servicios/nuevo" element={<ServicioFormPage />} />
           <Route path="servicios/:id" element={<ServicioDetailPage />} />
+          <Route path="servicios/:id/editar" element={<ServicioFormPage />} />
           <Route path="servicios/:id/facturar" element={<FacturarPage />} />
           <Route path="facturar-excel" element={<FacturarExcelPage />} />
           <Route path="facturas" element={<FacturasPage />} />

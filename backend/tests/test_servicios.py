@@ -1,8 +1,12 @@
 """Tests de servicios y viajes — `fase-2-servicios §Definición de terminado`."""
 
+import uuid
+
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from app.modules.auth.models import Usuario
+from app.modules.facturacion.models import EstadoFactura, Factura
 
 API = "/api/v1"
 
@@ -510,3 +514,98 @@ def test_acuse_escaneado_solo_un_pdf(client: TestClient, admin_user: Usuario, mo
         assert r.status_code == 201, r.text
     acuses = client.get(f"{API}/servicios/{s['id']}", headers=headers).json()["viajes"][1]["acuses"]
     assert len([a for a in acuses if a["tipo"] == "escaneo"]) == 1  # el segundo reemplaza al primero
+
+
+def test_editar_servicio_completo_como_lo_hace_la_pantalla(
+    client: TestClient, admin_user: Usuario, session: Session
+):
+    """Mismo orden que la pantalla Editar: cabecera, quitar, modificar y agregar viajes."""
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    otro_destino = client.post(
+        f"{API}/catalogos/lugares",
+        json={"nombre": "Qualtia", "estado": "MEX", "codigo_postal": "54000"},
+        headers=headers,
+    ).json()
+    otra_unidad = client.post(
+        f"{API}/catalogos/unidades",
+        json={"apodo": "Nissan Gris", "placa": "AB1234C", "config_vehicular": "VL",
+              "peso_bruto_vehicular": 0.5, "perm_sct": "TPAF14", "num_permiso_sct": "XYZ123"},
+        headers=headers,
+    ).json()
+    s = client.post(
+        f"{API}/servicios",
+        json=_servicio_payload(
+            cat,
+            viajes=[
+                {"tipo": "recoleccion", "origen_lugar_id": cat["origen"]["id"]},
+                {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"], "distancia_km": 70},
+                {"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"], "distancia_km": 70},
+            ],
+        ),
+        headers=headers,
+    ).json()
+    sid = s["id"]
+    origen, entrega1, entrega2 = (v["id"] for v in s["viajes"])
+
+    # 1) cabecera: unidad, fecha, notas y precio
+    r = client.patch(
+        f"{API}/servicios/{sid}",
+        json={"unidad_id": otra_unidad["id"], "fecha": "2026-11-05", "notas": "cambio", "subtotal": 4600},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    # 2) quitar la segunda entrega, 3) cambiar el destino/km/CP de la primera, 4) agregar otra
+    assert client.delete(f"{API}/viajes/{entrega2}", headers=headers).status_code == 204
+    r = client.patch(
+        f"{API}/viajes/{entrega1}",
+        json={"destino_lugar_id": otro_destino["id"], "distancia_km": 220, "destino_cp": "50000",
+              "notas_admin": "portón 3"},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(
+        f"{API}/servicios/{sid}/viajes",
+        json={"tipo": "entrega", "destino_lugar_id": cat["destino"]["id"], "distancia_km": 15},
+        headers=headers,
+    )
+    assert r.status_code == 201, r.text
+
+    d = client.get(f"{API}/servicios/{sid}", headers=headers).json()
+    assert d["unidad"]["apodo"] == "Nissan Gris" and d["fecha"] == "2026-11-05"
+    assert d["notas"] == "cambio" and float(d["subtotal"]) == 4600
+    assert [v["tipo"] for v in d["viajes"]] == ["recoleccion", "entrega", "entrega"]
+    assert d["viajes"][0]["id"] == origen
+    e1, e2 = d["viajes"][1], d["viajes"][2]
+    assert (e1["destino"]["nombre"], e1["distancia_km"], e1["destino_cp"], e1["notas_admin"]) == (
+        "Qualtia", 220, "50000", "portón 3")
+    assert (e2["destino"]["nombre"], e2["distancia_km"]) == ("Tiendas Express", 15)
+    assert d["estado"] == "programado" and "cancelar" in d["acciones_permitidas"]
+
+    # Quitar el CP propio y el km: null explícito los borra.
+    client.patch(f"{API}/viajes/{entrega1}", json={"destino_cp": None, "distancia_km": None}, headers=headers)
+    e1 = client.get(f"{API}/servicios/{sid}", headers=headers).json()["viajes"][1]
+    assert e1["destino_cp"] is None and e1["distancia_km"] is None
+
+    # Un viaje terminado también se corrige (lugar y km).
+    client.post(f"{API}/viajes/{entrega1}/terminar", json={"referencia_acuse": "F-1"}, headers=headers)
+    r = client.patch(f"{API}/viajes/{entrega1}", json={"distancia_km": 99}, headers=headers)
+    assert r.status_code == 200 and r.json()["distancia_km"] == 99
+
+    # Timbrado anticipado con precio exige subtotal; apagarlo con el servicio sin precio sí se puede.
+    r = client.patch(f"{API}/servicios/{sid}", json={"timbrado_anticipado": True, "subtotal": None}, headers=headers)
+    assert r.status_code == 422
+    r = client.patch(f"{API}/servicios/{sid}", json={"timbrado_anticipado": True, "subtotal": 4600}, headers=headers)
+    assert r.status_code == 200 and r.json()["timbrado_anticipado"] is True
+
+    # Con factura vigente la edición fiscal queda bloqueada (409), solo las notas siguen abiertas.
+    session.add(Factura(servicio_id=uuid.UUID(sid), cliente_id=uuid.UUID(cat["cliente"]["id"]),
+                        estado=EstadoFactura.timbrada, serie="ELG", folio="1", metodo_pago="PPD",
+                        uso_cfdi="G03", subtotal=4600, iva_trasladado=736, iva_retenido=184,
+                        total=5152, saldo_insoluto=5152))
+    session.commit()
+    assert client.patch(f"{API}/servicios/{sid}", json={"subtotal": 1}, headers=headers).status_code == 409
+    assert client.patch(f"{API}/viajes/{entrega1}", json={"distancia_km": 1}, headers=headers).status_code == 409
+    assert client.patch(f"{API}/servicios/{sid}", json={"notas": "ok"}, headers=headers).status_code == 200
+    detalle = client.get(f"{API}/servicios/{sid}", headers=headers).json()
+    assert detalle["datos_fiscales_bloqueados"] is True

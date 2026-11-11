@@ -1,4 +1,5 @@
 // `fase-2-servicios.md` H2.1 — crear un servicio con sus viajes en una sola pantalla.
+// H2.3 — la misma pantalla, en `/admin/servicios/:id/editar`, corrige uno ya creado.
 import { hoyMexico } from "../../lib/fecha";
 import {
   Alert,
@@ -8,6 +9,7 @@ import {
   NumberInput,
   Radio,
   Select,
+  Skeleton,
   Stack,
   Switch,
   Text,
@@ -15,16 +17,16 @@ import {
   TextInput,
 } from "@mantine/core";
 import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "../../components/Card";
 import { TotalConIva } from "../../components/TotalConIva";
 import { calcularImpuestos, pesos } from "../../lib/money";
 import { numberInputValue } from "../../lib/numberInput";
 import { clientesApi, operadoresApi, unidadesApi } from "../catalogos/api";
 import { useLugares } from "../catalogos/api";
-import { useCrearServicio } from "./api";
-import type { TimbradoModo, ViajeIn } from "./types";
+import { useCrearServicio, useGuardarEdicionServicio, useServicio } from "./api";
+import type { ServicioDetalle, TimbradoModo, ViajeIn } from "./types";
 import { ViajeRowEditor, type ViajeDraft } from "./components/ViajeRowEditor";
 
 function nuevoId(): string {
@@ -43,9 +45,28 @@ function draftToViajeIn(d: ViajeDraft): ViajeIn {
   };
 }
 
+/** Viajes de un servicio guardado como borradores editables (la `key` es el id real). */
+export function viajesADrafts(servicio: ServicioDetalle): ViajeDraft[] {
+  return servicio.viajes.map((v) => ({
+    key: v.id,
+    tipo: v.tipo,
+    origen_lugar_id: v.origen?.id ?? null,
+    destino_lugar_id: v.destino?.id ?? null,
+    origen_cp: v.origen_cp ?? null,
+    destino_cp: v.destino_cp ?? null,
+    distancia_km: v.distancia_km,
+    notas_admin: v.notas_admin,
+    terminado: v.estado === "terminado",
+  }));
+}
+
 export function ServicioFormPage() {
+  const { id } = useParams<{ id: string }>();
+  const editando = Boolean(id);
   const navigate = useNavigate();
   const crear = useCrearServicio();
+  const guardar = useGuardarEdicionServicio(id ?? "");
+  const { data: original, isLoading: cargando, isError: errorCarga } = useServicio(id ?? null);
 
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [unidadId, setUnidadId] = useState<string | null>(null);
@@ -61,6 +82,22 @@ export function ServicioFormPage() {
   const { data: unidadesPage } = unidadesApi.useList("true", "");
   const { data: operadoresPage } = operadoresApi.useList("true", "");
   const { data: lugaresCliente } = useLugares(clienteId, "");
+
+  // Modo edición: se precargan los datos del servicio una sola vez.
+  const [precargado, setPrecargado] = useState(false);
+  useEffect(() => {
+    if (!original || precargado) return;
+    setClienteId(original.cliente.id);
+    setUnidadId(original.unidad.id);
+    setOperadorId(original.operador.id);
+    setFecha(original.fecha);
+    setNotas(original.notas ?? "");
+    setSubtotal(original.subtotal != null ? Number(original.subtotal) : null);
+    setTimbradoAnticipado(original.timbrado_anticipado);
+    setTimbradoModo(original.timbrado_modo);
+    setViajes(viajesADrafts(original));
+    setPrecargado(true);
+  }, [original, precargado]);
 
   function onElegirCliente(id: string | null) {
     setClienteId(id);
@@ -129,6 +166,25 @@ export function ServicioFormPage() {
 
   function handleSubmit() {
     if (!clienteId || !unidadId || !operadorId) return;
+    if (editando && original) {
+      guardar.mutate(
+        {
+          original,
+          cabecera: {
+            unidad_id: unidadId,
+            operador_id: operadorId,
+            fecha,
+            notas: notas || null,
+            subtotal,
+            timbrado_anticipado: timbradoAnticipado,
+            timbrado_modo: timbradoAnticipado ? timbradoModo : "precio",
+          },
+          viajes: viajes.map((d) => ({ key: d.key, ...draftToViajeIn(d) })),
+        },
+        { onSuccess: () => navigate(`/admin/servicios/${original.id}`) },
+      );
+      return;
+    }
     crear.mutate(
       {
         cliente_id: clienteId,
@@ -152,6 +208,31 @@ export function ServicioFormPage() {
     );
   }
 
+  if (editando && cargando) return <Skeleton height={300} />;
+  if (editando && (errorCarga || !original)) {
+    return (
+      <Alert color="red" icon={<IconAlertTriangle size={18} />}>
+        No se pudo cargar el servicio.
+      </Alert>
+    );
+  }
+  if (editando && original && (original.estado === "cancelado" || original.datos_fiscales_bloqueados)) {
+    return (
+      <Stack>
+        <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
+          {original.estado === "cancelado"
+            ? "El servicio está cancelado; es de solo lectura."
+            : "Facturado: cancela la factura para cambiar sus datos fiscales."}
+        </Alert>
+        <Group>
+          <Button variant="default" onClick={() => navigate(`/admin/servicios/${original.id}`)}>
+            Volver al servicio
+          </Button>
+        </Group>
+      </Stack>
+    );
+  }
+
   return (
     <div className="el-grid-aside">
       <Stack gap="lg">
@@ -165,6 +246,8 @@ export function ServicioFormPage() {
               placeholder="Elige un cliente"
               required
               searchable
+              disabled={editando}
+              description={editando ? "El cliente no se cambia: crea otro servicio." : undefined}
               data={(clientesPage?.items ?? []).map((c) => ({
                 value: c.id,
                 label: c.nombre_comercial,
@@ -325,11 +408,22 @@ export function ServicioFormPage() {
           )}
 
           <Group justify="flex-end" mt="xl">
-            <Button variant="default" onClick={() => navigate("/admin/servicios")}>
+            <Button
+              variant="default"
+              onClick={() => navigate(editando ? `/admin/servicios/${id}` : "/admin/servicios")}
+            >
               Cancelar
             </Button>
-            <Button disabled={!puedeGuardar} loading={crear.isPending} onClick={handleSubmit}>
-              {timbradoAnticipado ? "Crear y revisar para timbrar" : "Crear servicio"}
+            <Button
+              disabled={!puedeGuardar}
+              loading={crear.isPending || guardar.isPending}
+              onClick={handleSubmit}
+            >
+              {editando
+                ? "Guardar cambios"
+                : timbradoAnticipado
+                  ? "Crear y revisar para timbrar"
+                  : "Crear servicio"}
             </Button>
           </Group>
         </Card>

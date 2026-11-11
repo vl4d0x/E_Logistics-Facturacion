@@ -260,6 +260,14 @@ no bloquean). Lógica en `app/modules/servicios/referencias.py`:
 - Un RFC que no está en Clientes se da de alta con la razón social del reporte y **CP/régimen fiscal vacíos**;
   el REP avisa que hay que completarlos. En local se crearon 17 (SAFMEX, FORTA LAB, SUSTAINABLE…).
 
+**11 nov 2026 — Editar servicio** (`/admin/servicios/:id/editar`, menú ⋮ del detalle → "Editar")
+- Reutiliza `ServicioFormPage` en modo edición (cliente fijo). Guarda en este orden: `PATCH /servicios/{id}`
+  (cabecera), `DELETE` de viajes quitados, `PATCH /viajes/{id}` solo de los campos que cambiaron
+  (`cambiosDeViaje` en `api.ts`), `POST` de destinos nuevos. Un viaje guardado conserva su km al abrir (solo se
+  sugiere si cambias el lugar). No aparece "Editar" con servicio cancelado o con factura vigente (`409` por API).
+- Pruebas: `test_editar_servicio_completo_como_lo_hace_la_pantalla` (backend), `edicion.test.ts` (frontend) y
+  recorrido con Playwright en local (SQLite + Vite): editar notas/unidad/precio/destino y agregar destino.
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
@@ -354,6 +362,16 @@ Secretos solo en Railway / `backend/.env` (gitignored). **Nunca** en el chat ni 
 - En la búsqueda de destinos, unir dos palabras ("THYSSEN"+"KRUPP") con la regla de prefijo daba falsos
   positivos ("DISTRIBUIDORA MARGA" → VASSA DIVASSA): la unión solo acepta coincidencia exacta o casi exacta.
   El script de prueba con los destinos reales del Excel está descrito en `test_registro_excel.py`.
+- **URLs**: backend `https://api.elogistics.sbs` (también `elogistics-facturacion-production.up.railway.app`),
+  frontend `https://elogistics.sbs` (también `fearless-energy-production-d98b.up.railway.app`).
+- **"No puedo iniciar sesión / el frontend se ve sin datos" (4 nov 2026)**: no era producción (Railway
+  online, sin errores). La red donde estaba Vlad (IP pública `201.168.166.154`) tiene un **FortiGate** con
+  filtro web que marca `elogistics.sbs`, `api.elogistics.sbs` y el dominio `.up.railway.app` del backend como
+  **"Malicious Websites"** (en HTTPS re-firma el certificado con su CA → error de TLS; en HTTP devuelve
+  "¡Página web bloqueada!"). La PWA carga desde caché, pero ninguna llamada a la API llega a Railway. Cómo
+  detectarlo: los logs HTTP del backend no muestran peticiones de Vlad y
+  `curl http://api.elogistics.sbs/health` devuelve la página de bloqueo. Desde otra red (p.ej. datos del
+  celular) funciona.
 
 ## 7. Migraciones agregadas en esta sesión
 

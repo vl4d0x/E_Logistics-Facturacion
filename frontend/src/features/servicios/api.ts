@@ -101,6 +101,80 @@ export function useEditarServicio(id: string) {
   });
 }
 
+/** Un viaje del formulario de edición: `key` es el id real si ya existía, o `nuevo-…`. */
+export type ViajeEdicion = ViajeIn & { key: string };
+
+const CAMPOS_VIAJE = [
+  "tipo",
+  "origen_lugar_id",
+  "destino_lugar_id",
+  "origen_cp",
+  "destino_cp",
+  "distancia_km",
+  "notas_admin",
+] as const;
+
+/** Solo los campos del viaje que cambiaron respecto a como estaba guardado. */
+export function cambiosDeViaje(actual: ViajeOut, nuevo: ViajeIn): Partial<ViajeIn> {
+  const antes: ViajeIn = {
+    tipo: actual.tipo,
+    origen_lugar_id: actual.origen?.id ?? null,
+    destino_lugar_id: actual.destino?.id ?? null,
+    origen_cp: actual.origen_cp ?? null,
+    destino_cp: actual.destino_cp ?? null,
+    distancia_km: actual.distancia_km,
+    notas_admin: actual.notas_admin ?? null,
+  };
+  const cambios: Record<string, unknown> = {};
+  for (const campo of CAMPOS_VIAJE) {
+    const a = antes[campo] ?? null;
+    const n = (campo === "notas_admin" ? nuevo[campo] || null : nuevo[campo]) ?? null;
+    if (a !== n) cambios[campo] = n;
+  }
+  return cambios as Partial<ViajeIn>;
+}
+
+/**
+ * Guarda la edición completa: cabecera, viajes quitados, viajes modificados y viajes nuevos
+ * (en ese orden, para que quitar un origen y poner otro no choque con "un solo origen").
+ * Si algo falla se detiene y lo ya guardado se refleja al refrescar el detalle.
+ */
+export function useGuardarEdicionServicio(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      original,
+      cabecera,
+      viajes,
+    }: {
+      original: ServicioDetalle;
+      cabecera: ServicioUpdate;
+      viajes: ViajeEdicion[];
+    }) => {
+      const ids = new Set(viajes.map((v) => v.key));
+      const quitados = original.viajes.filter((v) => !ids.has(v.id));
+      const porId = new Map(original.viajes.map((v) => [v.id, v]));
+      const modificados = viajes.flatMap((v) => {
+        const previo = porId.get(v.key);
+        if (!previo) return [];
+        const cambios = cambiosDeViaje(previo, v);
+        return Object.keys(cambios).length ? [{ id: v.key, cambios }] : [];
+      });
+      const nuevos = viajes.filter((v) => !porId.has(v.key));
+
+      await api.patch(`/api/v1/servicios/${id}`, cabecera);
+      for (const v of quitados) await api.delete<void>(`/api/v1/viajes/${v.id}`);
+      for (const m of modificados) await api.patch(`/api/v1/viajes/${m.id}`, m.cambios);
+      for (const { key: _key, ...payload } of nuevos) {
+        await api.post(`/api/v1/servicios/${id}/viajes`, payload);
+      }
+    },
+    onSuccess: () => notifications.show({ color: "green", message: "Servicio actualizado" }),
+    onError: (err) => toastError(err, "No se pudo guardar el servicio"),
+    onSettled: () => invalidarServicios(client, id),
+  });
+}
+
 export function useDuplicarServicio(id: string) {
   const client = useQueryClient();
   return useMutation({
