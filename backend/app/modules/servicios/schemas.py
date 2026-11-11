@@ -4,7 +4,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.modules.servicios.models import EstadoFacturacion, EstadoServicio, EstadoViaje, TipoViaje
 
@@ -272,6 +272,22 @@ class DuplicarServicioIn(BaseModel):
 
 class CancelarServicioIn(BaseModel):
     motivo: str
+
+
+class TerminarEnBloqueIn(BaseModel):
+    servicio_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+
+
+class TerminarEnBloqueItemOut(BaseModel):
+    servicio_id: uuid.UUID
+    numero: int | None = None
+    ok: bool
+    viajes_terminados: int = 0
+    error: str | None = None
+
+
+class TerminarEnBloqueOut(BaseModel):
+    resultados: list[TerminarEnBloqueItemOut]
 
 
 class OrdenViajesIn(BaseModel):

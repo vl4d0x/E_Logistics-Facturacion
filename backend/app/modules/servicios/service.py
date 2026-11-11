@@ -615,6 +615,43 @@ def marcar_terminado(session: Session, servicio_id: uuid.UUID) -> Servicio:
     return servicio
 
 
+def terminar_en_bloque(
+    session: Session, servicio_ids: list[uuid.UUID], current_user: Usuario
+) -> list[dict]:
+    """Termina en nombre del operador todos los viajes pendientes de cada servicio y marca el servicio
+    como terminado. No pide acuse ni folio (se suben después: queda "acuses pendientes").
+    Cada servicio va por separado: si uno falla (cancelado, facturado…) los demás siguen."""
+    resultados: list[dict] = []
+    for sid in dict.fromkeys(servicio_ids):  # sin repetidos, en orden
+        numero = None
+        terminados = 0
+        try:
+            servicio = get_servicio(session, sid)
+            numero = servicio.numero
+            _check_editable(session, servicio)
+            if servicio.estado == EstadoServicio.terminado:
+                raise AppError("conflict", "Ya estaba terminado", 409)
+            pendientes = session.exec(
+                select(Viaje)
+                .where(Viaje.servicio_id == sid, Viaje.estado != EstadoViaje.terminado)
+                .order_by(Viaje.orden)
+            ).all()
+            for v in pendientes:
+                terminar_viaje(session, v.id, TerminarViajeIn(), current_user)
+                terminados += 1
+            marcar_terminado(session, sid)
+            resultados.append(
+                {"servicio_id": sid, "numero": numero, "ok": True, "viajes_terminados": terminados}
+            )
+        except AppError as e:
+            session.rollback()
+            resultados.append(
+                {"servicio_id": sid, "numero": numero, "ok": False,
+                 "viajes_terminados": terminados, "error": e.message}
+            )
+    return resultados
+
+
 def cancelar_servicio(
     session: Session, servicio_id: uuid.UUID, data: CancelarServicioIn
 ) -> Servicio:

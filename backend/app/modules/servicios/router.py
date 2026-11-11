@@ -27,6 +27,8 @@ from app.modules.servicios.schemas import (
     ServicioListItemOut,
     ServicioUpdate,
     SinAcuseIn,
+    TerminarEnBloqueIn,
+    TerminarEnBloqueOut,
     TerminarViajeIn,
     ViajeCreate,
     ViajeMercanciaIn,
@@ -100,6 +102,15 @@ def editar_servicio(
 ) -> ServicioDetalleOut:
     servicio = service.update_servicio(session, servicio_id, body)
     return service.build_servicio_detalle(session, servicio)
+
+
+@router.post("/servicios/terminar-en-bloque", response_model=TerminarEnBloqueOut)
+def terminar_en_bloque(
+    body: TerminarEnBloqueIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> TerminarEnBloqueOut:
+    return TerminarEnBloqueOut(resultados=service.terminar_en_bloque(session, body.servicio_ids, user))
 
 
 @router.post("/servicios/{servicio_id}/duplicar", response_model=ServicioDetalleOut, status_code=201)

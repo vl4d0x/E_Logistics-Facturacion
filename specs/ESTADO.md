@@ -268,6 +268,13 @@ no bloquean). Lógica en `app/modules/servicios/referencias.py`:
 - Pruebas: `test_editar_servicio_completo_como_lo_hace_la_pantalla` (backend), `edicion.test.ts` (frontend) y
   recorrido con Playwright en local (SQLite + Vite): editar notas/unidad/precio/destino y agregar destino.
 
+**11 nov 2026 — Terminar servicios en bloque** (Servicios → botón "Seleccionar")
+- En la lista se marcan varios servicios (programados/en curso; "seleccionar todos los visibles") y "Terminar en
+  nombre del operador (N)" llama a `POST /servicios/terminar-en-bloque {servicio_ids}`: termina todos los viajes
+  pendientes de cada uno (sin acuse ni folio, quedan "acuses pendientes") y marca el servicio terminado (pasa a
+  "Por facturar"). Cada servicio va aparte: uno cancelado/facturado/ya terminado falla con su motivo y los demás
+  siguen. Prueba: `test_terminar_en_bloque_sin_acuse_y_con_fallos_aislados` + recorrido con Playwright.
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y

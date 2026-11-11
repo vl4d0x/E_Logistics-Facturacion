@@ -1,13 +1,14 @@
 // `fase-2-servicios.md` H2.2 — lista de servicios por estado y fecha.
 import { pesos } from "../../lib/money";
-import { Alert, Badge, Button, Group, Select, Table, Tabs, Text, TextInput, Chip } from "@mantine/core";
-import { IconAlertTriangle, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react";
+import { Alert, Badge, Button, Checkbox, Group, Modal, Select, Stack, Table, Tabs, Text, TextInput, Chip } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { IconAlertTriangle, IconChecks, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { descargarArchivo } from "../../lib/descargar";
 import { Card } from "../../components/Card";
 import { clientesApi, operadoresApi, unidadesApi } from "../catalogos/api";
-import { useConteosServicios, useServicios, type FiltrosServicios } from "./api";
+import { useConteosServicios, useServicios, useTerminarEnBloque, type FiltrosServicios } from "./api";
 import type { ServicioListItem, Vista } from "./types";
 
 const TABS: { value: Vista | "todos"; label: string }[] = [
@@ -44,6 +45,9 @@ function agruparPorFecha(items: ServicioListItem[]): [string, ServicioListItem[]
   return [...grupos.entries()];
 }
 
+/** Se pueden terminar en bloque los que no están terminados ni cancelados. */
+const seleccionable = (s: ServicioListItem) => s.estado === "programado" || s.estado === "en_curso";
+
 export function ServiciosPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -57,6 +61,12 @@ export function ServiciosPage() {
   // Filtros que abre el dashboard ("Acuses faltantes", "Inspecciones con fallas").
   const [acusesPendientes, setAcusesPendientes] = useState(params.get("acuses_pendientes") === "true");
   const [inspeccionFallas, setInspeccionFallas] = useState(params.get("inspeccion_fallas") === "true");
+
+  // Selección para terminar varios servicios en nombre del operador.
+  const [seleccionando, setSeleccionando] = useState(false);
+  const [elegidos, setElegidos] = useState<Set<string>>(new Set());
+  const [confirmar, setConfirmar] = useState(false);
+  const terminarBloque = useTerminarEnBloque();
 
   const filtros: FiltrosServicios = useMemo(
     () => ({
@@ -80,6 +90,50 @@ export function ServiciosPage() {
   const { data: unidadesPage } = unidadesApi.useList("true", "");
 
   const grupos = agruparPorFecha(data?.items ?? []);
+  const elegibles = (data?.items ?? []).filter(seleccionable);
+  // Solo cuentan los que siguen visibles (si cambian los filtros no se terminan servicios ocultos).
+  const idsElegidos = elegibles.filter((s) => elegidos.has(s.id)).map((s) => s.id);
+
+  function alternar(id: string) {
+    setElegidos((prev) => {
+      const sig = new Set(prev);
+      if (sig.has(id)) sig.delete(id);
+      else sig.add(id);
+      return sig;
+    });
+  }
+
+  function salirDeSeleccion() {
+    setSeleccionando(false);
+    setElegidos(new Set());
+  }
+
+  function terminarElegidos() {
+    terminarBloque.mutate(idsElegidos, {
+      onSuccess: ({ resultados }) => {
+        const bien = resultados.filter((r) => r.ok);
+        const mal = resultados.filter((r) => !r.ok);
+        if (bien.length) {
+          notifications.show({
+            color: "green",
+            message: `${bien.length} servicio${bien.length === 1 ? "" : "s"} terminado${bien.length === 1 ? "" : "s"} en nombre del operador`,
+          });
+        }
+        if (mal.length) {
+          notifications.show({
+            color: "red",
+            title: "No se pudieron terminar",
+            autoClose: false,
+            message: mal.map((r) => `#${r.numero ?? "?"}: ${r.error}`).join(" · "),
+          });
+        }
+        setConfirmar(false);
+        // Los que fallaron se quedan marcados para reintentar; los terminados se sueltan.
+        setElegidos(new Set(mal.map((r) => r.servicio_id)));
+        if (!mal.length) salirDeSeleccion();
+      },
+    });
+  }
 
   return (
     <Card>
@@ -107,6 +161,13 @@ export function ServiciosPage() {
             }
           >
             Exportar a Excel
+          </Button>
+          <Button
+            variant={seleccionando ? "light" : "default"}
+            leftSection={<IconChecks size={16} />}
+            onClick={() => (seleccionando ? salirDeSeleccion() : setSeleccionando(true))}
+          >
+            {seleccionando ? "Salir de selección" : "Seleccionar"}
           </Button>
           <Button leftSection={<IconPlus size={16} />} onClick={() => navigate("/admin/servicios/nuevo")}>
             Nuevo servicio
@@ -164,6 +225,28 @@ export function ServiciosPage() {
         />
       </Group>
 
+      {seleccionando && (
+        <Group mb="md" justify="space-between" className="el-filters">
+          <Group gap="sm">
+            <Checkbox
+              label="Seleccionar todos los visibles"
+              checked={elegibles.length > 0 && idsElegidos.length === elegibles.length}
+              indeterminate={idsElegidos.length > 0 && idsElegidos.length < elegibles.length}
+              disabled={elegibles.length === 0}
+              onChange={(e) =>
+                setElegidos(e.currentTarget.checked ? new Set(elegibles.map((x) => x.id)) : new Set())
+              }
+            />
+            <Text size="sm" c="dimmed">
+              {idsElegidos.length} seleccionado{idsElegidos.length === 1 ? "" : "s"} · solo programados y en curso
+            </Text>
+          </Group>
+          <Button disabled={idsElegidos.length === 0} onClick={() => setConfirmar(true)}>
+            Terminar en nombre del operador ({idsElegidos.length})
+          </Button>
+        </Group>
+      )}
+
       {isError && (
         <Alert color="red" icon={<IconAlertTriangle size={18} />} mb="md">
           No se pudieron cargar los servicios.
@@ -185,8 +268,23 @@ export function ServiciosPage() {
                 <Table.Tr
                   key={s.id}
                   style={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/admin/servicios/${s.id}`)}
+                  onClick={() =>
+                    seleccionando
+                      ? seleccionable(s) && alternar(s.id)
+                      : navigate(`/admin/servicios/${s.id}`)
+                  }
                 >
+                  {seleccionando && (
+                    <Table.Td w={36}>
+                      <Checkbox
+                        aria-label={`Seleccionar servicio ${s.numero}`}
+                        checked={elegidos.has(s.id)}
+                        disabled={!seleccionable(s)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => alternar(s.id)}
+                      />
+                    </Table.Td>
+                  )}
                   <Table.Td w={60}>#{s.numero}</Table.Td>
                   <Table.Td>{s.cliente}</Table.Td>
                   <Table.Td>{s.ruta_resumen}</Table.Td>
@@ -258,6 +356,27 @@ export function ServiciosPage() {
           Sin servicios {vista === "todos" ? "registrados" : "en esta vista"}.
         </Text>
       )}
+
+      <Modal opened={confirmar} onClose={() => setConfirmar(false)} title="Terminar en nombre del operador">
+        <Stack>
+          <Text size="sm">
+            Se terminarán todos los viajes pendientes de {idsElegidos.length} servicio
+            {idsElegidos.length === 1 ? "" : "s"} y quedarán como terminados (listos para facturar).
+          </Text>
+          <Alert color="yellow" icon={<IconAlertTriangle size={16} />}>
+            No se pide acuse ni folio: quedarán como "acuses pendientes" y los subes después desde cada
+            servicio o en Facturar.
+          </Alert>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setConfirmar(false)}>
+              Volver
+            </Button>
+            <Button loading={terminarBloque.isPending} onClick={terminarElegidos}>
+              Terminar {idsElegidos.length}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Card>
   );
 }

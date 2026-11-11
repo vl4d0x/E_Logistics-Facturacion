@@ -609,3 +609,34 @@ def test_editar_servicio_completo_como_lo_hace_la_pantalla(
     assert client.patch(f"{API}/servicios/{sid}", json={"notas": "ok"}, headers=headers).status_code == 200
     detalle = client.get(f"{API}/servicios/{sid}", headers=headers).json()
     assert detalle["datos_fiscales_bloqueados"] is True
+
+
+def test_terminar_en_bloque_sin_acuse_y_con_fallos_aislados(client: TestClient, admin_user: Usuario):
+    headers = _auth_headers(client, admin_user.email)
+    cat = _setup_catalogos(client, headers)
+    ids = [
+        client.post(f"{API}/servicios", json=_servicio_payload(cat), headers=headers).json()["id"]
+        for _ in range(3)
+    ]
+    # Uno ya con su primer viaje terminado (se completa solo el pendiente), otro cancelado.
+    previo = client.get(f"{API}/servicios/{ids[0]}", headers=headers).json()
+    client.post(f"{API}/viajes/{previo['viajes'][0]['id']}/terminar", json={}, headers=headers)
+    client.post(f"{API}/servicios/{ids[2]}/cancelar", json={"motivo": "x"}, headers=headers)
+
+    r = client.post(f"{API}/servicios/terminar-en-bloque", json={"servicio_ids": [*ids, ids[0]]}, headers=headers)
+    assert r.status_code == 200, r.text
+    res = r.json()["resultados"]
+    assert [(x["ok"], x["viajes_terminados"]) for x in res] == [(True, 1), (True, 2), (False, 0)]
+    assert "cancelado" in res[2]["error"]
+
+    for sid in ids[:2]:
+        d = client.get(f"{API}/servicios/{sid}", headers=headers).json()
+        assert d["estado"] == "terminado" and all(v["estado"] == "terminado" for v in d["viajes"])
+        assert "facturar" in d["acciones_permitidas"]
+        entrega = d["viajes"][1]
+        assert entrega["acuse_requerido"] and not entrega["acuse_completo"]  # acuse pendiente, se sube después
+    # El cancelado sigue cancelado; repetir sobre uno ya terminado no rompe nada.
+    assert client.get(f"{API}/servicios/{ids[2]}", headers=headers).json()["estado"] == "cancelado"
+    r2 = client.post(f"{API}/servicios/terminar-en-bloque", json={"servicio_ids": [ids[0]]}, headers=headers)
+    assert r2.json()["resultados"][0]["ok"] is False
+    assert client.post(f"{API}/servicios/terminar-en-bloque", json={"servicio_ids": []}, headers=headers).status_code == 422

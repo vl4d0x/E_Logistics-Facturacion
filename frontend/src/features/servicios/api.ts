@@ -175,6 +175,27 @@ export function useGuardarEdicionServicio(id: string) {
   });
 }
 
+export interface TerminarEnBloqueResultado {
+  servicio_id: string;
+  numero: number | null;
+  ok: boolean;
+  viajes_terminados: number;
+  error: string | null;
+}
+
+/** Termina en nombre del operador todos los viajes pendientes de varios servicios (sin acuse). */
+export function useTerminarEnBloque() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (servicio_ids: string[]) =>
+      api.post<{ resultados: TerminarEnBloqueResultado[] }>("/api/v1/servicios/terminar-en-bloque", {
+        servicio_ids,
+      }),
+    onSettled: () => invalidarServicios(client),
+    onError: (err) => toastError(err, "No se pudieron terminar los servicios"),
+  });
+}
+
 export function useDuplicarServicio(id: string) {
   const client = useQueryClient();
   return useMutation({
