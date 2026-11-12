@@ -13,6 +13,7 @@ from app.modules.auth.models import RolUsuario, Usuario
 from app.modules.catalogos.schemas import Page
 from app.modules.operacion.schemas import CargaUpdate
 from app.modules.servicios import service
+from app.modules.servicios.models import EstadoServicio
 from app.modules.servicios.schemas import (
     AcuseOut,
     CancelarServicioIn,
@@ -134,9 +135,22 @@ def marcar_terminado(
 
 @router.post("/servicios/{servicio_id}/cancelar", response_model=ServicioDetalleOut)
 def cancelar_servicio(
-    servicio_id: uuid.UUID, body: CancelarServicioIn, session: Session = Depends(get_session)
+    servicio_id: uuid.UUID,
+    body: CancelarServicioIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
 ) -> ServicioDetalleOut:
+    from app.modules.historial import service as historial
+    from app.modules.historial.models import SERVICIO_CANCELADO
+
+    ya_cancelado = service.get_servicio(session, servicio_id).estado == EstadoServicio.cancelado
     servicio = service.cancelar_servicio(session, servicio_id, body)
+    if not ya_cancelado:  # repetir la cancelación no es otro movimiento
+        historial.registrar(
+            session, user, SERVICIO_CANCELADO,
+            f"{historial.describir_servicio(session, servicio.id)} · motivo: {body.motivo}",
+            servicio_id=servicio.id,
+        )
     return service.build_servicio_detalle(session, servicio)
 
 

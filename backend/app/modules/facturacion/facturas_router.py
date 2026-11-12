@@ -10,9 +10,9 @@ from sqlmodel import Session
 from app.core.db import get_session
 from app.core.deps import require_role
 from app.core.errors import AppError
-from app.modules.auth.models import RolUsuario
+from app.modules.auth.models import RolUsuario, Usuario
 from app.modules.facturacion import facturas as svc
-from app.modules.facturacion.models import EstadoFactura
+from app.modules.facturacion.models import EstadoFactura, Factura
 
 router = APIRouter(prefix="/facturas", dependencies=[Depends(require_role(RolUsuario.admin))])
 
@@ -23,6 +23,26 @@ class CancelarIn(BaseModel):
 
 class EnviarIn(BaseModel):
     to: list[str] | None = None
+
+
+def _registrar_envio(session: Session, user: Usuario, factura_id: uuid.UUID, via: str | None = None) -> None:
+    """Anota el envío de una factura (en modo prueba se aclara: no llegó al cliente)."""
+    from app.modules.historial import service as historial
+    from app.modules.historial.models import FACTURA_ENVIADA
+
+    factura = session.get(Factura, factura_id)
+    if factura is None:
+        return
+    texto = historial.describir_factura(session, factura)
+    if destinos := factura.envio_destinatarios:
+        texto += f" · a {', '.join(destinos)}"
+    if getattr(svc.get_settings(), "email_modo_prueba", False):
+        texto += " · MODO PRUEBA (no llegó al cliente)"
+    if via:
+        texto += f" · {via}"
+    historial.registrar(
+        session, user, FACTURA_ENVIADA, texto, servicio_id=factura.servicio_id, factura_id=factura.id
+    )
 
 
 @router.get("")
@@ -63,8 +83,15 @@ def envio_pendiente(session: Session = Depends(get_session)) -> dict[str, Any]:
 
 
 @router.post("/enviar-pendientes")
-def enviar_pendientes(body: EnviarPendientesIn, session: Session = Depends(get_session)) -> dict[str, Any]:
-    return svc.enviar_pendientes(session, body.ids)
+def enviar_pendientes(
+    body: EnviarPendientesIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> dict[str, Any]:
+    resultado = svc.enviar_pendientes(session, body.ids)
+    for e in resultado["enviadas"]:
+        _registrar_envio(session, user, e["id"], "envío en bloque")
+    return resultado
 
 
 @router.get("/{factura_id}")
@@ -92,14 +119,34 @@ def reintentar_archivos(factura_id: uuid.UUID, session: Session = Depends(get_se
 
 
 @router.post("/{factura_id}/enviar")
-def enviar(factura_id: uuid.UUID, body: EnviarIn, session: Session = Depends(get_session)) -> dict[str, Any]:
+def enviar(
+    factura_id: uuid.UUID,
+    body: EnviarIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> dict[str, Any]:
     factura = svc.enviar(session, svc.get_factura(session, factura_id), body.to)
+    _registrar_envio(session, user, factura.id)
     return svc.detalle(session, factura)
 
 
 @router.post("/{factura_id}/cancelar")
-def cancelar(factura_id: uuid.UUID, body: CancelarIn, session: Session = Depends(get_session)) -> dict[str, Any]:
+def cancelar(
+    factura_id: uuid.UUID,
+    body: CancelarIn,
+    session: Session = Depends(get_session),
+    user: Usuario = Depends(require_role(RolUsuario.admin)),
+) -> dict[str, Any]:
+    from app.modules.historial import service as historial
+    from app.modules.historial.models import FACTURA_CANCELADA
+
     factura = svc.cancelar(session, svc.get_factura(session, factura_id), body.motivo)
+    texto = f"{historial.describir_factura(session, factura)} · motivo {body.motivo}"
+    if factura.estado == EstadoFactura.cancelacion_pendiente:
+        texto += " (pendiente de aceptación del cliente)"
+    historial.registrar(
+        session, user, FACTURA_CANCELADA, texto, servicio_id=factura.servicio_id, factura_id=factura.id
+    )
     return svc.detalle(session, factura)
 
 

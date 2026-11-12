@@ -57,4 +57,17 @@ def facturar_servicio(
     session: Session = Depends(get_session),
     user: Usuario = Depends(require_role(RolUsuario.admin)),
 ) -> dict:
-    return service.facturar(session, servicio_id, body, user)
+    resultado = service.facturar(session, servicio_id, body, user)
+    from app.modules.facturacion.models import Factura
+    from app.modules.historial import service as historial
+    from app.modules.historial.models import FACTURA_TIMBRADA
+
+    factura = session.get(Factura, uuid.UUID(resultado["factura"]["id"]))
+    if factura is not None:
+        texto = historial.describir_factura(session, factura)
+        if resultado.get("cancelada_automaticamente"):
+            texto += " · timbrada con $0 y cancelada"
+        historial.registrar(
+            session, user, FACTURA_TIMBRADA, texto, servicio_id=servicio_id, factura_id=factura.id
+        )
+    return resultado

@@ -16,6 +16,7 @@ import type { Rol } from "../lib/auth";
 import { AdminLayout } from "../routes/admin/AdminLayout";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { UsuariosPage } from "../routes/admin/configuracion/UsuariosPage";
+import { HistorialPage } from "../features/historial/HistorialPage";
 import { FacturasPage } from "../features/facturas/FacturasPage";
 import { FacturarExcelPage } from "../features/registroExcel/FacturarExcelPage";
 import { CobranzaPage } from "../features/cobranza/CobranzaPage";
@@ -64,6 +65,7 @@ export function AppRouter() {
           <Route path="servicios/:id/editar" element={<ServicioFormPage />} />
           <Route path="servicios/:id/facturar" element={<FacturarPage />} />
           <Route path="facturar-excel" element={<FacturarExcelPage />} />
+          <Route path="historial" element={<HistorialPage />} />
           <Route path="facturas" element={<FacturasPage />} />
           <Route path="facturas/:id" element={<FacturaDetailPage />} />
           <Route path="cobranza" element={<CobranzaPage />} />

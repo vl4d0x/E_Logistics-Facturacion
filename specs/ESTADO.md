@@ -286,6 +286,17 @@ no bloquean). Lógica en `app/modules/servicios/referencias.py`:
 - Duplicar un servicio **no** copia la casilla (queda con Carta Porte). Pruebas:
   `test_fila_sin_carta_porte_factura_sin_complemento` + recorrido con Playwright.
 
+**11 nov 2026 — Historial de movimientos** (menú "Historial", `/admin/historial`; tabla `movimiento`, migración `0020`)
+- Registra **desde el 11 nov 2026** (no hay relleno de días anteriores) lo que hace cada admin: **Facturó**
+  (`POST /servicios/{id}/facturar`), **Envió factura** (una o "Enviar todas"; en modo prueba la descripción dice
+  "MODO PRUEBA"), **Canceló factura** y **Canceló servicio**. Solo se anota lo que sí se hizo (errores no) y repetir
+  una cancelación no duplica. Si falla el registro, la acción no se rompe (`historial.service.registrar` solo loguea).
+- Cada fila: hora de México, admin, tipo, descripción con enlace a la factura/servicio. Filtros: admin, tipo, fechas;
+  50 por página. `GET /historial`, `GET /historial/filtros`. `servicio_id`/`factura_id` no son FK a propósito.
+- Para sumar otro tipo de movimiento: constante en `historial/models.py` (+ `ETIQUETAS`) y llamar a `registrar` en el
+  router de la acción (ahí está el usuario). Los timbrados "con $0 y cancelar" cuentan como un solo "Facturó".
+- Pruebas: `tests/test_historial.py`; Playwright local en escritorio y 390 px.
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
@@ -400,7 +411,7 @@ cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAX
 cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes. · `0015`
 viaje.reescaneo_motivo/_solicitado_at/_solicitado_por. · `0016` Facturar con Excel (registro_excel*,
 viaje.sin_acuse). · `0017` factura sin servicio: cliente_id, origen, pagado_externo, parcialidades_externas. ·
-`0018` foto_evidencia (fotos opcionales del servicio para el correo). · `0019` servicio.sin_carta_porte.
+`0018` foto_evidencia (fotos opcionales del servicio para el correo). · `0019` servicio.sin_carta_porte · `0020` movimiento (historial).
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

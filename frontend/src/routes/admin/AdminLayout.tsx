@@ -3,6 +3,7 @@ import {
   IconCoin,
   IconFileInvoice,
   IconFileSpreadsheet,
+  IconHistory,
   IconLayoutDashboard,
   IconLogout,
   IconReceipt,
@@ -36,6 +37,12 @@ const NAV_ITEMS: NavItem[] = [
   },
   { label: "Facturas", subtitle: "CFDI timbrados", to: "/admin/facturas", icon: IconReceipt },
   { label: "Cobranza", subtitle: "Pagos y REP", to: "/admin/cobranza", icon: IconCoin },
+  {
+    label: "Historial",
+    subtitle: "Qué hizo cada admin: facturar, enviar y cancelar",
+    to: "/admin/historial",
+    icon: IconHistory,
+  },
   {
     label: "Catálogos",
     subtitle: "Unidades, operadores, clientes, lugares",

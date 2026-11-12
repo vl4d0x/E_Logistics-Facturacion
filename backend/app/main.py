@@ -10,6 +10,7 @@ from app.modules.configuracion.router import router as configuracion_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.facturacion.facturas_router import router as facturas_router
 from app.modules.facturacion.router import router as facturacion_router
+from app.modules.historial.router import router as historial_router
 from app.modules.operacion.router import router as operacion_router
 from app.modules.registro_excel.router import router as registro_excel_router
 from app.modules.servicios.router import router as servicios_router
@@ -39,6 +40,7 @@ app.include_router(configuracion_router, prefix=api_v1)
 app.include_router(cobranza_router, prefix=api_v1)
 app.include_router(dashboard_router, prefix=api_v1)
 app.include_router(registro_excel_router, prefix=api_v1)
+app.include_router(historial_router, prefix=api_v1)
 
 
 @app.get("/health", tags=["health"])
