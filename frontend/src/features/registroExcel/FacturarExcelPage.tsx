@@ -524,6 +524,8 @@ function FilaEditor({
   const [intentado, setIntentado] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
   const [fotos, setFotos] = useState<File[]>([]);
+  // Factura sin Carta Porte: solo el CFDI de ingreso, sin kg ni mercancía.
+  const [sinCartaPorte, setSinCartaPorte] = useState(false);
 
   const modoAcuse = propuesta.modo_acuse;
   const yaCreado = propuesta.servicio;
@@ -581,8 +583,8 @@ function FilaEditor({
     if (l) e.push(l);
     if (!d.sinAcuse && modoAcuse === "referencia" && !d.folio.trim()) e.push("Captura la REF o marca que no tiene");
     if (!d.sinAcuse && modoAcuse === "escaneo" && !d.archivo) e.push("Sube el escaneo o marca que no tiene");
-    if (!d.mercanciaId) e.push("Elige la mercancía");
-    if (!(d.pesoKg && d.pesoKg > 0)) e.push("Captura los kg");
+    if (!sinCartaPorte && !d.mercanciaId) e.push("Elige la mercancía");
+    if (!sinCartaPorte && !(d.pesoKg && d.pesoKg > 0)) e.push("Captura los kg");
     return e;
   }
 
@@ -611,13 +613,16 @@ function FilaEditor({
       unidad_id: unidadId,
       fecha,
       subtotal,
+      sin_carta_porte: sinCartaPorte,
       origen: lugarIn(origen),
       destinos: destinos.map((d) => ({
         ...lugarIn(d),
         folio: modoAcuse === "referencia" && !d.sinAcuse ? d.folio.trim() : null,
         sin_acuse: d.sinAcuse,
         distancia_km: null,
-        mercancias: [{ mercancia_frecuente_id: d.mercanciaId!, peso_kg: d.pesoKg!, cantidad: d.cantidad || 1 }],
+        mercancias: sinCartaPorte
+          ? []
+          : [{ mercancia_frecuente_id: d.mercanciaId!, peso_kg: d.pesoKg!, cantidad: d.cantidad || 1 }],
       })),
     };
     const servicio = await crear.mutateAsync(body).catch(() => null);
@@ -820,6 +825,7 @@ function FilaEditor({
                         onChange={(e) => cambiarDestino(d.key, { sinAcuse: e.currentTarget.checked })}
                       />
                     )}
+                    {!sinCartaPorte && (
                     <Select
                       label="Mercancía"
                       searchable
@@ -828,6 +834,8 @@ function FilaEditor({
                       onChange={(v) => cambiarDestino(d.key, { mercanciaId: v })}
                       nothingFoundMessage="El cliente no tiene mercancías en el catálogo"
                     />
+                    )}
+                    {!sinCartaPorte && (
                     <Group gap="xs" grow wrap="nowrap">
                       <NumberInput
                         label="Kg"
@@ -844,6 +852,7 @@ function FilaEditor({
                         onChange={(v) => cambiarDestino(d.key, { cantidad: numberInputValue(v) })}
                       />
                     </Group>
+                    )}
                   </div>
                   {modoAcuse === "referencia" && !d.sinAcuse && (
                     <AvisoRefRepetida
@@ -860,6 +869,15 @@ function FilaEditor({
               </Card>
             );
           })}
+
+          <Card>
+            <Checkbox
+              label="Factura sin Carta Porte"
+              description="Se timbra solo la factura (CFDI de ingreso), sin el complemento Carta Porte: ya no se piden kg ni mercancía."
+              checked={sinCartaPorte}
+              onChange={(e) => setSinCartaPorte(e.currentTarget.checked)}
+            />
+          </Card>
 
           <Card>
             <FileInput

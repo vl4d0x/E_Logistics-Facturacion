@@ -583,6 +583,7 @@ def crear_servicio(session: Session, numero_fila: int, data: CrearDesdeFilaIn, u
             operador_id=data.operador_id,
             fecha=data.fecha,
             subtotal=data.subtotal,
+            sin_carta_porte=data.sin_carta_porte,
             notas=f"Creado desde el Excel de registros (fila {numero_fila})",
             viajes=viajes_in,
         ),

@@ -165,6 +165,7 @@ class ServicioCreate(BaseModel):
     notas: str | None = None
     timbrado_anticipado: bool = False
     timbrado_modo: Literal["precio", "cero"] = "precio"
+    sin_carta_porte: bool = False
     viajes: list[ViajeCreate]
 
     @model_validator(mode="after")
@@ -219,6 +220,7 @@ class ServicioDetalleOut(BaseModel):
     estado_facturacion: EstadoFacturacion
     timbrado_anticipado: bool
     timbrado_modo: str = "precio"
+    sin_carta_porte: bool = False
     cliente: ClienteResumen
     unidad: UnidadResumen
     operador: OperadorResumen

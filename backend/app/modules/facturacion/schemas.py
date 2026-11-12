@@ -161,6 +161,7 @@ class FacturacionDetalleOut(BaseModel):
     modo: str  # "normal" | "anticipado"
     modo_acuse: str = "escaneo"  # del cliente: escaneo | referencia | ninguno
     timbrado_modo: str = "precio"  # "precio" | "cero" (timbra con $0.10 y se cancela sola)
+    sin_carta_porte: bool = False  # CFDI de ingreso sin el complemento Carta Porte
     servicio_id: uuid.UUID
     receptor: ReceptorOut
     concepto: ConceptoOut
@@ -182,6 +183,7 @@ class FacturacionUpdateIn(BaseModel):
     folio_cliente: str | None = None
     uso_cfdi: str | None = None
     metodo_pago: str | None = None
+    sin_carta_porte: bool | None = None
 
 
 class FacturarIn(BaseModel):

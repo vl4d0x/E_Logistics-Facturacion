@@ -211,6 +211,7 @@ def create_servicio(session: Session, data: ServicioCreate, current_user: Usuari
         notas=data.notas,
         timbrado_anticipado=data.timbrado_anticipado,
         timbrado_modo=data.timbrado_modo if data.timbrado_anticipado else "precio",
+        sin_carta_porte=data.sin_carta_porte,
         created_by=current_user.id,
     )
     session.add(servicio)
@@ -333,6 +334,7 @@ def build_servicio_detalle(session: Session, servicio: Servicio) -> ServicioDeta
         estado_facturacion=servicio.estado_facturacion,
         timbrado_anticipado=servicio.timbrado_anticipado,
         timbrado_modo=servicio.timbrado_modo,
+        sin_carta_porte=servicio.sin_carta_porte,
         cliente={
             "id": cliente.id,
             "nombre_comercial": cliente.nombre_comercial,

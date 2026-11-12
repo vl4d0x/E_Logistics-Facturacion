@@ -105,6 +105,8 @@ export interface CrearDesdeFilaIn {
   operador_id: string;
   fecha: string;
   subtotal: number | null;
+  /** Factura sin el complemento Carta Porte: no se piden kg ni mercancía. */
+  sin_carta_porte?: boolean;
   origen: LugarElegidoIn;
   destinos: DestinoIn[];
 }

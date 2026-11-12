@@ -68,6 +68,7 @@ class CrearDesdeFilaIn(BaseModel):
     operador_id: uuid.UUID
     fecha: date
     subtotal: Decimal | None = None
+    sin_carta_porte: bool = False  # factura sin el complemento Carta Porte: no se piden kg ni mercancía
     origen: LugarElegidoIn
     destinos: list[DestinoIn]
 

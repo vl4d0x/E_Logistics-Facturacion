@@ -275,6 +275,17 @@ no bloquean). Lógica en `app/modules/servicios/referencias.py`:
   "Por facturar"). Cada servicio va aparte: uno cancelado/facturado/ya terminado falla con su motivo y los demás
   siguen. Prueba: `test_terminar_en_bloque_sin_acuse_y_con_fallos_aislados` + recorrido con Playwright.
 
+**11 nov 2026 — Factura sin Carta Porte** (`servicio.sin_carta_porte`, migración `0019`)
+- Casilla "Factura sin Carta Porte" en Facturar con Excel (oculta mercancía/kg; el servicio se crea sin mercancías) y
+  interruptor del mismo nombre arriba de la pantalla Facturar (`PATCH /servicios/{id}/facturacion
+  {sin_carta_porte}`; oculta la sección Mercancías). Solo aplica mientras no haya factura vigente.
+- Efecto: `validar.REGLAS_SOLO_CARTA_PORTE` se omiten (mercancías, km, horas, unidad/operador completos, lugares,
+  inspección…); `construir_payload_cfdi(con_carta_porte=False)` manda el CFDI de ingreso **sin `Complemento`** y no
+  resuelve ubicaciones en Facturama. Sigue pidiendo subtotal, REF/acuse según el cliente, receptor completo y desglose.
+  Unidad y operador siguen siendo obligatorios del servicio (el concepto lleva "UNIDAD: x TON").
+- Duplicar un servicio **no** copia la casilla (queda con Carta Porte). Pruebas:
+  `test_fila_sin_carta_porte_factura_sin_complemento` + recorrido con Playwright.
+
 ## 3. Pendientes conocidos
 
 - ✅ Datos fiscales de clientes: Vlad corrigió razón social/CP de Aerzen, Lesaffre, Parautos y
@@ -389,7 +400,7 @@ cliente.plantilla_correo (con los textos por cliente) · `0012` RFC XEXX → XAX
 cliente.hereda_de_id (AERZEN RENTAL → AERZEN) y nombres de clientes sin espacios sobrantes. · `0015`
 viaje.reescaneo_motivo/_solicitado_at/_solicitado_por. · `0016` Facturar con Excel (registro_excel*,
 viaje.sin_acuse). · `0017` factura sin servicio: cliente_id, origen, pagado_externo, parcialidades_externas. ·
-`0018` foto_evidencia (fotos opcionales del servicio para el correo).
+`0018` foto_evidencia (fotos opcionales del servicio para el correo). · `0019` servicio.sin_carta_porte.
 
 ## 8. Cómo se probó de punta a punta sin tocar producción
 

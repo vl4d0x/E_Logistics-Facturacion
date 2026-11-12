@@ -60,6 +60,9 @@ class Servicio(TimestampMixin, table=True):
     # cancelar solo (cliente que pide la Carta Porte antes de acordar el precio). Vuelve a
     # 'precio' al consumirse, para que el siguiente timbrado use el precio real.
     timbrado_modo: str = Field(default="precio", nullable=False)
+    # Factura sin el complemento Carta Porte (solo CFDI de ingreso): no pide mercancías, km,
+    # unidad ni operador completos, y el timbrado no manda `Complemento`.
+    sin_carta_porte: bool = Field(default=False, nullable=False)
     subtotal: Decimal | None = Field(default=None)
     descripcion_concepto: str | None = Field(default=None)
     # Folio propio del cliente (ej. su remisión) para el concepto de la factura --

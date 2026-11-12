@@ -172,6 +172,7 @@ def construir_payload_cfdi(
     autotransporte: dict[str, Any],
     figura: dict[str, Any],
     total_dist_rec: float,
+    con_carta_porte: bool = True,
 ) -> dict[str, Any]:
     """Payload completo de `POST /3/cfdis` (`04-facturacion-cfdi §1-4.5`).
 
@@ -180,7 +181,7 @@ def construir_payload_cfdi(
     como código postal en alguno de los Lugares de expedición en tu Perfil Fiscal".
     """
     es_moral = receptor["regimen_receptor"] == "moral"
-    return {
+    payload = {
         "Serie": serie,
         "CfdiType": "I",
         "PaymentForm": receptor.get("forma_pago", "99"),
@@ -196,9 +197,11 @@ def construir_payload_cfdi(
             "TaxZipCode": receptor["cp_fiscal"],
         },
         "Items": construir_items(concepto, montos, es_moral),
-        "Complemento": {
+    }
+    if con_carta_porte:
+        payload["Complemento"] = {
             "CartaPorte31": construir_carta_porte(
                 ubicaciones, mercancias, autotransporte, figura, total_dist_rec
             )
-        },
-    }
+        }
+    return payload

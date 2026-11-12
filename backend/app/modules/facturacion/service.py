@@ -234,7 +234,7 @@ def _ubicaciones(
 
 def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> FacturacionDetalleOut:
     servicio = get_servicio(session, servicio_id)
-    if modo_timbrado(servicio) == "cero":
+    if modo_timbrado(servicio) == "cero" and not servicio.sin_carta_porte:
         asegurar_mercancia_default(session, servicio)  # 1 kg de preservativos de alimentos
     cliente = session.get(Cliente, servicio.cliente_id)
     unidad = session.get(Unidad, servicio.unidad_id)
@@ -328,6 +328,7 @@ def construir_detalle_facturacion(session: Session, servicio_id: uuid.UUID) -> F
         timbrado_modo=modo_timbrado(servicio),
         modo_acuse=cliente.modo_acuse.value,
         servicio_id=servicio.id,
+        sin_carta_porte=servicio.sin_carta_porte,
         receptor=ReceptorOut(
             razon_social=cliente.razon_social,
             rfc=cliente.rfc,
@@ -558,7 +559,7 @@ def mensaje_error_pac(mensaje: str) -> str:
 def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current_user: Usuario) -> dict:
     """`04-facturacion-cfdi §6`."""
     servicio = get_servicio(session, servicio_id)
-    if modo_timbrado(servicio) == "cero":
+    if modo_timbrado(servicio) == "cero" and not servicio.sin_carta_porte:
         asegurar_mercancia_default(session, servicio)
 
     factura_vigente = session.exec(
@@ -636,7 +637,8 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
         raise AppError("facturama_no_configurado", str(exc), 503) from exc
 
     try:
-        ubicaciones = _ubicaciones_payload(client, session, viajes, lugares)
+        # Sin Carta Porte no hay ubicaciones que resolver (ni llamadas a Facturama por CP).
+        ubicaciones = [] if servicio.sin_carta_porte else _ubicaciones_payload(client, session, viajes, lugares)
         payload = construir_payload_cfdi(
             serie=settings.facturama_serie,
             expedition_place=settings.emisor_lugar_expedicion,
@@ -671,6 +673,7 @@ def facturar(session: Session, servicio_id: uuid.UUID, body: FacturarIn, current
             },
             figura={"nombre": operador.nombre, "rfc": operador.rfc, "num_licencia": operador.num_licencia},
             total_dist_rec=total_dist_rec,
+            con_carta_porte=not servicio.sin_carta_porte,
         )
 
         factura = session.exec(

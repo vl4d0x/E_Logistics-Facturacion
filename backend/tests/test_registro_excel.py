@@ -233,3 +233,57 @@ def test_safmex_se_factura_a_lesaffre(client: TestClient, admin_user: Usuario):
     assert checks["rfc_no_facturable"]["nivel"] == "error" and "LESAFFRE" in checks["rfc_no_facturable"]["mensaje"]
     r = client.post(f"{API}/servicios/{s['id']}/facturar", json={"total_esperado": "3920.00"}, headers=h)
     assert r.status_code == 409 and any(d["issue"] == "rfc_no_facturable" for d in r.json()["error"]["details"])
+
+
+def test_fila_sin_carta_porte_factura_sin_complemento(client: TestClient, admin_user: Usuario, monkeypatch):
+    from unittest.mock import MagicMock
+
+    from app.modules.facturacion import service as facturacion_service
+    from tests.test_facturacion import _settings_con_facturama_configurado
+
+    h = _auth_headers(client, admin_user.email)
+    cat = _preparar(client, h, [
+        [date(2026, 10, 30), "CHEMITAL", "ENRIQUE", "ENRIQUE", "KICKS", "CHEMITAL", "TIENDAS EXPRES", 1650, 198, 1848],
+        [date(2026, 10, 31), "CHEMITAL", "ENRIQUE", "ENRIQUE", "KICKS", "CHEMITAL", "TIENDAS EXPRES", 1650, 198, 1848],
+    ])
+    # El cliente de prueba exige folio (REF) en el concepto: se captura.
+    def body(sin_cp: bool) -> dict:
+        return {
+            "cliente_id": cat["cliente"]["id"], "unidad_id": cat["unidad"]["id"], "operador_id": cat["operador"]["id"],
+            "fecha": "2026-10-30", "subtotal": "1650.00", "sin_carta_porte": sin_cp,
+            "origen": {"texto_excel": "CHEMITAL", "lugar_id": cat["origen"]["id"]},
+            # Sin kg ni mercancía: solo se permite sin Carta Porte.
+            "destinos": [{"texto_excel": "TIENDAS EXPRES", "lugar_id": cat["destino"]["id"], "folio": "7001"}],
+        }
+
+    # Con Carta Porte, sin mercancías no se puede timbrar (control).
+    normal = client.post(f"{API}/registro-excel/filas/2/servicio", json=body(False), headers=h).json()
+    reglas = {c["regla"]: c["nivel"] for c in client.get(f"{API}/servicios/{normal['id']}/validar", headers=h).json()["checks"]}
+    assert reglas["mercancias_peso"] == "error"
+
+    # Sin Carta Porte: la validación ya no pide mercancías, km ni lo demás del complemento.
+    s = client.post(f"{API}/registro-excel/filas/3/servicio", json=body(True), headers=h)
+    assert s.status_code == 201, s.text
+    s = s.json()
+    assert s["sin_carta_porte"] is True
+    val = client.get(f"{API}/servicios/{s['id']}/validar", headers=h).json()
+    assert [c for c in val["checks"] if c["nivel"] == "error"] == []
+    assert not {"mercancias_peso", "distancia_destino", "unidad_completa", "operador_completo"} & {c["regla"] for c in val["checks"]}
+    assert client.get(f"{API}/servicios/{s['id']}/facturacion", headers=h).json()["sin_carta_porte"] is True
+
+    mock_client = MagicMock()
+    mock_client.create_cfdi.return_value = {
+        "Id": "x1", "Serie": "ELG", "Folio": 7, "Complement": {"TaxStamp": {"Uuid": "1d90e747-05f4-4acc-ab93-876f0f32458f"}},
+    }
+    monkeypatch.setattr(facturacion_service, "get_settings", _settings_con_facturama_configurado)
+    monkeypatch.setattr(facturacion_service, "FacturamaClient", lambda: mock_client)
+    r = client.post(f"{API}/servicios/{s['id']}/facturar", json={"total_esperado": "1848.00"}, headers=h)
+    assert r.status_code == 200, r.text
+    payload = mock_client.create_cfdi.call_args.args[0]
+    assert "Complemento" not in payload
+    assert payload["CfdiType"] == "I" and payload["Items"][0]["Subtotal"] == "1650.00"
+    assert "REF: 7001" in payload["Items"][0]["Description"]
+    mock_client.resolve_postal_code.assert_not_called()  # no se resolvieron ubicaciones
+
+    # Se puede activar/desactivar desde la pantalla Facturar mientras no esté facturado.
+    assert client.patch(f"{API}/servicios/{normal['id']}/facturacion", json={"sin_carta_porte": True}, headers=h).json()["sin_carta_porte"] is True

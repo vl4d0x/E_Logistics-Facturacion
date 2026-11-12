@@ -10,6 +10,7 @@ import {
   Group,
   Modal,
   Select,
+  Switch,
   Skeleton,
   Stack,
   Text,
@@ -181,6 +182,16 @@ export function FacturarPage() {
         </Alert>
       )}
 
+      <Card>
+        <Switch
+          label="Factura sin Carta Porte"
+          description="Se timbra solo el CFDI de ingreso, sin el complemento. No se piden mercancías, km ni datos completos de unidad y operador."
+          checked={!!detalle.sin_carta_porte}
+          disabled={actualizar.isPending}
+          onChange={(e) => actualizar.mutate({ sin_carta_porte: e.currentTarget.checked })}
+        />
+      </Card>
+
       <Grid>
         <Grid.Col span={{ base: 12, md: 7 }}>
           <Stack gap="md">
@@ -351,6 +362,7 @@ export function FacturarPage() {
               <RutaEditable servicioId={detalle.servicio_id} clienteId={detalle.cliente_id} ubicaciones={detalle.ubicaciones} />
             </CollapsibleSection>
 
+            {!detalle.sin_carta_porte && (
             <CollapsibleSection
               title="Mercancías"
               summary={`${detalle.mercancias.length} partidas · ${detalle.mercancias.reduce((a, m) => a + m.peso_kg, 0)} kg`}
@@ -363,6 +375,7 @@ export function FacturarPage() {
                 ubicaciones={detalle.ubicaciones}
               />
             </CollapsibleSection>
+            )}
 
             <CollapsibleSection
               title="Unidad y operador"

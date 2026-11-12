@@ -142,6 +142,7 @@ export interface FacturacionDetalle {
   operador_id?: string | null;
   modo: "normal" | "anticipado";
   timbrado_modo: "precio" | "cero";
+  sin_carta_porte?: boolean;
   modo_acuse?: "escaneo" | "referencia" | "ninguno";
   servicio_id: string;
   receptor: Receptor;
@@ -164,4 +165,5 @@ export interface FacturacionUpdate {
   folio_cliente?: string | null;
   uso_cfdi?: string;
   metodo_pago?: string;
+  sin_carta_porte?: boolean;
 }

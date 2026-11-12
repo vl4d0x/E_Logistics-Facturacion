@@ -81,6 +81,27 @@ CAMPOS_INSPECCION = (
 )
 
 
+# Reglas que solo existen por el complemento Carta Porte: una factura sin él no las necesita.
+REGLAS_SOLO_CARTA_PORTE = frozenset(
+    {
+        "distancia_destino",
+        "horas_programadas",
+        "km_discrepante",
+        "orden_cronologico",
+        "mercancias_peso",
+        "entrega_sin_mercancias",
+        "peso_vs_capacidad",
+        "pbv_en_toneladas",
+        "permiso_a_revisar",
+        "lugares_completos",
+        "rfc_lugar_nacional",
+        "operador_completo",
+        "unidad_completa",
+        "inspeccion_sin_fallas",
+    }
+)
+
+
 def _ok(regla: str, campo: str | None = None) -> ValidacionCheck:
     return ValidacionCheck(regla=regla, nivel="ok", mensaje="", campo=campo)
 
@@ -500,4 +521,6 @@ def validar_servicio(session: Session, servicio: Servicio) -> list[ValidacionChe
         else:
             checks.append(_ok("terminado_por_admin"))
 
+    if servicio.sin_carta_porte:
+        checks = [c for c in checks if c.regla not in REGLAS_SOLO_CARTA_PORTE]
     return checks
